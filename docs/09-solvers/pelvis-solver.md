@@ -2,12 +2,13 @@
 id: pelvis-solver
 title: Pelvis Solver
 status: draft
-version: 26.529.2234
+version: 26.529.2356
 tags:
   - solver
   - pelvis
   - gait
   - provenance
+  - links
 ---
 
 # Pelvis Solver
@@ -62,52 +63,52 @@ Use gait phase to create vertical motion, stance side to create subtle roll, leg
 | Field | Value |
 |---|---|
 | Rule | Pelvis has vertical oscillation and gait-coupled yaw/roll. |
-| Source card | `docs/research/source-cards/joint-kinematics-overview.md` |
+| Source card | [Joint Kinematics Overview](../research/source-cards/joint-kinematics-overview.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | gait kinematics overview |
 | Used from source | Human gait coordinates pelvis and lower limbs rather than keeping pelvis static. |
 | HLS transformation | Added `PelvisVerticalAmplitude`, `PelvisYawAmplitude`, and `PelvisRollAmplitude`. |
 | Confidence | high for relationship, medium for exact amplitudes |
-| Applies to | `Walking`, `Running`, `PoseComposer` |
+| Applies to | [Walking](../05-walking/index.md), [Running](../06-running/index.md), [Pose Composer](./pose-composer.md) |
 
 ### Pelvis as weight carrier
 
 | Field | Value |
 |---|---|
 | Rule | Pelvis is the main visual carrier of weight and support side. |
-| Source card | `docs/research/source-cards/normal-gait-overview.md`, `docs/research/source-cards/joint-kinematics-overview.md` |
+| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md), [Joint Kinematics Overview](../research/source-cards/joint-kinematics-overview.md) |
 | External link | https://teachmeanatomy.info/lower-limb/misc/gait-cycle/ |
 | Source type | gait overview plus HLS animation inference |
 | Used from source | Stance phase and support side define where body weight appears to be carried. |
 | HLS transformation | PelvisSolver outputs debug weight side and stance-side roll. |
 | Confidence | medium |
-| Applies to | `FootTargetSolver`, `Debug Visualization` |
+| Applies to | [Foot Target Solver](./foot-target-solver.md), [Debug Visualization](../10-runtime/debug-visualization.md) |
 
 ### Modifier bias
 
 | Field | Value |
 |---|---|
 | Rule | Load and injury can bias pelvis pitch or roll. |
-| Source card | `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/pathological-gait-asymmetry.md` |
+| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Pathological Gait Asymmetry](../research/source-cards/pathological-gait-asymmetry.md) |
 | External link | https://pubmed.ncbi.nlm.nih.gov/?term=pathological+gait+asymmetry+stance+time+step+length |
 | Source type | load carriage and pathological gait topics |
 | Used from source | Load and injury alter posture, symmetry, and support confidence. |
 | HLS transformation | ModifierResolver adjusts pelvis pitch/roll bias before PelvisSolver output. |
 | Confidence | medium |
-| Applies to | `ModifierStacking`, `Injury`, `Asymmetric Load`, `Backpack` |
+| Applies to | [Modifier Stacking](../10-runtime/modifier-stacking.md), [Injury and Limping Modifier](../08-modifiers/injury-limping.md), [Asymmetric Load Modifier](../08-modifiers/asymmetric-load.md), [Backpack Load Modifier](../08-modifiers/backpack-load.md) |
 
 ### IK reach constraint
 
 | Field | Value |
 |---|---|
 | Rule | Pelvis motion must not overextend legs or cause foot sliding. |
-| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md), [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
 | Source type | implementation constraint / engine documentation |
 | Used from source | IK systems solve toward targets and constraints; unreachable targets create artifacts. |
 | HLS transformation | PelvisSolver must clamp height/offset and expose IK reach warnings. |
 | Confidence | high |
-| Applies to | `Runtime Constraints`, `Debug Visualization`, `Unreal Engine IK` |
+| Applies to | [Runtime Constraints](../10-runtime/constraints.md), [Debug Visualization](../10-runtime/debug-visualization.md), [Unreal Engine](../11-unreal-engine/index.md) |
 
 ## Numeric Data Separation
 
