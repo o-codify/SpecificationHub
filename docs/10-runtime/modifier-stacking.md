@@ -2,11 +2,12 @@
 id: modifier-stacking
 title: Modifier Stacking
 status: draft
-version: 26.529.2149
+version: 26.529.2300
 tags:
   - runtime
   - modifiers
   - stacking
+  - provenance
 ---
 
 # Modifier Stacking
@@ -93,6 +94,68 @@ After all modifiers, clamp:
 - Heavy load can downgrade sprinting.
 - Weapon aiming can override arm swing.
 - Foot locking has priority over cosmetic secondary motion.
+
+## Rule Provenance
+
+### Modifiers affect parameters, not bones
+
+| Field | Value |
+|---|---|
+| Rule | Modifiers change resolved parameters instead of directly writing final bones. |
+| Source card | `docs/research/source-cards/procedural-animation-overview.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
+| Source type | procedural animation architecture |
+| Used from source | Runtime computes intent; animation systems apply pose. |
+| HLS transformation | Modifiers operate on parameter sets before solver execution. |
+| Confidence | high |
+| Applies to | all solvers and PoseComposer |
+
+### Terrain before load and injury
+
+| Field | Value |
+|---|---|
+| Rule | Terrain modifiers resolve before load and injury modifiers. |
+| Source card | `docs/research/source-cards/stairs-and-slopes.md`, `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/antalgic-gait.md` |
+| External link | https://www.physio-pedia.com/Stair_Gait |
+| Source type | terrain, load, and clinical gait references |
+| Used from source | Terrain determines feasible foot placement before posture and asymmetry adjustments. |
+| HLS transformation | Terrain modifies targets first, then load/injury adjust posture and timing. |
+| Confidence | medium-high |
+| Applies to | `FootTargetSolver`, `PelvisSolver`, `ParameterSystem` |
+
+### Conflict priority rules
+
+| Field | Value |
+|---|---|
+| Rule | Stairs override slopes, injury can downgrade running, weapon can override arm swing. |
+| Source card | `docs/research/source-cards/stairs-and-slopes.md`, `docs/research/source-cards/antalgic-gait.md`, `docs/research/source-cards/procedural-animation-overview.md` |
+| External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
+| Source type | terrain, clinical gait, animation architecture |
+| Used from source | Some locomotion constraints are more fundamental than others. |
+| HLS transformation | Added deterministic conflict resolution order. |
+| Confidence | high as runtime rule |
+| Applies to | `LocomotionStateResolver`, `PoseComposer` |
+
+### Safety clamps after stacking
+
+| Field | Value |
+|---|---|
+| Rule | All modifiers are resolved before safety clamps are applied. |
+| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
+| Source type | implementation constraint |
+| Used from source | Final targets must remain reachable and stable. |
+| HLS transformation | Clamp stage executes after stacking to enforce safe ranges. |
+| Confidence | high |
+| Applies to | `Runtime Constraints`, `FootTargetSolver`, `PelvisSolver` |
+
+## Numeric Data Separation
+
+| Value | Category | Usage |
+|---|---|---|
+| stacking order | HLS implementation rule | deterministic resolution |
+| multipliers and offsets | HLS tuning values | parameter modification |
+| safety limits | implementation constraints | prevent invalid outputs |
 
 ## Open Questions
 
