@@ -106,17 +106,40 @@ function buildServer(principal: Principal | null): McpServer {
     "read_doc",
     {
       title: "Read a document",
-      description: "Read a documentation file's frontmatter and Markdown content.",
+      description:
+        "Read a documentation file's frontmatter and Markdown content. Returns the body in pages " +
+        "of lines (default 300) — pass `offset`/`limit` to page through large documents and check " +
+        "`hasMore`/`nextOffset` in the result.",
       inputSchema: {
         path: z.string().describe("Doc path, e.g. docs/04-gait-cycle/index.md"),
         branch: z.string().optional().describe(`Branch (default: ${base})`),
+        offset: z.number().int().min(0).optional().describe("First body line to return (0-based, default 0)"),
+        limit: z.number().int().min(1).max(2000).optional().describe("Max body lines to return (default 300)"),
       },
     },
-    async ({ path, branch }) => {
+    async ({ path, branch, offset, limit }) => {
       const b = branch || base;
       try {
         const { frontmatter, content } = parseFrontmatter(gitlib.readFile(b, path));
-        return ok(content, { path, branch: b, frontmatter, content });
+        const lines = content.split("\n");
+        const off = Math.max(0, offset ?? 0);
+        const lim = limit ?? 300;
+        const slice = lines.slice(off, off + lim);
+        const hasMore = off + lim < lines.length;
+        const nextOffset = hasMore ? off + lim : null;
+        const text = slice.join("\n");
+        return ok(text, {
+          path,
+          branch: b,
+          frontmatter,
+          content: text,
+          offset: off,
+          limit: lim,
+          returnedLines: slice.length,
+          totalLines: lines.length,
+          hasMore,
+          nextOffset,
+        });
       } catch (e) {
         return fail(String((e as Error).message));
       }
@@ -234,6 +257,133 @@ function buildServer(principal: Principal | null): McpServer {
           return fail(String((e as Error).message));
         }
       },
+    );
+
+    // Shared helper for incremental edits: preserves the existing frontmatter,
+    // re-stamps the version, writes a small change + commits (+PR in GitHub mode).
+    // Keeping each call's payload small avoids tripping client-side size limits.
+    type EditResult = { body: string; note?: string; error?: string };
+    const editDoc = async (
+      branch: string,
+      path: string,
+      message: string,
+      transform: (body: string) => EditResult,
+    ) => {
+      const verdict = canWriteBranch(principal, branch);
+      if (!verdict.ok) return fail(verdict.reason ?? "Not allowed");
+      try {
+        if (!gitlib.branchExists(branch)) gitlib.createBranch(branch, base);
+        if (!gitlib.fileExists(branch, path)) {
+          return fail("Document not found on this branch; use save_doc to create it first.");
+        }
+        const { frontmatter, content } = parseFrontmatter(gitlib.readFile(branch, path));
+        const result = transform(content);
+        if (result.error) return fail(result.error);
+        const fm = { ...frontmatter, version: stampVersion() };
+        gitlib.writeFileToBranch(branch, path, serializeDoc(fm, result.body));
+        const commit = gitlib.commit(branch, message, principal.name);
+        let pr: { number: number; url: string } | null = null;
+        if (config.githubEnabled) {
+          const p = await github.ensurePullRequest(branch, base, message);
+          pr = { number: p.number, url: p.url };
+        }
+        return ok(
+          `Updated ${path} on ${branch} (commit ${commit.sha.slice(0, 8)}).` +
+            (result.note ? ` ${result.note}` : "") +
+            (pr ? ` PR #${pr.number}: ${pr.url}` : ""),
+          { branch, path, sha: commit.sha, pullRequest: pr, version: fm.version },
+        );
+      } catch (e) {
+        return fail(String((e as Error).message));
+      }
+    };
+
+    server.registerTool(
+      "append_section",
+      {
+        title: "Append to a document",
+        description:
+          "Append a chunk of Markdown to the end of an existing document on a branch. Use this to " +
+          "build up a large document in small steps (one section per call) instead of one big save_doc.",
+        inputSchema: {
+          branch: z.string().describe("Target branch (e.g. ai/improve-gait)"),
+          path: z.string().describe("Doc path, e.g. docs/04-gait-cycle/index.md"),
+          markdown: z.string().describe("Markdown to append (e.g. a new `## Section` and its body)"),
+          message: z.string().optional().describe("Commit message"),
+        },
+      },
+      ({ branch, path, markdown, message }) =>
+        editDoc(branch, path, message || `Append to ${path}`, (body) => ({
+          body: `${body.replace(/\s*$/, "")}\n\n${markdown.trim()}\n`,
+        })),
+    );
+
+    server.registerTool(
+      "replace_section",
+      {
+        title: "Replace a section",
+        description:
+          "Replace one section of a document, identified by its heading, with new Markdown. The " +
+          "section spans from the matching heading up to the next heading of the same or higher " +
+          "level. Provide the full replacement section (including its heading) in `markdown`.",
+        inputSchema: {
+          branch: z.string().describe("Target branch"),
+          path: z.string().describe("Doc path"),
+          heading: z.string().describe('Heading of the section to replace, e.g. "## Stance phase" or "Stance phase"'),
+          markdown: z.string().describe("Full replacement section, normally starting with its heading"),
+          message: z.string().optional().describe("Commit message"),
+        },
+      },
+      ({ branch, path, heading, markdown, message }) =>
+        editDoc(branch, path, message || `Update "${heading}" in ${path}`, (body) => {
+          const lines = body.split("\n");
+          const target = heading.replace(/^#{1,6}\s*/, "").trim().toLowerCase();
+          let startIdx = -1;
+          let level = 0;
+          for (let i = 0; i < lines.length; i++) {
+            const m = lines[i].match(/^(#{1,6})\s+(.*)$/);
+            if (m && m[2].trim().toLowerCase() === target) {
+              startIdx = i;
+              level = m[1].length;
+              break;
+            }
+          }
+          if (startIdx < 0) return { body, error: `Heading not found: ${heading}` };
+          let endIdx = lines.length;
+          for (let i = startIdx + 1; i < lines.length; i++) {
+            const m = lines[i].match(/^(#{1,6})\s+/);
+            if (m && m[1].length <= level) {
+              endIdx = i;
+              break;
+            }
+          }
+          const next = [...lines.slice(0, startIdx), ...markdown.trim().split("\n"), "", ...lines.slice(endIdx)];
+          return { body: next.join("\n").replace(/\n{3,}/g, "\n\n") };
+        }),
+    );
+
+    server.registerTool(
+      "patch_doc",
+      {
+        title: "Find and replace in a document",
+        description:
+          "Replace every occurrence of an exact text snippet with another in a document. Good for " +
+          "small targeted edits without resending the whole document.",
+        inputSchema: {
+          branch: z.string().describe("Target branch"),
+          path: z.string().describe("Doc path"),
+          find: z.string().describe("Exact text to find (verbatim, may span multiple lines)"),
+          replace: z.string().describe("Replacement text"),
+          message: z.string().optional().describe("Commit message"),
+        },
+      },
+      ({ branch, path, find, replace, message }) =>
+        editDoc(branch, path, message || `Patch ${path}`, (body) => {
+          if (!find) return { body, error: "`find` must not be empty." };
+          if (!body.includes(find)) return { body, error: "Text to replace was not found." };
+          const count = body.split(find).length - 1;
+          return { body: body.split(find).join(replace), note: `(${count} occurrence${count > 1 ? "s" : ""} replaced)` };
+        }),
     );
   }
 

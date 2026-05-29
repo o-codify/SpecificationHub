@@ -132,10 +132,16 @@ HTTP) at `/mcp`, so it can be added as a connector in ChatGPT (Apps SDK) or any
 MCP client.
 
 - **Endpoint:** `POST https://<host>/mcp` (same server/port as the app).
-- **Tools:** `search_docs`, `list_docs`, `read_doc`, `list_branches`,
-  `list_suggestions` (read) and `create_branch`, `save_doc` (write — confined to
-  `ai/*` branches, never the default branch). `save_doc` creates the branch if
-  needed, commits, and opens/updates a PR in GitHub mode.
+- **Tools:** `search_docs` (word-tokenised, matches docs containing all terms),
+  `list_docs`, `read_doc` (paginated — `offset`/`limit` lines, returns
+  `hasMore`/`nextOffset`), `list_branches`, `list_suggestions` (read) and
+  `create_branch`, `save_doc`, `append_section`, `replace_section`, `patch_doc`
+  (write — confined to `ai/*` branches, never the default branch). `save_doc`
+  creates the branch if needed, commits, and opens/updates a PR in GitHub mode.
+  The incremental edit tools (`append_section`/`replace_section`/`patch_doc`)
+  build/modify large documents with small payloads, avoiding client-side size
+  limits. The document `version` is auto-stamped by the server (time-based,
+  minute granularity) and is never an AI/client input.
 
 ### OAuth (ChatGPT connector)
 
