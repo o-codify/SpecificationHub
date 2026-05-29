@@ -2,7 +2,7 @@
 id: solvers
 title: Solvers
 status: draft
-version: 26.529.2236
+version: 26.529.2238
 tags:
   - solvers
   - runtime
@@ -33,7 +33,7 @@ GaitPhaseGenerator
 
 | Solver | Document | Main responsibility | Provenance status |
 |---|---|---|---|
-| GaitPhaseGenerator | `docs/09-solvers/gait-phase-generator.md` | cadence, phase, stance/swing timing | needs provenance table upgrade |
+| GaitPhaseGenerator | `docs/09-solvers/gait-phase-generator.md` | cadence, phase, stance/swing timing | upgraded |
 | FootTargetSolver | `docs/09-solvers/foot-target-solver.md` | foot targets, contact, lock state | upgraded |
 | PelvisSolver | `docs/09-solvers/pelvis-solver.md` | pelvis rhythm, weight carrier, IK reach | upgraded |
 | SpineSolver | `docs/09-solvers/spine-solver.md` | torso compensation, posture, stiffness | upgraded |
@@ -60,6 +60,7 @@ GaitPhaseGenerator
 | load and posture | `load-carriage-posture.md`, `backpack-load-gait.md`, `kit-whole-body.md` |
 | injury asymmetry | `antalgic-gait.md`, `pathological-gait-asymmetry.md` |
 | arm swing | `joint-kinematics-overview.md`, `running-biomechanics.md` |
+| phase continuity | `motion-matching.md`, `lafan1.md` |
 | pose composition | `procedural-animation-overview.md`, `unreal-engine-control-rig.md`, `pose-warping.md` |
 
 ## Runtime Contract
@@ -73,6 +74,6 @@ Each solver should expose:
 - debug values;
 - source-backed rules if the solver has non-trivial behavior.
 
-## Open Work
+## Current Status
 
-`GaitPhaseGenerator` still needs the same Markdown `Rule Provenance` upgrade as the other solver docs.
+All primary solver documents now include Markdown `Rule Provenance` tables that link solver rules to source cards and external links.
