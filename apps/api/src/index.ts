@@ -48,6 +48,27 @@ async function bootstrap(): Promise<void> {
 
 function createApp(): express.Express {
   const app = express();
+
+  // CORS — ChatGPT (and other browser-based MCP clients) fetch the OAuth
+  // discovery/registration endpoints and probe /mcp from the browser, so these
+  // responses must be CORS-enabled. Without this the connector's auth popup
+  // stays on about:blank because the cross-origin fetches are blocked.
+  app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Authorization, Content-Type, mcp-session-id, mcp-protocol-version, last-event-id",
+    );
+    res.setHeader("Access-Control-Expose-Headers", "WWW-Authenticate, mcp-session-id");
+    if (req.method === "OPTIONS") {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+  });
+
   app.use(express.json({ limit: "5mb" }));
 
   app.use("/api", createRouter());
