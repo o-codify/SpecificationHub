@@ -2,11 +2,12 @@
 id: slope-modifier
 title: Slope Modifier
 status: draft
-version: 26.529.2132
+version: 26.529.2223
 tags:
   - modifier
   - slope
   - terrain
+  - provenance
 ---
 
 # Slope Modifier
@@ -65,6 +66,56 @@ The goal is visual plausibility for games, not exact biomechanical simulation.
 ## Runtime Rule
 
 Slope should modify posture and foot targets before IK. It should not be a separate animation state unless the slope is extreme.
+
+## Rule Provenance
+
+### Uphill lean and foot lift
+
+| Field | Value |
+|---|---|
+| Rule | Uphill movement increases forward torso lean and foot lift. |
+| Source card | `docs/research/source-cards/stairs-and-slopes.md` |
+| External link | https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7454943/ |
+| Source type | biomechanics overview / HLS simplification |
+| Used from source | Incline locomotion changes body mechanics and effort. |
+| HLS transformation | Converted incline effect into `UphillTorsoLean`, `UphillFootLiftMultiplier`, and step length reduction. |
+| Confidence | medium |
+| Applies to | `FootTargetSolver`, `SpineSolver`, `PelvisSolver` |
+
+### Downhill caution
+
+| Field | Value |
+|---|---|
+| Rule | Downhill movement uses cautious placement and reduced confidence. |
+| Source card | `docs/research/source-cards/stairs-and-slopes.md` |
+| External link | https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7454943/ |
+| Source type | biomechanics overview plus gameplay readability inference |
+| Used from source | Downhill locomotion differs from level and uphill locomotion. |
+| HLS transformation | Added `downhill caution`, cadence reduction, and reduced stride confidence. |
+| Confidence | medium |
+| Applies to | `FootTargetSolver`, `ModifierResolver` |
+
+### Slope before IK
+
+| Field | Value |
+|---|---|
+| Rule | Slope modifies posture and foot targets before IK application. |
+| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
+| Source type | implementation constraint / engine documentation |
+| Used from source | IK systems apply targets; they should not own high-level terrain logic. |
+| HLS transformation | Slope modifies FootTargetSolver and PostureResolver before Control Rig or IK Rig applies bones. |
+| Confidence | high |
+| Applies to | `docs/09-solvers/foot-target-solver.md`, `docs/11-unreal-engine/index.md` |
+
+## Numeric Data Separation
+
+| Value | Category | Usage |
+|---|---|---|
+| uphill/downhill changes locomotion | source-backed relationship | enable slope modifier |
+| `UphillTorsoLean = 0..12 deg` | HLS tuning range | first-pass visual parameter |
+| `DownhillTorsoLean = 0..-6 deg` | HLS tuning range | first-pass visual parameter |
+| `UphillFootLiftMultiplier = 1.0..1.5` | HLS tuning range | first-pass foot clearance parameter |
 
 ## Open Questions
 
