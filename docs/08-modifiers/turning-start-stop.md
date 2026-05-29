@@ -2,12 +2,13 @@
 id: turning-starting-and-stopping
 title: Turning, Starting, and Stopping
 status: draft
-version: 26.529.2134
+version: 26.529.2229
 tags:
   - modifier
   - turning
   - start
   - stop
+  - provenance
 ---
 
 # Turning, Starting, and Stopping
@@ -71,6 +72,56 @@ These actions are not full physics. They are visual rules that make momentum and
 - StopLeanAmount
 - StartLeanAmount
 - PivotStepThreshold
+
+## Rule Provenance
+
+### Start and stop need explicit transition states
+
+| Field | Value |
+|---|---|
+| Rule | Start and stop should be explicit states, not only speed changes. |
+| Source card | `docs/research/source-cards/gait-transitions-turning.md` |
+| External link | https://pubmed.ncbi.nlm.nih.gov/?term=gait+initiation+turning+walking+biomechanics |
+| Source type | gait transition research topic plus HLS gameplay readability |
+| Used from source | Gait initiation and stopping are transition behaviors with body preparation and support changes. |
+| HLS transformation | Added Start and Stop states in `LocomotionStateResolver` with lean and step adjustments. |
+| Confidence | medium |
+| Applies to | `LocomotionStateResolver`, `SpineSolver`, `FootTargetSolver` |
+
+### Turning should use foot targets and torso lag
+
+| Field | Value |
+|---|---|
+| Rule | Turning should not rotate the body as one rigid block. |
+| Source card | `docs/research/source-cards/gait-transitions-turning.md`, `docs/research/source-cards/pose-warping.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/pose-warping-in-unreal-engine |
+| Source type | locomotion topic / game animation implementation |
+| Used from source | Direction changes need trajectory adaptation and pose continuity. |
+| HLS transformation | Added foot target redirection, pelvis turn, chest lag, and optional head lead. |
+| Confidence | medium |
+| Applies to | `FootTargetSolver`, `SpineSolver`, `PoseComposer` |
+
+### Pivot steps instead of sliding
+
+| Field | Value |
+|---|---|
+| Rule | Turn-in-place should use visible pivot steps instead of sliding feet. |
+| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/gait-transitions-turning.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
+| Source type | implementation constraint / game animation readability |
+| Used from source | Foot contact stability is critical for believable ground interaction. |
+| HLS transformation | Added `PivotStepThreshold` and turn-in-place foot target rules. |
+| Confidence | high for visual rule, medium for thresholds |
+| Applies to | `FootTargetSolver`, `PoseComposer`, `Runtime Constraints` |
+
+## Numeric Data Separation
+
+| Value | Category | Usage |
+|---|---|---|
+| start/stop/turn are transition behaviors | source-backed relationship | explicit resolver states |
+| `TurnAnticipation` | HLS tuning value | lead movement before full turn |
+| `TorsoLag` | HLS tuning value | readable body segmentation |
+| `PivotStepThreshold` | HLS tuning value | switch from twist to pivot steps |
 
 ## Open Questions
 
