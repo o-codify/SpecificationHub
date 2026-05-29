@@ -256,13 +256,16 @@ tbody tr:hover{background:var(--surface-2)}
   color:var(--text);font-size:14.5px;transition:background .12s,color .12s;
 }
 .sb-item:hover{background:var(--surface-2)}
+.sb-chev{border:none;background:transparent;color:var(--faint);cursor:pointer;width:16px;height:16px;margin-left:-4px;display:grid;place-items:center;font-size:9px;line-height:1;flex:0 0 auto;padding:0;border-radius:4px}
+.sb-chev:hover{background:color-mix(in oklch,var(--text) 12%,transparent);color:var(--text)}
+.sb-folder>.sb-name b{color:var(--muted);font-weight:600;text-transform:none}
 .sb-name{display:flex;align-items:center;gap:10px;min-width:0;flex:1 1 auto}
 .sb-change{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:18px;padding:0 6px;border-radius:var(--r-pill);font-size:10px;font-weight:700;background:color-mix(in oklch,var(--p2) 62%,var(--surface));color:var(--p-ink);flex:0 0 auto}
 .sb-new{display:inline-flex;align-items:center;justify-content:center;height:18px;padding:0 7px;border-radius:var(--r-pill);font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:color-mix(in oklch,var(--s-stable) 30%,var(--surface));color:var(--s-stable);flex:0 0 auto}
 .sb-name b{font-weight:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--dot,var(--accent));flex:0 0 auto}
 .sb-item.active{background:color-mix(in oklch,var(--dot,var(--accent)) 24%,var(--surface));color:var(--text-strong);font-weight:600;box-shadow:inset 0 0 0 1px color-mix(in oklch,var(--dot,var(--accent)) 44%,var(--border))}
-.doc-main{padding:36px 56px;max-width:860px;margin:0 auto;width:100%}
+.doc-main{padding:36px 56px;max-width:860px;margin:0 auto;width:100%;min-width:0}
 .doc-meta{display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;min-height:32px}
 .doc-edit-btn{margin-left:auto;height:32px;padding:0 14px;font-size:13px}
 /* inline editing (in place) */
@@ -414,8 +417,11 @@ tbody tr:hover{background:var(--surface-2)}
 /* rendered markdown in the reader (react-markdown into .doc-body) */
 .doc-body code{font-family:var(--font-mono);font-size:.86em;background:oklch(0.5 0.02 60/.12);padding:1px 5px;border-radius:4px}
 .doc-body pre code{background:none;padding:0;font-size:13px}
-.doc-body a{color:var(--link)}
-.doc-body table{width:100%;border-collapse:collapse;margin:0 0 18px}
+.doc-body a{color:var(--link);overflow-wrap:anywhere}
+/* Never let content (long URLs, wide tables, etc.) push the page wider than the
+   viewport. Long tokens wrap; oversized tables scroll inside their own box. */
+.doc-body,.doc-path{overflow-wrap:anywhere}
+.doc-body table{display:block;width:100%;max-width:100%;overflow-x:auto;border-collapse:collapse;margin:0 0 18px}
 .doc-body th,.doc-body td{border:1px solid var(--border);padding:8px 12px}
 /* text selection: off for the app chrome, on for document content + fields */
 body{-webkit-user-select:none;user-select:none}

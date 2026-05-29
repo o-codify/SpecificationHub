@@ -16,6 +16,7 @@ import { Highlight } from "../components/Highlight";
 import { InlineEditor, type EditorInitial } from "../components/InlineEditor";
 import { InlineChanges } from "../components/InlineChanges";
 import { Suggestions } from "../components/Suggestions";
+import { DocTree, buildDocTree } from "../components/DocTree";
 
 type Mode = "view" | "edit" | "new";
 
@@ -34,6 +35,7 @@ export function DocsReader() {
   // the default branch), this holds that branch; otherwise null.
   const [newDocBranch, setNewDocBranch] = useState<string | null>(null);
   const [acceptingNew, setAcceptingNew] = useState(false);
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [searchedFor, setSearchedFor] = useState("");
@@ -148,6 +150,25 @@ export function DocsReader() {
 
   useEffect(loadDoc, [loadDoc]);
 
+  // Auto-expand the category path leading to the open document.
+  useEffect(() => {
+    if (!doc?.path) return;
+    const parts = doc.path.split("/");
+    parts.pop();
+    const dirs: string[] = [];
+    let p = "";
+    for (const seg of parts) {
+      p = p ? `${p}/${seg}` : seg;
+      dirs.push(p);
+    }
+    setExpandedDirs((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const d of dirs) if (!next.has(d)) { next.add(d); changed = true; }
+      return changed ? next : prev;
+    });
+  }, [doc?.path]);
+
   const openDoc = (p: string) => {
     setSidebarOpen(false);
     navigate(`/docs/${pathToSlug(p)}${branchQuery}`);
@@ -227,6 +248,17 @@ export function DocsReader() {
     ],
     [tree, newDocs, treePaths],
   );
+  const treeNodes = useMemo(() => buildDocTree(sidebarItems), [sidebarItems]);
+  const toggleDir = useCallback(
+    (dirPath: string) =>
+      setExpandedDirs((prev) => {
+        const next = new Set(prev);
+        if (next.has(dirPath)) next.delete(dirPath);
+        else next.add(dirPath);
+        return next;
+      }),
+    [],
+  );
 
   return (
     <div className="docs-shell">
@@ -285,35 +317,14 @@ export function DocsReader() {
           </div>
         ) : (
           <div className="sb-list">
-            {sidebarItems.map((item) => {
-              const active = doc?.path === item.path;
-              const n = counts[item.path] || 0;
-              return (
-                <div
-                  key={item.path}
-                  className={`sb-item${active ? " active" : ""}`}
-                  style={{ ["--dot" as string]: statusColor(item.status) } as CSSProperties}
-                  onClick={() => openDoc(item.path)}
-                >
-                  <span className="sb-name">
-                    <i className="dot" />
-                    <b>{item.title}</b>
-                  </span>
-                  {item.isNew ? (
-                    <span className="sb-new" title="New document proposed on a branch">
-                      new
-                    </span>
-                  ) : (
-                    n > 0 && (
-                      <span className="sb-change" title={`${n} proposed change${n > 1 ? "s" : ""}`}>
-                        {n}
-                      </span>
-                    )
-                  )}
-                  <StatusBadge status={item.status} />
-                </div>
-              );
-            })}
+            <DocTree
+              nodes={treeNodes}
+              currentPath={doc?.path}
+              counts={counts}
+              expanded={expandedDirs}
+              onOpen={openDoc}
+              onToggle={toggleDir}
+            />
             {sidebarItems.length === 0 && !error && <div className="muted">No documents.</div>}
           </div>
         )}
