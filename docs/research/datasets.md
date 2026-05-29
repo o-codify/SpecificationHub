@@ -2,11 +2,12 @@
 id: motion-datasets
 title: Motion Datasets
 status: draft
-version: 26.529.2333
+version: 26.529.2340
 tags:
   - research
   - datasets
   - linked-sources
+  - links
 ---
 
 # Motion Datasets
@@ -30,11 +31,11 @@ Datasets are research and validation references. They are not mandatory runtime 
 
 | Dataset | Links | HLS use | Source card |
 |---|---|---|---|
-| CMU Motion Capture Database | http://mocap.cs.cmu.edu/ | walking/running validation | [CMU Mocap](source-cards/cmu-mocap.md) |
-| AMASS | https://amass.is.tue.mpg.de/ | broad motion validation | [AMASS](source-cards/amass.md) |
-| Human3.6M | http://vision.imar.ro/human3.6m/description.php | pose / joint validation | [Human3.6M](source-cards/human36m.md) |
-| KIT Whole-Body Human Motion Database | https://motion-database.humanoids.kit.edu/ | whole-body / carrying reference | [KIT Whole-Body](source-cards/kit-whole-body.md) |
-| LaFAN1 | https://github.com/ubisoft/ubisoft-laforge-animation-dataset | transition validation | [LaFAN1](source-cards/lafan1.md) |
+| CMU Motion Capture Database | http://mocap.cs.cmu.edu/ | walking/running validation | [CMU Mocap](./source-cards/cmu-mocap.md) |
+| AMASS | https://amass.is.tue.mpg.de/ | broad motion validation | [AMASS](./source-cards/amass.md) |
+| Human3.6M | http://vision.imar.ro/human3.6m/description.php | pose / joint validation | [Human3.6M](./source-cards/human36m.md) |
+| KIT Whole-Body Human Motion Database | https://motion-database.humanoids.kit.edu/ | whole-body / carrying reference | [KIT Whole-Body](./source-cards/kit-whole-body.md) |
+| LaFAN1 | https://github.com/ubisoft/ubisoft-laforge-animation-dataset | transition validation | [LaFAN1](./source-cards/lafan1.md) |
 
 ## CMU Motion Capture Database
 
@@ -42,7 +43,7 @@ Datasets are research and validation references. They are not mandatory runtime 
 
 - Official page: http://mocap.cs.cmu.edu/
 - Usage notes: http://mocap.cs.cmu.edu/usage.php
-- Source card: [CMU Mocap](source-cards/cmu-mocap.md)
+- Source card: [CMU Mocap](./source-cards/cmu-mocap.md)
 
 ### HLS Use
 
@@ -61,7 +62,7 @@ Use as offline reference and validation material. Check usage terms before redis
 
 - Official page: https://amass.is.tue.mpg.de/
 - Paper: https://arxiv.org/abs/1904.03278
-- Source card: [AMASS](source-cards/amass.md)
+- Source card: [AMASS](./source-cards/amass.md)
 
 ### HLS Use
 
@@ -80,7 +81,7 @@ AMASS includes many underlying datasets. License terms can vary by subset.
 
 - Official page: http://vision.imar.ro/human3.6m/description.php
 - EULA: http://vision.imar.ro/human3.6m/eula.php
-- Source card: [Human3.6M](source-cards/human36m.md)
+- Source card: [Human3.6M](./source-cards/human36m.md)
 
 ### HLS Use
 
@@ -98,7 +99,7 @@ Useful for pose and joint validation, less directly for game locomotion feel.
 
 - Official database page: https://motion-database.humanoids.kit.edu/
 - KIT H2T page: https://h2t.iar.kit.edu/english/545.php
-- Source card: [KIT Whole-Body](source-cards/kit-whole-body.md)
+- Source card: [KIT Whole-Body](./source-cards/kit-whole-body.md)
 
 ### HLS Use
 
@@ -117,7 +118,7 @@ Useful for load/carrying and whole-body coordination research.
 - Project article: https://www.ubisoft.com/en-us/studio/laforge/news/6xXL85Q3bF2vEj76xmnmIu/lafan1-a-largescale-motion-dataset-for-animation
 - GitHub: https://github.com/ubisoft/ubisoft-laforge-animation-dataset
 - Paper: https://arxiv.org/abs/2107.07402
-- Source card: [LaFAN1](source-cards/lafan1.md)
+- Source card: [LaFAN1](./source-cards/lafan1.md)
 
 ### HLS Use
 
