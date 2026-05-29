@@ -2,11 +2,12 @@
 id: runtime-constraints
 title: Runtime Constraints
 status: draft
-version: 26.529.2150
+version: 26.529.2305
 tags:
   - runtime
   - constraints
   - safety
+  - provenance
 ---
 
 # Runtime Constraints
@@ -61,6 +62,55 @@ Constraints prevent procedural solvers from creating impossible, ugly, or unstab
 ## Debug Constraints
 
 Whenever a clamp changes a value, debug output should expose it.
+
+## Rule Provenance
+
+### IK reach and foot stability
+
+| Field | Value |
+|---|---|
+| Rule | Foot targets must remain reachable and stance feet should remain stable. |
+| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
+| Source type | IK implementation constraint |
+| Used from source | Stable contact and reachable targets prevent visible artifacts. |
+| HLS transformation | Added IK reach limits, foot lock constraints, and terrain clearance checks. |
+| Confidence | high |
+| Applies to | `FootTargetSolver`, `PelvisSolver`, `OutputPose` |
+
+### Modifier downgrade instead of pose breakage
+
+| Field | Value |
+|---|---|
+| Rule | Injury and load should downgrade gait before producing extreme poses. |
+| Source card | `docs/research/source-cards/antalgic-gait.md`, `docs/research/source-cards/load-carriage-posture.md` |
+| External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
+| Source type | clinical gait and load carriage references |
+| Used from source | Pain and load alter locomotion behavior rather than creating impossible movement. |
+| HLS transformation | Resolver downgrades locomotion state before extreme parameter values are allowed. |
+| Confidence | medium-high |
+| Applies to | `LocomotionStateResolver`, `ModifierStacking` |
+
+### Networking continuity
+
+| Field | Value |
+|---|---|
+| Rule | Network corrections should preserve continuity whenever possible. |
+| Source card | `docs/research/source-cards/motion-matching.md`, `docs/research/source-cards/lafan1.md` |
+| External link | https://github.com/ubisoft/ubisoft-laforge-animation-dataset |
+| Source type | transition continuity reference |
+| Used from source | Temporal continuity is critical for believable locomotion. |
+| HLS transformation | Added gradual phase correction and anti-pop smoothing requirements. |
+| Confidence | high |
+| Applies to | `Networking`, `GaitPhaseGenerator`, `PoseComposer` |
+
+## Numeric Data Separation
+
+| Value | Category | Usage |
+|---|---|---|
+| IK reach limits | implementation constraint | solver safety |
+| clamp thresholds | HLS tuning values | runtime safety |
+| downgrade thresholds | HLS tuning values | gait protection |
 
 ## Open Questions
 
