@@ -2,11 +2,12 @@
 id: foot-target-solver
 title: Foot Target Solver
 status: draft
-version: 26.529.2133
+version: 26.529.2229
 tags:
   - solver
   - feet
   - ik
+  - provenance
 ---
 
 # Foot Target Solver
@@ -49,6 +50,69 @@ The solver outputs intent. IK or Control Rig applies the final bones.
 ## Runtime Notes
 
 Foot locking is more important than exact anatomical motion. Visible foot sliding breaks believability faster than small phase errors.
+
+## Rule Provenance
+
+### Stance foot locking
+
+| Field | Value |
+|---|---|
+| Rule | During stance, foot target remains locked unless correction is required. |
+| Source card | `docs/research/source-cards/ik-foot-placement.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
+| Source type | IK / game animation implementation constraint |
+| Used from source | IK can apply procedural foot targets; stable contact prevents sliding. |
+| HLS transformation | FootTargetSolver emits foot lock state for stance feet before IK. |
+| Confidence | high |
+| Applies to | `IK/FK Output`, `Runtime Constraints`, `Debug Visualization` |
+
+### Swing foot arc
+
+| Field | Value |
+|---|---|
+| Rule | Swing foot follows a lifted arc toward next target. |
+| Source card | `docs/research/source-cards/normal-gait-overview.md`, `docs/research/source-cards/ik-foot-placement.md` |
+| External link | https://www.physio-pedia.com/The_Gait_Cycle |
+| Source type | gait overview plus procedural implementation |
+| Used from source | Swing is the recovery phase; procedural IK needs clearance over terrain. |
+| HLS transformation | Foot lift height and swing interpolation are solver parameters. |
+| Confidence | high for concept, medium for exact arc |
+| Applies to | `Walking`, `Running`, `Slope`, `Stairs` |
+
+### Terrain target selection
+
+| Field | Value |
+|---|---|
+| Rule | Slope and stairs modify foot target selection before IK. |
+| Source card | `docs/research/source-cards/stairs-and-slopes.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
+| Source type | terrain locomotion plus engine docs |
+| Used from source | Terrain-specific locomotion needs adjusted foot placement; IK applies targets. |
+| HLS transformation | FootTargetSolver consumes terrain traces and outputs slope/stair-aware targets. |
+| Confidence | high |
+| Applies to | `Slope Modifier`, `Stairs Modifier`, `Unreal Engine IK` |
+
+### Step parameters from modifiers
+
+| Field | Value |
+|---|---|
+| Rule | Load and injury can alter step length, width, and confidence. |
+| Source card | `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/pathological-gait-asymmetry.md` |
+| External link | https://pubmed.ncbi.nlm.nih.gov/?term=pathological+gait+asymmetry+stance+time+step+length |
+| Source type | load carriage / pathological gait topics |
+| Used from source | Load and injury affect posture, symmetry, and gait parameters. |
+| HLS transformation | ModifierResolver changes step length, step width, and side-specific confidence before foot target solving. |
+| Confidence | medium |
+| Applies to | `ModifierStacking`, `Backpack`, `Injury`, `Asymmetric Load` |
+
+## Numeric Data Separation
+
+| Value | Category | Usage |
+|---|---|---|
+| stance foot should remain stable | implementation rule | foot lock |
+| swing foot needs clearance | source-backed relationship plus implementation rule | foot lift arc |
+| foot correction threshold | HLS tuning value | clamp stance correction |
+| foot lift height | HLS tuning value | terrain clearance |
 
 ## Open Questions
 
