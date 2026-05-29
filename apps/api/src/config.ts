@@ -41,6 +41,12 @@ export const config = {
   // Minimum gap between background `git fetch` syncs triggered by reads.
   syncIntervalMs: Number(process.env.HLS_SYNC_INTERVAL_MS ?? 10000),
   mcpEnabled: (process.env.HLS_MCP_ENABLED ?? "true") !== "false",
+  // Public base URL of this server (scheme + host, no trailing slash). Used to
+  // build absolute OAuth metadata URLs. If empty, derived from request headers
+  // (honouring X-Forwarded-Proto / X-Forwarded-Host behind a proxy).
+  publicUrl: (process.env.HLS_PUBLIC_URL ?? "").replace(/\/$/, ""),
+  // Access-token lifetime for the MCP OAuth flow (seconds).
+  oauthTokenTtlSec: Number(process.env.HLS_OAUTH_TOKEN_TTL_SEC ?? 3600),
   get githubEnabled(): boolean {
     return Boolean(this.githubToken && this.githubRepo);
   },

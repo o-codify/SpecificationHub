@@ -35,6 +35,35 @@ export function initDb(): void {
       created_at TEXT NOT NULL,
       expires_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS oauth_clients (
+      client_id TEXT PRIMARY KEY,
+      client_secret TEXT,
+      redirect_uris TEXT NOT NULL,
+      client_name TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS oauth_codes (
+      code_hash TEXT PRIMARY KEY,
+      client_id TEXT NOT NULL,
+      redirect_uri TEXT NOT NULL,
+      code_challenge TEXT NOT NULL,
+      code_challenge_method TEXT NOT NULL,
+      scope TEXT,
+      username TEXT NOT NULL,
+      role TEXT NOT NULL,
+      resource TEXT,
+      expires_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS oauth_tokens (
+      token_hash TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      client_id TEXT NOT NULL,
+      username TEXT NOT NULL,
+      role TEXT NOT NULL,
+      scope TEXT,
+      created_at TEXT NOT NULL,
+      expires_at TEXT
+    );
   `);
 }
 
@@ -166,6 +195,176 @@ export function deleteSession(token: string): void {
 
 export function pruneExpiredSessions(): void {
   db.prepare(`DELETE FROM sessions WHERE expires_at < ?`).run(new Date().toISOString());
+}
+
+// ---- OAuth 2.1 (MCP connector authorization) ----
+
+export interface OAuthClient {
+  client_id: string;
+  client_secret: string | null;
+  redirect_uris: string[];
+  client_name: string | null;
+}
+
+export function registerOAuthClient(
+  redirectUris: string[],
+  clientName: string | null,
+  confidential: boolean,
+): OAuthClient {
+  const client_id = `hlc_${crypto.randomBytes(16).toString("hex")}`;
+  const client_secret = confidential ? `hcs_${crypto.randomBytes(24).toString("hex")}` : null;
+  db.prepare(
+    `INSERT INTO oauth_clients (client_id, client_secret, redirect_uris, client_name, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run(client_id, client_secret, JSON.stringify(redirectUris), clientName, new Date().toISOString());
+  return { client_id, client_secret, redirect_uris: redirectUris, client_name: clientName };
+}
+
+export function getOAuthClient(clientId: string): OAuthClient | null {
+  const row = db.prepare(`SELECT * FROM oauth_clients WHERE client_id = ?`).get(clientId) as
+    | { client_id: string; client_secret: string | null; redirect_uris: string; client_name: string | null }
+    | undefined;
+  if (!row) return null;
+  return {
+    client_id: row.client_id,
+    client_secret: row.client_secret,
+    redirect_uris: JSON.parse(row.redirect_uris),
+    client_name: row.client_name,
+  };
+}
+
+export interface AuthCodeData {
+  clientId: string;
+  redirectUri: string;
+  codeChallenge: string;
+  codeChallengeMethod: string;
+  scope: string | null;
+  username: string;
+  role: Role;
+  resource: string | null;
+}
+
+export function createAuthCode(data: AuthCodeData, ttlSec = 600): string {
+  const code = `hac_${crypto.randomBytes(32).toString("hex")}`;
+  const expiresAt = new Date(Date.now() + ttlSec * 1000).toISOString();
+  db.prepare(
+    `INSERT INTO oauth_codes
+       (code_hash, client_id, redirect_uri, code_challenge, code_challenge_method, scope, username, role, resource, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    hashToken(code),
+    data.clientId,
+    data.redirectUri,
+    data.codeChallenge,
+    data.codeChallengeMethod,
+    data.scope,
+    data.username,
+    data.role,
+    data.resource,
+    expiresAt,
+  );
+  return code;
+}
+
+export interface ConsumedAuthCode {
+  clientId: string;
+  redirectUri: string;
+  codeChallenge: string;
+  codeChallengeMethod: string;
+  scope: string | null;
+  username: string;
+  role: Role;
+}
+
+/** Atomically read-and-delete an authorization code. Returns null if missing/expired. */
+export function consumeAuthCode(code: string): ConsumedAuthCode | null {
+  const h = hashToken(code);
+  const row = db.prepare(`SELECT * FROM oauth_codes WHERE code_hash = ?`).get(h) as
+    | {
+        client_id: string;
+        redirect_uri: string;
+        code_challenge: string;
+        code_challenge_method: string;
+        scope: string | null;
+        username: string;
+        role: string;
+        expires_at: string;
+      }
+    | undefined;
+  if (!row) return null;
+  db.prepare(`DELETE FROM oauth_codes WHERE code_hash = ?`).run(h);
+  if (new Date(row.expires_at).getTime() < Date.now()) return null;
+  return {
+    clientId: row.client_id,
+    redirectUri: row.redirect_uri,
+    codeChallenge: row.code_challenge,
+    codeChallengeMethod: row.code_challenge_method,
+    scope: row.scope,
+    username: row.username,
+    role: row.role as Role,
+  };
+}
+
+export interface OAuthGrant {
+  clientId: string;
+  username: string;
+  role: Role;
+  scope: string | null;
+}
+
+/** Issue an access token (+ refresh token) for a grant. */
+export function issueOAuthTokens(
+  grant: OAuthGrant,
+  accessTtlSec: number,
+): { accessToken: string; refreshToken: string; expiresIn: number } {
+  const accessToken = `hat_${crypto.randomBytes(32).toString("hex")}`;
+  const refreshToken = `hrt_${crypto.randomBytes(32).toString("hex")}`;
+  const now = Date.now();
+  const accessExp = new Date(now + accessTtlSec * 1000).toISOString();
+  const insert = db.prepare(
+    `INSERT INTO oauth_tokens (token_hash, kind, client_id, username, role, scope, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  const createdAt = new Date(now).toISOString();
+  insert.run(hashToken(accessToken), "access", grant.clientId, grant.username, grant.role, grant.scope, createdAt, accessExp);
+  insert.run(hashToken(refreshToken), "refresh", grant.clientId, grant.username, grant.role, grant.scope, createdAt, null);
+  return { accessToken, refreshToken, expiresIn: accessTtlSec };
+}
+
+/** Validate a refresh token and return its grant (does not revoke it). */
+export function getRefreshGrant(refreshToken: string): OAuthGrant | null {
+  const row = db
+    .prepare(`SELECT * FROM oauth_tokens WHERE token_hash = ? AND kind = 'refresh'`)
+    .get(hashToken(refreshToken)) as
+    | { client_id: string; username: string; role: string; scope: string | null }
+    | undefined;
+  if (!row) return null;
+  return { clientId: row.client_id, username: row.username, role: row.role as Role, scope: row.scope };
+}
+
+export function resolveOAuthToken(token: string): Principal | null {
+  const row = db
+    .prepare(`SELECT * FROM oauth_tokens WHERE token_hash = ? AND kind = 'access'`)
+    .get(hashToken(token)) as
+    | { client_id: string; username: string; role: string; expires_at: string | null }
+    | undefined;
+  if (!row) return null;
+  if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) {
+    db.prepare(`DELETE FROM oauth_tokens WHERE token_hash = ?`).run(hashToken(token));
+    return null;
+  }
+  return {
+    id: "oauth",
+    name: row.username,
+    role: row.role as Role,
+    allowedBranchPrefixes: [],
+  };
+}
+
+export function pruneExpiredOAuth(): void {
+  const now = new Date().toISOString();
+  db.prepare(`DELETE FROM oauth_codes WHERE expires_at < ?`).run(now);
+  db.prepare(`DELETE FROM oauth_tokens WHERE kind = 'access' AND expires_at IS NOT NULL AND expires_at < ?`).run(now);
 }
 
 /** Create an admin token on first boot if none exists. Returns the plaintext if created. */

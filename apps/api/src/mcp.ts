@@ -14,18 +14,32 @@ import {
 import * as gitlib from "./git.js";
 import * as github from "./github.js";
 import { canWriteBranch } from "./auth.js";
-import { resolveSession, resolveToken, type Principal } from "./db.js";
+import { resolveSession, resolveToken, resolveOAuthToken, type Principal } from "./db.js";
 import { config } from "./config.js";
+import { baseUrl } from "./oauth.js";
 
-// Write tools require a token created in the app (Admin → Tokens), passed by the
-// MCP client as `Authorization: Bearer <token>`. Reads need no auth.
+// Auth is via `Authorization: Bearer <token>`: an OAuth access token (ChatGPT
+// connector), a login session, or an app token (Admin → Tokens).
 function resolvePrincipal(req: Request): Principal | null {
   const h = req.headers.authorization;
   if (h && h.startsWith("Bearer ")) {
     const t = h.slice("Bearer ".length).trim();
-    return resolveSession(t) ?? resolveToken(t);
+    return resolveOAuthToken(t) ?? resolveSession(t) ?? resolveToken(t);
   }
   return null;
+}
+
+/** Emit the RFC 9728 challenge so OAuth-capable clients start the auth flow. */
+function unauthorized(req: Request, res: Response): void {
+  res.setHeader(
+    "WWW-Authenticate",
+    `Bearer resource_metadata="${baseUrl(req)}/.well-known/oauth-protected-resource"`,
+  );
+  res.status(401).json({
+    jsonrpc: "2.0",
+    error: { code: -32001, message: "Authentication required" },
+    id: null,
+  });
 }
 
 const ok = (text: string, structuredContent?: Record<string, unknown>) => ({
@@ -244,6 +258,11 @@ export function registerMcp(app: Express): void {
 
   app.post("/mcp", async (req: Request, res: Response) => {
     try {
+      const principal = resolvePrincipal(req);
+      if (!principal) {
+        unauthorized(req, res);
+        return;
+      }
       const sid = req.headers["mcp-session-id"] as string | undefined;
       let transport = sid ? transports[sid] : undefined;
       if (!transport) {
@@ -255,7 +274,6 @@ export function registerMcp(app: Express): void {
           });
           return;
         }
-        const principal = resolvePrincipal(req);
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (id) => {
@@ -280,6 +298,10 @@ export function registerMcp(app: Express): void {
   });
 
   const sessionRequest = async (req: Request, res: Response) => {
+    if (!resolvePrincipal(req)) {
+      unauthorized(req, res);
+      return;
+    }
     const sid = req.headers["mcp-session-id"] as string | undefined;
     const transport = sid ? transports[sid] : undefined;
     if (!transport) {

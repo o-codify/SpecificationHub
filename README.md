@@ -118,21 +118,40 @@ HTTP) at `/mcp`, so it can be added as a connector in ChatGPT (Apps SDK) or any
 MCP client.
 
 - **Endpoint:** `POST https://<host>/mcp` (same server/port as the app).
-- **Read tools** (no auth): `search_docs`, `list_docs`, `read_doc`,
-  `list_branches`, `list_suggestions`.
-- **Write tools** (proposing edits): `create_branch`, `save_doc`. These appear
-  only when a write principal is available and are confined to `ai/*` branches
-  (never the default branch). `save_doc` creates the branch if needed, commits,
-  and opens/updates a PR in GitHub mode.
+- **Tools:** `search_docs`, `list_docs`, `read_doc`, `list_branches`,
+  `list_suggestions` (read) and `create_branch`, `save_doc` (write — confined to
+  `ai/*` branches, never the default branch). `save_doc` creates the branch if
+  needed, commits, and opens/updates a PR in GitHub mode.
 
-Auth for writes uses the **same token system as the rest of the app**: create an
-`ai-agent` token in **Admin → Tokens** and have the MCP client send it as
-`Authorization: Bearer <token>`. No special env var — reads need no auth, writes
-need a token (confined to that token's `ai/*` prefixes).
+### OAuth (ChatGPT connector)
 
-In ChatGPT: developer mode → add an MCP server with URL `https://<host>/mcp`, and
-set the connector's authorization to `Bearer <your ai-agent token>` for write
-access. Set `HLS_MCP_ENABLED=false` to disable the MCP endpoint.
+The server is its own **OAuth 2.1 authorization server** (the MCP authorization
+spec), so ChatGPT can connect with Dynamic Client Registration + PKCE — no token
+pasting. Discovery & endpoints:
+
+- `GET /.well-known/oauth-protected-resource` (RFC 9728)
+- `GET /.well-known/oauth-authorization-server` (RFC 8414)
+- `POST /oauth/register` — Dynamic Client Registration (RFC 7591), public client
+- `GET|POST /oauth/authorize` — login page (admin username/password) → auth code
+- `POST /oauth/token` — `authorization_code` (PKCE `S256`) and `refresh_token`
+
+An unauthenticated `/mcp` request returns `401` with a `WWW-Authenticate:
+Bearer resource_metadata=...` header so the client starts the flow automatically.
+The access token maps to an **admin** principal (writes allowed on `ai/*`).
+
+**In ChatGPT:** developer mode → add a connector with URL `https://<host>/mcp`.
+ChatGPT discovers OAuth and auto-registers (DCR); on connect it redirects to the
+server's `/oauth/authorize` login — sign in with the admin username/password.
+For a manually-created OAuth client, `token_endpoint_auth_method` is `none`
+(public client, PKCE only).
+
+> The server must be reachable at a public **HTTPS** URL. Behind a reverse proxy
+> the metadata URLs are derived from `X-Forwarded-Proto`/`X-Forwarded-Host`; set
+> `HLS_PUBLIC_URL` to force the exact base (e.g. `https://hls.example.com`).
+
+Programmatic (non-ChatGPT) clients may instead send an app token directly as
+`Authorization: Bearer <token>` (create one in **Admin → Tokens**). Set
+`HLS_MCP_ENABLED=false` to disable both the MCP endpoint and OAuth server.
 
 ## Markdown format
 
@@ -245,7 +264,9 @@ curl -X POST $B/api/merge -H "Authorization: Bearer $ADMIN" \
 | `HLS_ADMIN_TOKEN`  | _(generated)_          | pin the programmatic API admin token |
 | `GITHUB_TOKEN`     | _(unset)_              | PAT — enables GitHub PR mode (with repo) |
 | `GITHUB_REPO`      | _(unset)_              | `owner/name` — enables GitHub PR mode |
-| `HLS_MCP_ENABLED`  | `true`                 | set `false` to disable the `/mcp` endpoint |
+| `HLS_MCP_ENABLED`  | `true`                 | set `false` to disable the `/mcp` endpoint + OAuth server |
+| `HLS_PUBLIC_URL`   | _(from request)_       | force OAuth metadata base URL, e.g. `https://hls.example.com` |
+| `HLS_OAUTH_TOKEN_TTL_SEC` | `3600`          | MCP OAuth access-token lifetime (seconds) |
 | `HLS_SYNC_INTERVAL_MS` | `10000`            | min gap between background `git fetch` syncs |
 | `HLS_DOCS_SEED`    | `./docs`               | seed content for first boot          |
 | `HLS_WEB_DIST`     | `./apps/web/dist`      | built frontend to serve              |

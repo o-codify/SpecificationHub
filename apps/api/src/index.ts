@@ -3,10 +3,11 @@ import path from "node:path";
 import express from "express";
 import { config } from "./config.js";
 import { ensureRepo, currentDefaultBranch } from "./git.js";
-import { ensureBootstrapAdmin, initDb, pruneExpiredSessions } from "./db.js";
+import { ensureBootstrapAdmin, initDb, pruneExpiredSessions, pruneExpiredOAuth } from "./db.js";
 import { initCredentials, getAdminUsername } from "./credentials.js";
 import { createRouter } from "./routes.js";
 import { registerMcp } from "./mcp.js";
+import { registerOAuth } from "./oauth.js";
 
 function bootstrap(): void {
   fs.mkdirSync(config.dataDir, { recursive: true });
@@ -23,6 +24,7 @@ function bootstrap(): void {
   }
   initDb();
   pruneExpiredSessions();
+  pruneExpiredOAuth();
 
   const { generated } = initCredentials();
   console.log("\n========================================================");
@@ -50,7 +52,10 @@ function createApp(): express.Express {
 
   app.use("/api", createRouter());
 
-  // MCP server (Streamable HTTP) for ChatGPT / Apps SDK and other MCP clients.
+  // OAuth 2.1 authorization server + MCP server (Streamable HTTP) for ChatGPT /
+  // Apps SDK and other MCP clients. OAuth metadata/endpoints must be registered
+  // before the SPA catch-all below.
+  registerOAuth(app);
   registerMcp(app);
 
   // Serve the built frontend, with SPA fallback.
