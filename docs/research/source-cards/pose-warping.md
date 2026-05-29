@@ -2,43 +2,87 @@
 id: source-card-pose-warping
 title: "Source Card: Pose Warping"
 status: draft
-version: 26.529.2143
+version: 26.529.2216
 tags:
   - research
   - pose-warping
   - animation
+  - linked-source
 ---
 
 # Source Card: Pose Warping
 
 ## Metadata
 
-Type: game animation technique.
+| Field | Value |
+|---|---|
+| Title | Pose Warping / Stride Warping / Orientation Warping |
+| Type | Game animation technique / engine documentation |
+| Reliability | Medium to high |
+| Relevance | High |
+| Access status | Accessible official engine documentation |
 
-Reliability: medium.
+## Links
 
-Relevance: high.
+- Unreal Pose Warping documentation: https://dev.epicgames.com/documentation/en-us/unreal-engine/pose-warping-in-unreal-engine
+- Unreal Stride Warping documentation: https://dev.epicgames.com/documentation/en-us/unreal-engine/pose-warping-in-unreal-engine
+- Unreal Orientation Warping documentation: https://dev.epicgames.com/documentation/en-us/unreal-engine/pose-warping-in-unreal-engine
 
 ## What it says
 
-Pose warping modifies an existing pose to match desired direction, stride, slope, or target placement. It is useful when procedural rules need to adapt authored or generated pose intent.
+Pose warping modifies an animation pose to better match desired movement direction, stride, slope, or target placement. It is a practical game animation technique for adapting motion without requiring a unique animation for every context.
 
-## Useful HLS Facts
+## What HLS Used
 
-- Stride length can be warped to match speed.
-- Orientation can be warped to match movement direction.
-- Foot placement can be corrected after base pose generation.
+- Stride can be adjusted procedurally.
+- Orientation can be adjusted toward movement direction.
 - Warping should preserve contact timing.
+- Procedural solvers can produce pose intent that later gets warped or corrected.
+
+## What HLS Did Not Use
+
+- HLS does not require Unreal Pose Warping specifically.
+- HLS does not assume authored clips are always present.
+- HLS does not replace FootTargetSolver with pose warping.
+
+## Extracted HLS Facts
+
+- Step length and direction can be adapted after base pose generation.
+- Contact preservation is important during pose adaptation.
+- PoseComposer should be the place where final adaptation priorities are resolved.
 
 ## Candidate HLS Rules
 
-- Use stride warping to correct step length.
-- Use orientation warping for turns and strafing.
-- Preserve foot locks during stance.
-- Apply pose warping after parameter resolution but before final IK.
+```text
+if desiredStride != baseStride:
+    apply stride correction before final IK
+```
 
-## HLS Target Sections
+```text
+if movementDirection != facingDirection:
+    apply orientation adaptation while preserving foot contacts
+```
 
-- docs/09-solvers/pose-composer.md
-- docs/10-runtime/update-order.md
-- docs/11-unreal-engine
+## Numeric Data
+
+No numeric runtime rule is extracted.
+
+## HLS Transformation
+
+```text
+pose warping concept
+  -> stride correction rule
+  -> orientation adaptation rule
+  -> PoseComposer priority rule
+```
+
+## Uncertainty
+
+- Whether HLS first implementation needs authored clips plus warping or pure procedural targets.
+- Which warping tasks belong in PoseComposer versus Unreal animation graph.
+
+## Used By
+
+- `docs/09-solvers/pose-composer.md`
+- `docs/10-runtime/update-order.md`
+- `docs/11-unreal-engine/index.md`
