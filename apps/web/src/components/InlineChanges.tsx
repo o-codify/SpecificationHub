@@ -4,6 +4,7 @@ import type { FileSuggestion } from "../api";
 import { api } from "../api";
 import { useToast } from "../toast";
 import { applyChange, changesFor, renderTrackedHtml, type Change } from "../trackChanges";
+import { nextVersion } from "../version";
 
 interface Props {
   path: string;
@@ -64,7 +65,7 @@ export function InlineChanges({ path, base, content, frontmatter, suggestions, o
     setBusy(true);
     try {
       const nextBody = applyChange(content, c, editing ? editText : undefined);
-      const full = serializeDoc(frontmatter, nextBody);
+      const full = serializeDoc({ ...frontmatter, version: nextVersion(frontmatter.version) }, nextBody);
       await api.acceptSuggestion(path, base, full, `Accept change from ${c.branch}`);
       toast.show(
         <>

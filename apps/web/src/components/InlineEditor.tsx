@@ -3,6 +3,7 @@ import type { FrontMatter } from "@hls/core";
 import { api, ApiError, type PullRequestInfo } from "../api";
 import { htmlToMd } from "../markdownConvert";
 import { statusColor } from "../status";
+import { nextVersion } from "../version";
 import { useToast } from "../toast";
 
 const STATUSES = ["draft", "review", "stable", "deprecated", "experimental"] as const;
@@ -137,7 +138,7 @@ export function InlineEditor({ initial, isNew, branch, onCancel, onSaved }: Prop
       id: String(initial.frontmatter.id || slugify(title)),
       title,
       status: status as FrontMatter["status"],
-      version: String(initial.frontmatter.version || "0.1.0"),
+      version: nextVersion(initial.frontmatter.version),
       tags,
     };
     setBusy(true);

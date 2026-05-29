@@ -2,7 +2,7 @@
 id: runtime
 title: Runtime
 status: draft
-version: 0.1.0
+version: 2026.529.1
 tags: [runtime, integration, performance]
 ---
 

@@ -2,7 +2,7 @@
 id: gait-cycle
 title: Gait Cycle
 status: draft
-version: 0.1.0
+version: 2026.529.1
 tags: [gait, walking, locomotion]
 ---
 

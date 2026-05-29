@@ -2,7 +2,7 @@
 id: walking
 title: Walking
 status: draft
-version: 0.1.0
+version: 2026.529.1
 tags: [walking, gait, locomotion]
 ---
 

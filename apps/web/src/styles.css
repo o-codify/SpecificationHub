@@ -419,6 +419,11 @@ tbody tr:hover{background:var(--surface-2)}
 .doc-body .sug-replace .sug-new{background:color-mix(in oklch,var(--good) 12%,transparent);padding:6px 15px}
 .doc-body .sug p,.doc-body .sug h1,.doc-body .sug h2,.doc-body .sug h3{margin:0 0 8px}
 .doc-body .sug p:last-child,.doc-body .sug *:last-child{margin-bottom:0}
+/* inline (word-level) suggestion woven into a paragraph */
+.doc-body .sug.sug-inline{display:inline;border:none;margin:0;padding:0;border-radius:0;box-shadow:none}
+.doc-body .sug.sug-inline:hover{box-shadow:0 0 0 3px color-mix(in oklch,var(--p2) 26%,transparent);border-radius:3px}
+.doc-body .sug-inline del{color:var(--muted);text-decoration:line-through;text-decoration-color:color-mix(in oklch,var(--bad-tx) 50%,transparent)}
+.doc-body .sug-inline ins{text-decoration:none;background:color-mix(in oklch,var(--good) 22%,transparent);color:var(--good);padding:1px 5px;border-radius:4px}
 /* suggestion popover */
 .sug-pop{position:fixed;z-index:75;min-width:200px;max-width:320px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);box-shadow:var(--shadow);padding:11px;display:none}
 .sug-pop.open{display:block}

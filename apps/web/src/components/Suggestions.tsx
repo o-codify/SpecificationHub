@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { parseFrontmatter } from "@hls/core";
+import { parseFrontmatter, serializeDoc } from "@hls/core";
 import type { FileSuggestion } from "../api";
 import { api } from "../api";
 import { useToast } from "../toast";
 import { changesFor } from "../trackChanges";
+import { nextVersion } from "../version";
 
 interface Props {
   path: string;
@@ -24,7 +25,12 @@ export function Suggestions({ path, base, suggestions, onResolved }: Props) {
   const acceptAll = async (s: FileSuggestion) => {
     setBusy(s.branch);
     try {
-      await api.acceptSuggestion(path, base, s.headContent, `Accept all changes from ${s.branch}`);
+      const parsed = parseFrontmatter(s.headContent);
+      const content = serializeDoc(
+        { ...parsed.frontmatter, version: nextVersion(parsed.frontmatter.version) },
+        parsed.content,
+      );
+      await api.acceptSuggestion(path, base, content, `Accept all changes from ${s.branch}`);
       toast.show(
         <>
           All changes from <code>{s.branch}</code> applied to <code>{base}</code>

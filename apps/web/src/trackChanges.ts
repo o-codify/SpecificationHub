@@ -1,5 +1,8 @@
-import { diffArrays } from "diff";
+import { diffArrays, diffWords } from "diff";
 import { mdToHtml } from "./markdownConvert";
+
+/** A "prose" block is a plain paragraph (not heading/list/quote/code/table). */
+const isProse = (b: string) => !/^(#{1,6}\s|>\s|[-*+]\s|\d+\.\s|```|\||\s{4})/.test(b.trim());
 
 export type ChangeKind = "add" | "del" | "replace";
 
@@ -61,7 +64,43 @@ export function changesFor(
 
 const escAttr = (s: string) => s.replace(/"/g, "&quot;");
 
+/** Inline word-level replace woven into the paragraph: kept words stay, the
+ *  changed run becomes <del>old</del><ins>new</ins> inside a clickable .sug. */
+function inlineReplace(c: Change): string {
+  const parts = diffWords(c.oldBlocks[0], c.newBlocks[0]);
+  let md = "";
+  let i = 0;
+  while (i < parts.length) {
+    if (!parts[i].added && !parts[i].removed) {
+      md += parts[i].value;
+      i++;
+      continue;
+    }
+    let rem = "";
+    let add = "";
+    while (i < parts.length && (parts[i].added || parts[i].removed)) {
+      if (parts[i].removed) rem += parts[i].value;
+      else add += parts[i].value;
+      i++;
+    }
+    md += `<span class="sug sug-inline" data-id="${c.id}" data-branch="${escAttr(c.branch)}">`;
+    if (rem) md += `<del>${rem.trim()}</del> `;
+    if (add) md += `<ins>${add.trim()}</ins>`;
+    md += `</span>`;
+  }
+  return mdToHtml(md);
+}
+
 function sugBlock(c: Change): string {
+  if (
+    c.kind === "replace" &&
+    c.oldBlocks.length === 1 &&
+    c.newBlocks.length === 1 &&
+    isProse(c.oldBlocks[0]) &&
+    isProse(c.newBlocks[0])
+  ) {
+    return inlineReplace(c);
+  }
   const open = `<div class="sug sug-${c.kind}" data-id="${c.id}" data-branch="${escAttr(c.branch)}">`;
   if (c.kind === "add") return open + mdToHtml(joinBlocks(c.newBlocks)) + `</div>`;
   if (c.kind === "del") return open + `<div class="sug-old">${mdToHtml(joinBlocks(c.oldBlocks))}</div></div>`;

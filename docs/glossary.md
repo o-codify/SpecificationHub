@@ -2,7 +2,7 @@
 id: glossary
 title: Glossary
 status: draft
-version: 0.1.0
+version: 2026.529.1
 tags: [glossary, reference]
 ---
 
