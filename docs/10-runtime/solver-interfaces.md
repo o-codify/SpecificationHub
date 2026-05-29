@@ -2,11 +2,12 @@
 id: solver-interfaces
 title: Solver Interfaces
 status: draft
-version: 26.529.2149
+version: 26.529.2311
 tags:
   - runtime
   - solver
   - interfaces
+  - provenance
 ---
 
 # Solver Interfaces
@@ -84,6 +85,68 @@ SpineSolver outputs torso, chest, neck, and head intent.
 ArmSwingSolver outputs arm swing or carry restrictions.
 
 PoseComposer outputs final pose intent and priority decisions.
+
+## Rule Provenance
+
+### Common solver inputs and outputs
+
+| Field | Value |
+|---|---|
+| Rule | Solvers consume resolved state and parameters and output pose intent plus debug data. |
+| Source card | `docs/research/source-cards/procedural-animation-overview.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
+| Source type | procedural animation architecture |
+| Used from source | Procedural systems use controls, targets, and solver outputs that are later applied to a rig. |
+| HLS transformation | Defined common input/output contract for all HLS solvers. |
+| Confidence | high |
+| Applies to | all solver documents |
+
+### Persistent solver state must be explicit
+
+| Field | Value |
+|---|---|
+| Rule | Persistent solver state must be explicit and resettable. |
+| Source card | `docs/research/source-cards/motion-matching.md`, `docs/research/source-cards/lafan1.md` |
+| External link | https://github.com/ubisoft/ubisoft-laforge-animation-dataset |
+| Source type | animation continuity and transition validation reference |
+| Used from source | Temporal continuity and previous pose context matter for animation quality. |
+| HLS transformation | Solver state includes gait phase, foot locks, smoothed offsets, and previous targets. |
+| Confidence | high as implementation rule |
+| Applies to | `GaitPhaseGenerator`, `FootTargetSolver`, `Networking` |
+
+### Debug and warning outputs
+
+| Field | Value |
+|---|---|
+| Rule | Each solver exposes debug values and warnings. |
+| Source card | `docs/research/source-cards/procedural-animation-overview.md`, `docs/research/provenance-methodology.md` |
+| External link | `docs/research/provenance-methodology.md` |
+| Source type | HLS methodology / implementation workflow |
+| Used from source | Runtime rules and tuning values must be inspectable and traceable. |
+| HLS transformation | Solver outputs include clamped values, warnings, and debug summaries. |
+| Confidence | high |
+| Applies to | `Debug Visualization`, `Validation Methodology` |
+
+### Graceful fallback
+
+| Field | Value |
+|---|---|
+| Rule | Solvers degrade gracefully when inputs are invalid. |
+| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/stairs-and-slopes.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
+| Source type | IK / terrain implementation constraint |
+| Used from source | Terrain traces, IK targets, and constraints can fail or become invalid at runtime. |
+| HLS transformation | Added fallback rules for missing traces, invalid stairs, IK overreach, and missing modifiers. |
+| Confidence | high |
+| Applies to | `Runtime Constraints`, `FootTargetSolver`, `PelvisSolver` |
+
+## Numeric Data Separation
+
+| Value | Category | Usage |
+|---|---|---|
+| solver interface fields | HLS architecture contract | implementation |
+| warning thresholds | HLS tuning values | debug and validation |
+| persistent state layout | implementation detail | C++ API / networking |
 
 ## Open Questions
 
