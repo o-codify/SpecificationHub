@@ -18,7 +18,11 @@ export const config = {
   dataDir,
   repoDir: path.join(dataDir, "repo.git"),
   worktreesDir: path.join(dataDir, "worktrees"),
-  dbPath: path.join(dataDir, "hls.db"),
+  // Postgres connection string (required). Coolify/managed Postgres etc.
+  databaseUrl: process.env.DATABASE_URL ?? "",
+  // Drizzle migrations live next to the package (apps/api/drizzle), resolved the
+  // same way from src (tsx) and dist (bundled) since both are one level under it.
+  migrationsDir: path.join(here, "../drizzle"),
   adminTokenFile: path.join(dataDir, "admin-token.txt"),
   docsSeedDir: envPath("HLS_DOCS_SEED", path.join(repoRoot, "docs")),
   webDist: envPath("HLS_WEB_DIST", path.join(repoRoot, "apps/web/dist")),

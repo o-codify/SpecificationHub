@@ -129,7 +129,7 @@ export function registerOAuth(app: Express): void {
   app.get("/.well-known/oauth-protected-resource/mcp", protectedResourceMeta);
 
   // ---- Dynamic Client Registration (RFC 7591) ----
-  app.post("/oauth/register", (req: Request, res: Response) => {
+  app.post("/oauth/register", async (req: Request, res: Response) => {
     const body = req.body ?? {};
     const redirectUris: unknown = body.redirect_uris;
     if (!Array.isArray(redirectUris) || redirectUris.length === 0 || !redirectUris.every((u) => typeof u === "string")) {
@@ -138,7 +138,7 @@ export function registerOAuth(app: Express): void {
     }
     const authMethod = typeof body.token_endpoint_auth_method === "string" ? body.token_endpoint_auth_method : "none";
     const confidential = authMethod !== "none";
-    const client = registerOAuthClient(
+    const client = await registerOAuthClient(
       redirectUris as string[],
       typeof body.client_name === "string" ? body.client_name : null,
       confidential,
@@ -156,9 +156,9 @@ export function registerOAuth(app: Express): void {
   });
 
   // ---- Authorization endpoint ----
-  app.get("/oauth/authorize", (req: Request, res: Response) => {
+  app.get("/oauth/authorize", async (req: Request, res: Response) => {
     const q = req.query as Record<string, string>;
-    const client = q.client_id ? getOAuthClient(q.client_id) : null;
+    const client = q.client_id ? await getOAuthClient(q.client_id) : null;
     if (!client) {
       res.status(400).type("text/plain").send("Unknown client_id");
       return;
@@ -189,9 +189,9 @@ export function registerOAuth(app: Express): void {
     );
   });
 
-  app.post("/oauth/authorize", form, (req: Request, res: Response) => {
+  app.post("/oauth/authorize", form, async (req: Request, res: Response) => {
     const b = req.body ?? {};
-    const client = b.client_id ? getOAuthClient(b.client_id) : null;
+    const client = b.client_id ? await getOAuthClient(b.client_id) : null;
     if (!client || !b.redirect_uri || !client.redirect_uris.includes(b.redirect_uri)) {
       res.status(400).type("text/plain").send("Invalid client or redirect_uri");
       return;
@@ -210,7 +210,7 @@ export function registerOAuth(app: Express): void {
       res.status(401).type("html").send(loginPage(params, "Invalid username or password."));
       return;
     }
-    const code = createAuthCode({
+    const code = await createAuthCode({
       clientId: client.client_id,
       redirectUri: b.redirect_uri,
       codeChallenge: b.code_challenge,
@@ -227,25 +227,25 @@ export function registerOAuth(app: Express): void {
   });
 
   // ---- Token endpoint ----
-  app.post("/oauth/token", form, (req: Request, res: Response) => {
+  app.post("/oauth/token", form, async (req: Request, res: Response) => {
     const b = req.body ?? {};
     const grantType = b.grant_type;
     const tokenErr = (status: number, error: string, desc?: string) =>
       res.status(status).json({ error, ...(desc ? { error_description: desc } : {}) });
 
     if (grantType === "authorization_code") {
-      const client = b.client_id ? getOAuthClient(b.client_id) : null;
+      const client = b.client_id ? await getOAuthClient(b.client_id) : null;
       if (!client) return tokenErr(401, "invalid_client");
       if (!clientAuthOk(client, req)) return tokenErr(401, "invalid_client");
       if (!b.code || !b.code_verifier) return tokenErr(400, "invalid_request", "code and code_verifier are required");
-      const data = consumeAuthCode(String(b.code));
+      const data = await consumeAuthCode(String(b.code));
       if (!data) return tokenErr(400, "invalid_grant", "code is invalid or expired");
       if (data.clientId !== client.client_id) return tokenErr(400, "invalid_grant", "client mismatch");
       if (data.redirectUri !== b.redirect_uri) return tokenErr(400, "invalid_grant", "redirect_uri mismatch");
       if (!verifyPkce(String(b.code_verifier), data.codeChallenge, data.codeChallengeMethod)) {
         return tokenErr(400, "invalid_grant", "PKCE verification failed");
       }
-      const t = issueOAuthTokens(
+      const t = await issueOAuthTokens(
         { clientId: client.client_id, username: data.username, role: data.role, scope: data.scope },
         config.oauthTokenTtlSec,
       );
@@ -260,11 +260,11 @@ export function registerOAuth(app: Express): void {
 
     if (grantType === "refresh_token") {
       if (!b.refresh_token) return tokenErr(400, "invalid_request", "refresh_token is required");
-      const grant = getRefreshGrant(String(b.refresh_token));
+      const grant = await getRefreshGrant(String(b.refresh_token));
       if (!grant) return tokenErr(400, "invalid_grant", "refresh_token is invalid");
-      const client = getOAuthClient(grant.clientId);
+      const client = await getOAuthClient(grant.clientId);
       if (client && !clientAuthOk(client, req)) return tokenErr(401, "invalid_client");
-      const t = issueOAuthTokens(grant, config.oauthTokenTtlSec);
+      const t = await issueOAuthTokens(grant, config.oauthTokenTtlSec);
       return res.json({
         access_token: t.accessToken,
         token_type: "Bearer",

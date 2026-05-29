@@ -20,11 +20,11 @@ import { baseUrl } from "./oauth.js";
 
 // Auth is via `Authorization: Bearer <token>`: an OAuth access token (ChatGPT
 // connector), a login session, or an app token (Admin → Tokens).
-function resolvePrincipal(req: Request): Principal | null {
+async function resolvePrincipal(req: Request): Promise<Principal | null> {
   const h = req.headers.authorization;
   if (h && h.startsWith("Bearer ")) {
     const t = h.slice("Bearer ".length).trim();
-    return resolveOAuthToken(t) ?? resolveSession(t) ?? resolveToken(t);
+    return (await resolveOAuthToken(t)) ?? (await resolveSession(t)) ?? (await resolveToken(t));
   }
   return null;
 }
@@ -258,7 +258,7 @@ export function registerMcp(app: Express): void {
 
   app.post("/mcp", async (req: Request, res: Response) => {
     try {
-      const principal = resolvePrincipal(req);
+      const principal = await resolvePrincipal(req);
       if (!principal) {
         unauthorized(req, res);
         return;
@@ -298,7 +298,7 @@ export function registerMcp(app: Express): void {
   });
 
   const sessionRequest = async (req: Request, res: Response) => {
-    if (!resolvePrincipal(req)) {
+    if (!(await resolvePrincipal(req))) {
       unauthorized(req, res);
       return;
     }

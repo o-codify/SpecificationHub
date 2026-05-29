@@ -15,7 +15,7 @@ RUN npm ci
 COPY . .
 RUN npm run build:web && npm run build:api
 
-# Drop dev dependencies; keeps better-sqlite3 (with its prebuilt native binary).
+# Drop dev dependencies (keeps the pg driver + drizzle-orm runtime).
 RUN npm prune --omit=dev
 
 # ---------- Runtime stage ----------
@@ -42,6 +42,8 @@ RUN git config --global user.email "hub@hls.local" \
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+# Drizzle migrations are read at runtime (apps/api/drizzle, resolved relative to dist).
+COPY --from=builder /app/apps/api/drizzle ./apps/api/drizzle
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
 
 VOLUME ["/data"]

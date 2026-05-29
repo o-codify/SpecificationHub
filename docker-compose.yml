@@ -5,6 +5,9 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # Postgres connection (tokens, sessions, OAuth clients/tokens). Persists
+      # across redeploys — unlike the /data volume.
+      - DATABASE_URL=${DATABASE_URL:-}
       # Admin UI login (used at /admin). If the password is unset, one is
       # generated on first boot and printed to the logs (and /data/admin-password.txt).
       - HLS_ADMIN_USERNAME=${HLS_ADMIN_USERNAME:-admin}
@@ -12,6 +15,9 @@ services:
       # Optional: pin the programmatic API admin token (for scripts / AI agents).
       # If unset, one is generated on first boot and printed to the logs.
       - HLS_ADMIN_TOKEN=${HLS_ADMIN_TOKEN:-}
+      # Public base URL for OAuth metadata (behind a proxy). Optional — derived
+      # from X-Forwarded-* headers if unset.
+      - HLS_PUBLIC_URL=${HLS_PUBLIC_URL:-}
       # Optional GitHub integration. When BOTH are set, GitHub becomes the source
       # of truth: commits are pushed, PRs opened, and merges go through the PR API.
       # PAT needs Contents + Pull requests write on the repo.
@@ -19,7 +25,26 @@ services:
       - GITHUB_REPO=${GITHUB_REPO:-}
     volumes:
       - hls-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-hls}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-hls}
+      - POSTGRES_DB=${POSTGRES_DB:-hls}
+    volumes:
+      - hls-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hls} -d ${POSTGRES_DB:-hls}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
 volumes:
   hls-data:
+  hls-pg:

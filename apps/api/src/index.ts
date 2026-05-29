@@ -9,7 +9,7 @@ import { createRouter } from "./routes.js";
 import { registerMcp } from "./mcp.js";
 import { registerOAuth } from "./oauth.js";
 
-function bootstrap(): void {
+async function bootstrap(): Promise<void> {
   fs.mkdirSync(config.dataDir, { recursive: true });
   ensureRepo();
   // Align the protected/default branch with the repo's actual HEAD (main vs master).
@@ -22,9 +22,9 @@ function bootstrap(): void {
   } else {
     console.log("GitHub mode OFF → local git repo is the source of truth (in-app merges).");
   }
-  initDb();
-  pruneExpiredSessions();
-  pruneExpiredOAuth();
+  await initDb();
+  await pruneExpiredSessions();
+  await pruneExpiredOAuth();
 
   const { generated } = initCredentials();
   console.log("\n========================================================");
@@ -38,7 +38,7 @@ function bootstrap(): void {
   }
   console.log("========================================================\n");
 
-  const adminToken = ensureBootstrapAdmin();
+  const adminToken = await ensureBootstrapAdmin();
   if (adminToken) {
     console.log("  Bootstrap API admin TOKEN (programmatic/AI access, shown once):");
     console.log(`  ${adminToken}`);
@@ -81,8 +81,8 @@ function createApp(): express.Express {
   return app;
 }
 
-function main(): void {
-  bootstrap();
+async function main(): Promise<void> {
+  await bootstrap();
   const app = createApp();
   app.listen(config.port, () => {
     console.log(`HLS Hub listening on http://localhost:${config.port}`);
@@ -93,4 +93,7 @@ function main(): void {
   });
 }
 
-main();
+main().catch((err) => {
+  console.error("Fatal startup error:", err);
+  process.exit(1);
+});

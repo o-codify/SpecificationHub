@@ -95,13 +95,13 @@ export function createRouter(): Router {
   // ---- Auth (admin login/password) ----
   router.post(
     "/auth/login",
-    h((req, res) => {
+    h(async (req, res) => {
       const username = String(req.body?.username ?? "");
       const password = String(req.body?.password ?? "");
       if (!verifyCredentials(username, password)) {
         throw new HttpError(401, "Invalid username or password");
       }
-      const session = store.createSession(username, "admin", config.sessionTtlHours);
+      const session = await store.createSession(username, "admin", config.sessionTtlHours);
       res.json({
         token: session.token,
         expiresAt: session.expiresAt,
@@ -112,9 +112,9 @@ export function createRouter(): Router {
 
   router.post(
     "/auth/logout",
-    h((req, res) => {
+    h(async (req, res) => {
       const token = bearerToken(req);
-      if (token) store.deleteSession(token);
+      if (token) await store.deleteSession(token);
       res.json({ ok: true });
     }),
   );
@@ -367,15 +367,15 @@ export function createRouter(): Router {
   router.get(
     "/tokens",
     requireRole("admin"),
-    h((_req, res) => {
-      res.json({ tokens: store.listTokens() });
+    h(async (_req, res) => {
+      res.json({ tokens: await store.listTokens() });
     }),
   );
 
   router.post(
     "/tokens",
     requireRole("admin"),
-    h((req, res) => {
+    h(async (req, res) => {
       const name = (req.body?.name as string)?.trim();
       const role = req.body?.role as string;
       if (!name) throw new HttpError(400, "`name` is required");
@@ -386,7 +386,7 @@ export function createRouter(): Router {
       if (role === "ai-agent" && prefixes.length === 0) {
         prefixes = ["ai/"];
       }
-      const created = store.createToken(name, role, prefixes);
+      const created = await store.createToken(name, role, prefixes);
       res.status(201).json({ token: created.token, info: created.info });
     }),
   );
@@ -394,8 +394,8 @@ export function createRouter(): Router {
   router.delete(
     "/tokens/:id",
     requireRole("admin"),
-    h((req, res) => {
-      const ok = store.deleteToken(req.params.id);
+    h(async (req, res) => {
+      const ok = await store.deleteToken(req.params.id);
       if (!ok) throw new HttpError(404, "Token not found");
       res.json({ deleted: true });
     }),

@@ -18,7 +18,8 @@ Markdown in Git → API → Website → Admin editor → AI edits via token → 
 - **Storage:** a **bare Git repository** is the source of truth. Reads use
   `git show <branch>:<path>`; writes use per-branch worktrees. `main` is only
   written by the merge endpoint.
-- **DB:** SQLite (`better-sqlite3`) for tokens (not for Markdown).
+- **DB:** Postgres (via Drizzle ORM + SQL migrations) for tokens, sessions, and
+  OAuth clients/tokens (not for Markdown). Set `DATABASE_URL`.
 - **Deploy:** a single Docker container on port `8080`.
 
 ## Monorepo layout
@@ -64,9 +65,22 @@ For **programmatic / AI access** there are still Bearer API tokens (managed in
 **Admin → Tokens**). A bootstrap admin token is generated on first boot (logs /
 `/data/admin-token.txt`), or pin it with `HLS_ADMIN_TOKEN`.
 
-Git data and SQLite live in the `/data` volume, so they survive restarts.
+Tokens, sessions, and OAuth clients/tokens live in **Postgres** (`DATABASE_URL`),
+so they survive redeploys. The `/data` volume holds the Git working data; in
+GitHub mode it is re-cloned from the remote on boot, so a wiped volume self-heals.
+Schema is created/updated by Drizzle migrations run automatically at startup.
 
 ## Local development
+
+A Postgres instance is required (`DATABASE_URL`). For example:
+
+```bash
+docker run -d --name hls-pg -e POSTGRES_PASSWORD=hls -e POSTGRES_USER=hls -e POSTGRES_DB=hls -p 5432:5432 postgres:16-alpine
+export DATABASE_URL=postgres://hls:hls@localhost:5432/hls
+```
+
+Migrations run automatically on startup. To (re)generate a migration after
+editing `apps/api/src/schema.ts`: `npm -w @hls/api run db:generate`.
 
 ```bash
 npm install
@@ -257,7 +271,8 @@ curl -X POST $B/api/merge -H "Authorization: Bearer $ADMIN" \
 | Variable           | Default                | Description                          |
 | ------------------ | ---------------------- | ------------------------------------ |
 | `PORT`             | `8080`                 | HTTP port                            |
-| `HLS_DATA_DIR`     | `./data` (`/data`)     | Git repo, worktrees, SQLite          |
+| `DATABASE_URL`     | _(required)_           | Postgres connection string (tokens/sessions/OAuth) |
+| `HLS_DATA_DIR`     | `./data` (`/data`)     | Git repo + worktrees                 |
 | `HLS_ADMIN_USERNAME` | `admin`              | admin UI login username              |
 | `HLS_ADMIN_PASSWORD` | _(generated)_        | admin UI login password              |
 | `HLS_SESSION_TTL_HOURS` | `168`             | login session lifetime (hours)       |

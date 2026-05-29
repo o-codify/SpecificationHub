@@ -18,11 +18,18 @@ export function attachPrincipal(req: Request, _res: Response, next: NextFunction
   if (header && header.startsWith("Bearer ")) {
     const token = header.slice("Bearer ".length).trim();
     // A login session (admin) or a programmatic API token.
-    req.principal = resolveSession(token) ?? resolveToken(token);
+    void (async () => {
+      try {
+        req.principal = (await resolveSession(token)) ?? (await resolveToken(token));
+      } catch {
+        req.principal = null;
+      }
+      next();
+    })();
   } else {
     req.principal = null;
+    next();
   }
-  next();
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
