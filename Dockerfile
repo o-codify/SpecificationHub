@@ -26,10 +26,12 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends git ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
+# GitHub is the source of truth: the repo is cloned into /data at boot, so no
+# docs seed is baked into the image. (For local mode without GitHub, mount a
+# seed dir and set HLS_DOCS_SEED to it.)
 ENV NODE_ENV=production \
     PORT=8080 \
     HLS_DATA_DIR=/data \
-    HLS_DOCS_SEED=/app/docs \
     HLS_WEB_DIST=/app/apps/web/dist
 
 # Git identity / safety for commits & worktrees created at runtime.
@@ -41,7 +43,6 @@ RUN git config --global user.email "hub@hls.local" \
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
-COPY --from=builder /app/docs ./docs
 
 VOLUME ["/data"]
 EXPOSE 8080

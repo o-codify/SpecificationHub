@@ -2,7 +2,11 @@ name: Docker
 
 on:
   push:
-    branches: [main, master]
+    # Only the default branch — pushes to ai/*, edit/*, etc. never build.
+    branches: [main]
+    # Only application/build logic. Note: docs/** is intentionally NOT listed,
+    # so doc edits (incl. those merged into main via the app) do NOT trigger a
+    # rebuild — the image carries no docs (GitHub is the source of truth).
     paths:
       - "apps/**"
       - "packages/**"

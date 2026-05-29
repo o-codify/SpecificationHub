@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -73,9 +73,12 @@ function seedInitialCommit(): void {
       fs.mkdirSync(destDocs, { recursive: true });
     }
     inDir(tmp, ["add", "-A"]);
+    // --allow-empty so boot succeeds even when no seed docs are present
+    // (e.g. the GitHub-only image bundles no docs).
     inDir(tmp, [
       ...identityArgs(config.gitAuthorName, config.gitAuthorEmail),
       "commit",
+      "--allow-empty",
       "-m",
       "Initial documentation",
     ]);
@@ -131,17 +134,42 @@ export function pushBranch(branch: string): void {
 }
 
 let lastFetch = 0;
-/** Pull remote branch refs so external GitHub changes are reflected. Throttled; non-fatal. */
+let fetchInFlight = false;
+
+/**
+ * Pull remote branch refs so external GitHub changes are reflected.
+ * - Reads (force=false): a throttled, **non-blocking** background fetch with an
+ *   in-flight guard, so request latency and the event loop are never tied to the
+ *   network and concurrent reads can't spawn overlapping fetches.
+ * - force=true (e.g. right after a merge): a synchronous fetch so the next read
+ *   is guaranteed to reflect the new state.
+ * Always non-fatal — network hiccups must not break reads.
+ */
 export function fetchRemote(force = false): void {
   if (!config.githubEnabled) return;
-  const now = Date.now();
-  if (!force && now - lastFetch < 10_000) return;
-  lastFetch = now;
-  try {
-    git([...authArgs(), "fetch", "origin"], { cwd: config.repoDir });
-  } catch {
-    /* network hiccups must not break reads */
+
+  if (force) {
+    lastFetch = Date.now();
+    try {
+      git([...authArgs(), "fetch", "origin"], { cwd: config.repoDir });
+    } catch {
+      /* ignore */
+    }
+    return;
   }
+
+  const now = Date.now();
+  if (fetchInFlight || now - lastFetch < config.syncIntervalMs) return;
+  lastFetch = now;
+  fetchInFlight = true;
+  execFile(
+    "git",
+    [...authArgs(), "fetch", "origin"],
+    { cwd: config.repoDir, maxBuffer: 128 * 1024 * 1024 },
+    () => {
+      fetchInFlight = false;
+    },
+  );
 }
 
 export function listBranches(): string[] {

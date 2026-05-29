@@ -92,8 +92,10 @@ GITHUB_TOKEN=github_pat_xxx \
 docker compose up --build
 ```
 
-- On first boot the repo is **cloned** from GitHub (if the repo is empty, the
-  local `docs/` seed is pushed up as the initial commit).
+- On first boot the repo is **cloned** from GitHub into the `/data` volume.
+  The Docker image does **not** bundle a docs seed — GitHub is the source of
+  truth, so the repo must already contain `docs/` (push the source `docs/` once
+  for a brand-new repo). Local dev (`npm start`) still seeds from `./docs`.
 - In the editor, **Save = commit + push** to the branch in one action — no
   separate "commit" step. A **Pull Request** is opened/updated automatically.
 - **Merge** (admin Diff page, reviewer/admin only) goes through the **GitHub PR
@@ -220,6 +222,7 @@ curl -X POST $B/api/merge -H "Authorization: Bearer $ADMIN" \
 | `HLS_ADMIN_TOKEN`  | _(generated)_          | pin the programmatic API admin token |
 | `GITHUB_TOKEN`     | _(unset)_              | PAT — enables GitHub PR mode (with repo) |
 | `GITHUB_REPO`      | _(unset)_              | `owner/name` — enables GitHub PR mode |
+| `HLS_SYNC_INTERVAL_MS` | `10000`            | min gap between background `git fetch` syncs |
 | `HLS_DOCS_SEED`    | `./docs`               | seed content for first boot          |
 | `HLS_WEB_DIST`     | `./apps/web/dist`      | built frontend to serve              |
 | `HLS_DEFAULT_BRANCH` | `main`               | default/protected branch             |
