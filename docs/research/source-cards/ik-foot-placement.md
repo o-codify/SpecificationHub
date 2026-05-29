@@ -2,44 +2,92 @@
 id: source-card-ik-foot-placement
 title: "Source Card: IK Foot Placement"
 status: draft
-version: 26.529.2142
+version: 26.529.2215
 tags:
   - research
   - ik
   - foot-placement
+  - linked-source
 ---
 
 # Source Card: IK Foot Placement
 
 ## Metadata
 
-Type: game development and animation technique topic.
+| Field | Value |
+|---|---|
+| Title | IK Foot Placement for Game Characters |
+| Type | Game animation technique / implementation pattern |
+| Reliability | Medium |
+| Relevance | High |
+| Access status | Supported by engine docs and implementation references |
 
-Reliability: medium.
+## Links
 
-Relevance: high.
+- Unreal IK Rig documentation: https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine
+- Unreal Full Body IK: https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine
+- Unreal Control Rig: https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine
 
 ## What it says
 
-IK foot placement adjusts foot targets to terrain and contact constraints. It is useful for slopes, stairs, uneven ground, and reducing foot sliding.
+IK foot placement adjusts skeletal feet toward procedural targets and terrain constraints. It is commonly used to align feet with uneven ground, slopes, and stairs.
 
-## Useful HLS Facts
+## What HLS Used
 
-- Foot target generation should happen before IK.
-- IK should solve bones toward targets.
-- Terrain traces can provide foot height and surface normal.
-- Foot locking is necessary during stance.
-- Pelvis height must support both foot contacts.
+- Foot target generation should happen before IK application.
+- IK should solve bones toward targets, not decide high-level gait rules.
+- Terrain traces can provide foot target height and surface normal.
+- Foot locking is required to reduce sliding during stance.
+
+## What HLS Did Not Use
+
+- No engine-specific IK node is mandated.
+- No assumption that IK alone creates believable locomotion.
+- No full-body physical balance simulation.
+
+## Extracted HLS Facts
+
+- Foot targets are the right abstraction for procedural contact.
+- Ground traces should feed foot placement.
+- Pelvis height must support foot target reach.
+- IK overreach must be clamped and debugged.
 
 ## Candidate HLS Rules
 
-- During stance, lock foot target.
-- During swing, trace next foot target.
-- Align foot orientation to surface normal within limits.
-- Move pelvis to avoid overextension.
+```text
+if legPhase.contact == true:
+    preserve foot lock target
+else:
+    generate swing target from gait phase and terrain trace
+```
 
-## HLS Target Sections
+```text
+if footTargetReach > maxIKReach:
+    clamp foot target
+    emit debug warning
+```
 
-- docs/09-solvers/foot-target-solver.md
-- docs/09-solvers/pelvis-solver.md
-- docs/11-unreal-engine/ik.md
+## Numeric Data
+
+No numeric runtime rule is extracted. Reach limits and foot clearance are skeleton-specific tuning parameters.
+
+## HLS Transformation
+
+```text
+terrain trace + gait phase
+  -> procedural foot target
+  -> IK target
+  -> skeletal foot placement
+```
+
+## Uncertainty
+
+- Exact stance correction threshold before visible sliding becomes worse than target error.
+- Whether foot roll should be solved by FootTargetSolver or a separate foot-contact solver.
+
+## Used By
+
+- `docs/09-solvers/foot-target-solver.md`
+- `docs/09-solvers/pelvis-solver.md`
+- `docs/10-runtime/constraints.md`
+- `docs/11-unreal-engine/index.md`
