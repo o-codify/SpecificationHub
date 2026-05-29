@@ -2,7 +2,7 @@
 id: source-card-normal-gait-overview
 title: "Source Card: Normal Gait Overview"
 status: draft
-version: 26.529.2158
+version: 26.529.2203
 tags:
   - research
   - gait
@@ -14,63 +14,78 @@ tags:
 
 ## Metadata
 
-Title: The Gait Cycle / Normal Gait Overview.
+| Field | Value |
+|---|---|
+| Title | Normal Gait / The Gait Cycle |
+| Type | Clinical / educational overview |
+| Reliability | Medium |
+| Relevance | High |
+| Access status | Accessible web pages |
 
-Type: clinical and educational gait overview.
+## Links
 
-URL:
-
-- https://www.physio-pedia.com/The_Gait_Cycle
-- https://teachmeanatomy.info/lower-limb/misc/gait-cycle/
-
-Access status: accessible web pages.
-
-Reliability: medium.
-
-Relevance: high.
+- Physiopedia: https://www.physio-pedia.com/The_Gait_Cycle
+- TeachMeAnatomy: https://teachmeanatomy.info/lower-limb/misc/gait-cycle/
 
 ## What it says
 
-Normal gait is divided into stance and swing. Stance is the foot contact part of the cycle. Swing is the forward recovery part of the cycle. Walking includes double support.
+Normal walking is described as a repeated gait cycle divided into **stance** and **swing**. Stance is the foot-contact part of the cycle. Swing is the recovery and forward movement part of the cycle. Walking also includes double support.
 
 ## What HLS Used
 
-- stance and swing as the basic phase model
-- stance being longer than swing in ordinary walking
-- double support as walking-only support mode
-- clinical subphase names as labels for runtime bands
+- The stance / swing split as the base gait model.
+- The approximate 60 / 40 stance-to-swing timing for normal walking.
+- The concept of double support in walking.
+- Clinical subphase names as readable runtime labels.
 
 ## What HLS Did Not Use
 
-- exact clinical diagnosis logic
-- patient-specific pathology interpretation
-- medical measurement procedures
+- Medical diagnosis logic.
+- Patient-specific pathology interpretation.
+- Exact clinical measurement workflow.
+- Full clinical phase taxonomy as a required runtime model.
 
-## Useful HLS Facts
+## Extracted HLS Facts
 
-- Walking can be represented as a repeated normalized cycle.
-- Stance is longer than swing in walking.
-- Walking includes double support.
-- The two legs are offset in phase.
+- Walking can be represented as a repeated normalized phase cycle.
+- Stance is longer than swing in ordinary walking.
+- Walking has double support.
+- Opposite legs are offset in phase.
 
 ## Candidate HLS Rules
 
-- Walk stance ratio defaults to about 0.60.
-- Walk swing ratio defaults to about 0.40.
-- Opposite leg phase is gait phase plus 0.5.
-- Double support exists only in walking, not running.
+```text
+WalkStanceRatio = 0.60
+WalkSwingRatio = 0.40
+RightLegPhase = (LeftLegPhase + 0.5) % 1.0
+WalkingSupportMode includes double support
+```
 
 ## Numeric Data
 
-- Stance: approximately 60 percent.
-- Swing: approximately 40 percent.
+| Value | Meaning | Usage in HLS |
+|---|---|---|
+| ~60% | walking stance phase | default `WalkStanceRatio` |
+| ~40% | walking swing phase | default `WalkSwingRatio` |
+
+## HLS Transformation
+
+Clinical gait descriptions are converted into a compact runtime phase model:
+
+```text
+clinical gait phase description
+  -> normalized gaitPhase 0..1
+  -> stance / swing ratio
+  -> supportMode
+  -> foot target state
+```
 
 ## Uncertainty
 
-Clinical timing is not always ideal for stylized game animation. HLS should use these values as defaults and tune visually.
+The 60 / 40 split is a useful default, not a mandatory value for every character, speed, or style. HLS may tune it for stylized Level 3 motion.
 
-## HLS Target Sections
+## Used By
 
-- docs/04-gait-cycle
-- docs/05-walking
-- docs/09-solvers/gait-phase-generator.md
+- `docs/04-gait-cycle/index.md`
+- `docs/05-walking/index.md`
+- `docs/09-solvers/gait-phase-generator.md`
