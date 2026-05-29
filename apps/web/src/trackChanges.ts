@@ -1,5 +1,5 @@
 import { diffArrays } from "diff";
-import { mdToHtml, mdInline } from "./markdownConvert";
+import { mdToHtmlDoc, mdInline } from "./markdownConvert";
 
 /** A "prose" block is a plain paragraph (not heading/list/quote/code/table). */
 const isProse = (b: string) => !/^(#{1,6}\s|>\s|[-*+]\s|\d+\.\s|```|\||\s{4})/.test(b.trim());
@@ -103,17 +103,17 @@ function sugBlock(c: Change): string {
   if (c.kind === "add") {
     return c.newBlocks.length === 1 && isProse(c.newBlocks[0])
       ? `<p class="sug add" ${attrs}>${mdInline(c.newBlocks[0])}</p>`
-      : `<div class="sug add" ${attrs}>${mdToHtml(joinBlocks(c.newBlocks))}</div>`;
+      : `<div class="sug add" ${attrs}>${mdToHtmlDoc(joinBlocks(c.newBlocks))}</div>`;
   }
   if (c.kind === "del") {
     return c.oldBlocks.length === 1 && isProse(c.oldBlocks[0])
       ? `<p class="sug del" ${attrs}>${mdInline(c.oldBlocks[0])}</p>`
-      : `<div class="sug del" ${attrs}>${mdToHtml(joinBlocks(c.oldBlocks))}</div>`;
+      : `<div class="sug del" ${attrs}>${mdToHtmlDoc(joinBlocks(c.oldBlocks))}</div>`;
   }
   // multi-block replace → struck old callout + green new callout
   return (
-    `<div class="sug del" ${attrs}>${mdToHtml(joinBlocks(c.oldBlocks))}</div>` +
-    `<div class="sug add" ${attrs}>${mdToHtml(joinBlocks(c.newBlocks))}</div>`
+    `<div class="sug del" ${attrs}>${mdToHtmlDoc(joinBlocks(c.oldBlocks))}</div>` +
+    `<div class="sug add" ${attrs}>${mdToHtmlDoc(joinBlocks(c.newBlocks))}</div>`
   );
 }
 
@@ -141,7 +141,7 @@ export function renderTrackedHtml(baseMd: string, changes: Change[]): string {
     } else if (covered.has(pos)) {
       pos++; // part of a multi-block del/replace already emitted
     } else {
-      html += mdToHtml(base[pos]);
+      html += mdToHtmlDoc(base[pos]);
       pos++;
     }
   }
