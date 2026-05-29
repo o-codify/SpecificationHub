@@ -296,7 +296,6 @@ export function createRouter(): Router {
   // ---- Suggestions (inline proposed changes from branches) ----
   router.get(
     "/suggestions",
-    requireAuth,
     h((req, res) => {
       const base = (req.query.base as string) || config.defaultBranch;
       const docPath = validateDocPath(req.query.path);
@@ -307,7 +306,6 @@ export function createRouter(): Router {
 
   router.get(
     "/suggestions/summary",
-    requireAuth,
     h((req, res) => {
       const base = (req.query.base as string) || config.defaultBranch;
       res.json({ base, counts: gitlib.suggestionCounts(base) });

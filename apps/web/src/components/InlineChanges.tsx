@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { parseFrontmatter, serializeDoc, type FrontMatter } from "@hls/core";
 import type { FileSuggestion } from "../api";
 import { api } from "../api";
@@ -12,6 +12,7 @@ interface Props {
   content: string; // body markdown (frontmatter stripped)
   frontmatter: FrontMatter;
   suggestions: FileSuggestion[];
+  readOnly?: boolean;
   onResolved: () => void;
 }
 
@@ -21,7 +22,7 @@ interface Pop {
   y: number;
 }
 
-export function InlineChanges({ path, base, content, frontmatter, suggestions, onResolved }: Props) {
+export function InlineChanges({ path, base, content, frontmatter, suggestions, readOnly, onResolved }: Props) {
   const toast = useToast();
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [pop, setPop] = useState<Pop | null>(null);
@@ -42,6 +43,19 @@ export function InlineChanges({ path, base, content, frontmatter, suggestions, o
 
   const current = (): Change | undefined => changes.find((c) => c.id === pop?.id);
 
+  // Close the popover on any click outside it (and outside a change).
+  useEffect(() => {
+    if (!pop) return;
+    const onDocClick = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest(".sug-pop") || t.closest(".sug")) return;
+      setPop(null);
+      setEditing(false);
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [pop]);
+
   const onClick = (e: React.MouseEvent) => {
     const el = (e.target as HTMLElement).closest(".sug") as HTMLElement | null;
     if (!el) {
@@ -50,7 +64,8 @@ export function InlineChanges({ path, base, content, frontmatter, suggestions, o
       return;
     }
     const id = el.dataset.id!;
-    setPop({ id, x: Math.min(e.clientX, window.innerWidth - 240), y: e.clientY + 10 });
+    const r = el.getBoundingClientRect();
+    setPop({ id, x: Math.min(r.left, window.innerWidth - 240), y: r.bottom + 8 });
     setEditing(false);
   };
 
@@ -97,11 +112,15 @@ export function InlineChanges({ path, base, content, frontmatter, suggestions, o
     <>
       <div className="doc-body has-change" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />
       {pop && c && (
-        <div className="sug-pop open" style={{ left: pop.x, top: pop.y }} onClick={(e) => e.stopPropagation()}>
+        <div
+          className={`sug-pop open${readOnly ? " compact" : ""}`}
+          style={{ left: pop.x, top: pop.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="sp-head">
             from <b>{c.branch}</b>
           </div>
-          {editing ? (
+          {readOnly ? null : editing ? (
             <>
               <textarea
                 className="field"

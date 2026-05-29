@@ -1,0 +1,293 @@
+import { randomUUID } from "node:crypto";
+import type { Express, Request, Response } from "express";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
+import {
+  DOC_STATUSES,
+  parseFrontmatter,
+  serializeDoc,
+  validateFrontmatter,
+  type DocStatus,
+} from "@hls/core";
+import * as gitlib from "./git.js";
+import * as github from "./github.js";
+import { canWriteBranch } from "./auth.js";
+import { resolveSession, resolveToken, type Principal } from "./db.js";
+import { config } from "./config.js";
+
+// Write tools require a token created in the app (Admin → Tokens), passed by the
+// MCP client as `Authorization: Bearer <token>`. Reads need no auth.
+function resolvePrincipal(req: Request): Principal | null {
+  const h = req.headers.authorization;
+  if (h && h.startsWith("Bearer ")) {
+    const t = h.slice("Bearer ".length).trim();
+    return resolveSession(t) ?? resolveToken(t);
+  }
+  return null;
+}
+
+const ok = (text: string, structuredContent?: Record<string, unknown>) => ({
+  content: [{ type: "text" as const, text }],
+  ...(structuredContent ? { structuredContent } : {}),
+});
+const fail = (text: string) => ({ content: [{ type: "text" as const, text }], isError: true });
+
+function slugify(t: string): string {
+  return t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "untitled";
+}
+
+function buildServer(principal: Principal | null): McpServer {
+  const server = new McpServer({ name: "hls-hub", version: "0.1.0" });
+  const base = config.defaultBranch;
+
+  server.registerTool(
+    "search_docs",
+    {
+      title: "Search documentation",
+      description: "Full-text search the Human Locomotion Specification docs. Returns matching documents with a short snippet.",
+      inputSchema: {
+        query: z.string().describe("Text to search for"),
+        branch: z.string().optional().describe(`Branch to search (default: ${base})`),
+      },
+    },
+    async ({ query, branch }) => {
+      const b = branch || base;
+      try {
+        const needle = query.toLowerCase();
+        const hits: { path: string; title: string; snippet: string }[] = [];
+        for (const path of gitlib.listMarkdownFiles(b)) {
+          const { frontmatter, content } = parseFrontmatter(gitlib.readFile(b, path));
+          const title = String(frontmatter.title || path);
+          const hay = `${title}\n${content}`;
+          const idx = hay.toLowerCase().indexOf(needle);
+          if (idx >= 0) {
+            const start = Math.max(0, idx - 40);
+            const snippet = hay.slice(start, idx + needle.length + 80).replace(/\s+/g, " ").trim();
+            hits.push({ path, title, snippet });
+          }
+        }
+        return ok(
+          hits.length ? hits.map((h) => `• ${h.title} — ${h.path}\n  ${h.snippet}`).join("\n") : "No matches.",
+          { branch: b, query, hits },
+        );
+      } catch (e) {
+        return fail(String((e as Error).message));
+      }
+    },
+  );
+
+  server.registerTool(
+    "list_docs",
+    {
+      title: "List documents",
+      description: "List all documentation files on a branch with their title and status.",
+      inputSchema: { branch: z.string().optional().describe(`Branch (default: ${base})`) },
+    },
+    async ({ branch }) => {
+      const b = branch || base;
+      try {
+        const items = gitlib.listMarkdownFiles(b).map((path) => {
+          const { frontmatter } = parseFrontmatter(gitlib.readFile(b, path));
+          return { path, title: String(frontmatter.title || path), status: String(frontmatter.status || "") };
+        });
+        return ok(items.map((i) => `• ${i.title} [${i.status}] — ${i.path}`).join("\n"), { branch: b, items });
+      } catch (e) {
+        return fail(String((e as Error).message));
+      }
+    },
+  );
+
+  server.registerTool(
+    "read_doc",
+    {
+      title: "Read a document",
+      description: "Read a documentation file's frontmatter and Markdown content.",
+      inputSchema: {
+        path: z.string().describe("Doc path, e.g. docs/04-gait-cycle/index.md"),
+        branch: z.string().optional().describe(`Branch (default: ${base})`),
+      },
+    },
+    async ({ path, branch }) => {
+      const b = branch || base;
+      try {
+        const { frontmatter, content } = parseFrontmatter(gitlib.readFile(b, path));
+        return ok(content, { path, branch: b, frontmatter, content });
+      } catch (e) {
+        return fail(String((e as Error).message));
+      }
+    },
+  );
+
+  server.registerTool(
+    "list_branches",
+    {
+      title: "List branches",
+      description: "List branches in the documentation repository.",
+      inputSchema: {},
+    },
+    async () => {
+      try {
+        const branches = gitlib.listBranches();
+        return ok(branches.join("\n"), { default: base, branches });
+      } catch (e) {
+        return fail(String((e as Error).message));
+      }
+    },
+  );
+
+  server.registerTool(
+    "list_suggestions",
+    {
+      title: "List proposed changes",
+      description: "List branches that have proposed changes to a document (vs the base branch).",
+      inputSchema: {
+        path: z.string().describe("Doc path"),
+        base: z.string().optional().describe(`Base branch (default: ${base})`),
+      },
+    },
+    async ({ path, base: baseArg }) => {
+      const b = baseArg || base;
+      try {
+        const s = gitlib.suggestionsForFile(path, b).map((x) => x.branch);
+        return ok(s.length ? `Proposed changes from: ${s.join(", ")}` : "No proposed changes.", {
+          path,
+          base: b,
+          branches: s,
+        });
+      } catch (e) {
+        return fail(String((e as Error).message));
+      }
+    },
+  );
+
+  // ---- write tools (require a principal: request Bearer or HLS_MCP_TOKEN) ----
+  if (principal) {
+    server.registerTool(
+      "create_branch",
+      {
+        title: "Create a branch",
+        description: "Create a new branch for proposing changes (writes never go to the default branch).",
+        inputSchema: {
+          name: z.string().describe("New branch name, e.g. ai/improve-gait"),
+          from: z.string().optional().describe(`Source branch (default: ${base})`),
+        },
+      },
+      async ({ name, from }) => {
+        const verdict = canWriteBranch(principal, name);
+        if (!verdict.ok) return fail(verdict.reason ?? "Not allowed");
+        try {
+          gitlib.createBranch(name, from || base);
+          return ok(`Created branch ${name} from ${from || base}.`, { name });
+        } catch (e) {
+          return fail(String((e as Error).message));
+        }
+      },
+    );
+
+    server.registerTool(
+      "save_doc",
+      {
+        title: "Save a document (propose an edit)",
+        description:
+          "Create or update a document on a branch and commit it (opening/updating a Pull Request in GitHub mode). Writes are not allowed on the default branch — use an ai/* branch.",
+        inputSchema: {
+          branch: z.string().describe("Target branch (e.g. ai/improve-gait)"),
+          path: z.string().describe("Doc path, e.g. docs/04-gait-cycle/index.md"),
+          title: z.string().describe("Document title"),
+          content: z.string().describe("Markdown body of the document"),
+          status: z.enum(DOC_STATUSES as unknown as [DocStatus, ...DocStatus[]]).optional(),
+          tags: z.array(z.string()).optional(),
+          version: z.string().optional(),
+          message: z.string().optional().describe("Commit message"),
+        },
+      },
+      async ({ branch, path, title, content, status, tags, version, message }) => {
+        const verdict = canWriteBranch(principal, branch);
+        if (!verdict.ok) return fail(verdict.reason ?? "Not allowed");
+        try {
+          if (!gitlib.branchExists(branch)) gitlib.createBranch(branch, base);
+          const frontmatter = validateFrontmatter({
+            id: slugify(title),
+            title,
+            status: status || "draft",
+            version: version || "0.1.0",
+            tags: tags || [],
+          });
+          gitlib.writeFileToBranch(branch, path, serializeDoc(frontmatter, content));
+          const commit = gitlib.commit(branch, message || `Update ${path}`, principal.name);
+          let pr: { number: number; url: string } | null = null;
+          if (config.githubEnabled) {
+            const p = await github.ensurePullRequest(branch, base, `Update ${path}`);
+            pr = { number: p.number, url: p.url };
+          }
+          return ok(
+            `Saved ${path} on ${branch} (commit ${commit.sha.slice(0, 8)}).` +
+              (pr ? ` PR #${pr.number}: ${pr.url}` : ""),
+            { branch, path, sha: commit.sha, pullRequest: pr },
+          );
+        } catch (e) {
+          return fail(String((e as Error).message));
+        }
+      },
+    );
+  }
+
+  return server;
+}
+
+/** Mount the MCP server (Streamable HTTP) at /mcp on the given Express app. */
+export function registerMcp(app: Express): void {
+  if (!config.mcpEnabled) return;
+  const transports: Record<string, StreamableHTTPServerTransport> = {};
+
+  app.post("/mcp", async (req: Request, res: Response) => {
+    try {
+      const sid = req.headers["mcp-session-id"] as string | undefined;
+      let transport = sid ? transports[sid] : undefined;
+      if (!transport) {
+        if (sid || !isInitializeRequest(req.body)) {
+          res.status(400).json({
+            jsonrpc: "2.0",
+            error: { code: -32000, message: "No valid session; send an initialize request first." },
+            id: null,
+          });
+          return;
+        }
+        const principal = resolvePrincipal(req);
+        transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+          onsessioninitialized: (id) => {
+            transports[id] = transport!;
+          },
+        });
+        transport.onclose = () => {
+          if (transport!.sessionId) delete transports[transport!.sessionId];
+        };
+        await buildServer(principal).connect(transport);
+      }
+      await transport.handleRequest(req, res, req.body);
+    } catch (e) {
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: "2.0",
+          error: { code: -32603, message: String((e as Error).message) },
+          id: null,
+        });
+      }
+    }
+  });
+
+  const sessionRequest = async (req: Request, res: Response) => {
+    const sid = req.headers["mcp-session-id"] as string | undefined;
+    const transport = sid ? transports[sid] : undefined;
+    if (!transport) {
+      res.status(400).send("Invalid or missing session ID");
+      return;
+    }
+    await transport.handleRequest(req, res);
+  };
+  app.get("/mcp", sessionRequest);
+  app.delete("/mcp", sessionRequest);
+}

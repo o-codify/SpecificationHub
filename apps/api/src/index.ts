@@ -6,6 +6,7 @@ import { ensureRepo, currentDefaultBranch } from "./git.js";
 import { ensureBootstrapAdmin, initDb, pruneExpiredSessions } from "./db.js";
 import { initCredentials, getAdminUsername } from "./credentials.js";
 import { createRouter } from "./routes.js";
+import { registerMcp } from "./mcp.js";
 
 function bootstrap(): void {
   fs.mkdirSync(config.dataDir, { recursive: true });
@@ -48,6 +49,9 @@ function createApp(): express.Express {
   app.use(express.json({ limit: "5mb" }));
 
   app.use("/api", createRouter());
+
+  // MCP server (Streamable HTTP) for ChatGPT / Apps SDK and other MCP clients.
+  registerMcp(app);
 
   // Serve the built frontend, with SPA fallback.
   if (fs.existsSync(config.webDist)) {

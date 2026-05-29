@@ -40,6 +40,7 @@ export const config = {
   githubServer: (process.env.GITHUB_SERVER ?? "https://github.com").replace(/\/$/, ""),
   // Minimum gap between background `git fetch` syncs triggered by reads.
   syncIntervalMs: Number(process.env.HLS_SYNC_INTERVAL_MS ?? 10000),
+  mcpEnabled: (process.env.HLS_MCP_ENABLED ?? "true") !== "false",
   get githubEnabled(): boolean {
     return Boolean(this.githubToken && this.githubRepo);
   },

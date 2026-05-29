@@ -15,6 +15,11 @@ export function mdToHtml(md: string): string {
   return marked.parse(md ?? "", { async: false }) as string;
 }
 
+/** Inline Markdown → HTML without a block <p> wrapper (bold/italic/links/code). */
+export function mdInline(md: string): string {
+  return marked.parseInline(md ?? "", { async: false }) as string;
+}
+
 /** HTML (from contenteditable) → Markdown (for saving to Git). */
 export function htmlToMd(html: string): string {
   const md = turndown.turndown(html ?? "").trim();

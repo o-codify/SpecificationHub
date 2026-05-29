@@ -164,7 +164,7 @@ label.lbl{display:block;font-size:12.5px;color:var(--accent);font-weight:500;mar
   color:var(--p-ink);background:color-mix(in oklch,var(--p1) 72%,var(--surface));
 }
 .badge-draft{
-  display:inline-flex;align-items:center;height:20px;padding:0 9px;
+  display:inline-flex;align-items:center;height:22px;padding:0 9px;
   border-radius:var(--r-pill);font-size:10px;font-weight:600;letter-spacing:.06em;
   text-transform:uppercase;
   color:var(--p-ink);border:1px solid transparent;
@@ -249,7 +249,7 @@ tbody tr:hover{background:var(--surface-2)}
 .sb-name b{font-weight:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--dot,var(--accent));flex:0 0 auto}
 .sb-item.active{background:color-mix(in oklch,var(--dot,var(--accent)) 24%,var(--surface));color:var(--text-strong);font-weight:600;box-shadow:inset 0 0 0 1px color-mix(in oklch,var(--dot,var(--accent)) 44%,var(--border))}
-.doc-main{padding:36px 56px;max-width:860px}
+.doc-main{padding:36px 56px;max-width:860px;margin:0 auto;width:100%}
 .doc-meta{display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;min-height:32px}
 .doc-edit-btn{margin-left:auto;height:32px;padding:0 14px;font-size:13px}
 /* inline editing (in place) */
@@ -288,6 +288,7 @@ tbody tr:hover{background:var(--surface-2)}
 .doc-body ul,.doc-body ol{margin:0 0 18px;padding-left:24px}
 .doc-body li{margin:5px 0}
 .doc-body blockquote{margin:0 0 18px;padding:4px 16px;border-left:3px solid color-mix(in oklch,var(--hl,var(--p3)) 60%,var(--border));color:var(--muted);font-style:italic}
+.doc-main blockquote p,.preview blockquote p,.doc-main blockquote > *,.preview blockquote > *{margin:0}
 .doc-body pre{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;font-family:var(--font-mono);font-size:13px;line-height:1.55;overflow-x:auto;margin:0 0 18px;white-space:pre-wrap}
 .doc-body hr{border:none;border-top:1px solid var(--border);margin:24px 0}
 /* toast (non-shifting success) */
@@ -403,30 +404,30 @@ tbody tr:hover{background:var(--surface-2)}
 .doc-body a{color:var(--link)}
 .doc-body table{width:100%;border-collapse:collapse;margin:0 0 18px}
 .doc-body th,.doc-body td{border:1px solid var(--border);padding:8px 12px}
+/* text selection: off for the app chrome, on for document content + fields */
+body{-webkit-user-select:none;user-select:none}
+.doc-main,.doc-body,input,textarea,select,[contenteditable],.patch,code,.mono,.auth-card{-webkit-user-select:text;user-select:text}
 /* suggestions panel */
 .suggestions{margin-top:32px;border-top:1px solid var(--border);padding-top:22px}
 .sug-h{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--text-strong);margin:0 0 14px}
 .branch-row code{margin-right:2px}
 
-/* inline track-changes woven into the document body */
-.doc-body .sug{display:block;cursor:pointer;border:1px solid var(--border-strong);border-radius:6px;margin:0 0 18px;transition:box-shadow .15s ease}
-.doc-body .sug:hover{box-shadow:0 0 0 3px color-mix(in oklch,var(--p2) 26%,transparent)}
-.doc-body .sug-add{background:color-mix(in oklch,var(--good) 12%,transparent);border-color:color-mix(in oklch,var(--good) 45%,var(--border));border-left:3px solid var(--good);padding:6px 15px}
-.doc-body .sug-del{border-color:color-mix(in oklch,var(--bad-tx) 35%,var(--border));border-left:3px solid var(--bad-tx)}
-.doc-body .sug-del .sug-old{background:color-mix(in oklch,var(--bad-tx) 8%,transparent);padding:6px 15px;color:var(--faint);text-decoration:line-through;text-decoration-color:color-mix(in oklch,var(--bad-tx) 45%,transparent)}
-.doc-body .sug-replace{border-left:3px solid var(--p2)}
-.doc-body .sug-replace .sug-old{background:color-mix(in oklch,var(--bad-tx) 8%,transparent);border-bottom:1px solid var(--border);padding:6px 15px;color:var(--faint);text-decoration:line-through;text-decoration-color:color-mix(in oklch,var(--bad-tx) 45%,transparent)}
-.doc-body .sug-replace .sug-new{background:color-mix(in oklch,var(--good) 12%,transparent);padding:6px 15px}
-.doc-body .sug p,.doc-body .sug h1,.doc-body .sug h2,.doc-body .sug h3{margin:0 0 8px}
-.doc-body .sug p:last-child,.doc-body .sug *:last-child{margin-bottom:0}
-/* inline (word-level) suggestion woven into a paragraph */
-.doc-body .sug.sug-inline{display:inline;border:none;margin:0;padding:0;border-radius:0;box-shadow:none}
-.doc-body .sug.sug-inline:hover{box-shadow:0 0 0 3px color-mix(in oklch,var(--p2) 26%,transparent);border-radius:3px}
-.doc-body .sug-inline del{color:var(--muted);text-decoration:line-through;text-decoration-color:color-mix(in oklch,var(--bad-tx) 50%,transparent)}
-.doc-body .sug-inline ins{text-decoration:none;background:color-mix(in oklch,var(--good) 22%,transparent);color:var(--good);padding:1px 5px;border-radius:4px}
+/* inline track-changes woven into the document body (matches mockup) */
+.doc-body .sug{cursor:pointer}
+.doc-body .sug:hover{box-shadow:0 0 0 3px color-mix(in oklch,var(--p2) 22%,transparent)}
+/* inline replace: kept text stays, one struck old clause + one green new clause */
+.doc-body span.sug{border:1px solid var(--border-strong);border-radius:5px;padding:0;box-decoration-break:slice;-webkit-box-decoration-break:slice}
+.doc-body ins{text-decoration:none;background:color-mix(in oklch,var(--good) 22%,transparent);color:var(--good);padding:1px 6px;border-radius:0 4px 4px 0;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.doc-body del{color:var(--muted);text-decoration:line-through;text-decoration-color:color-mix(in oklch,var(--bad-tx) 50%,transparent);padding:1px 0 1px 6px;margin-right:.4em}
+/* added / removed paragraph callouts */
+.doc-body .sug.add{background:color-mix(in oklch,var(--good) 12%,transparent);border:1px solid color-mix(in oklch,var(--good) 45%,var(--border));border-left-width:3px;padding:10px 14px;border-radius:0 6px 6px 0;margin:0 0 18px}
+.doc-body .sug.del{background:color-mix(in oklch,var(--bad-tx) 8%,transparent);border:1px solid color-mix(in oklch,var(--bad-tx) 35%,var(--border));border-left-width:3px;padding:10px 14px;border-radius:0 6px 6px 0;margin:0 0 18px;color:var(--faint);text-decoration:line-through;text-decoration-color:color-mix(in oklch,var(--bad-tx) 50%,transparent)}
+.doc-body .sug.add>*:last-child,.doc-body .sug.del>*:last-child{margin-bottom:0}
 /* suggestion popover */
 .sug-pop{position:fixed;z-index:75;min-width:200px;max-width:320px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);box-shadow:var(--shadow);padding:11px;display:none}
 .sug-pop.open{display:block}
 .sp-head{font-size:12px;color:var(--muted);margin-bottom:9px}
+.sug-pop.compact{min-width:0;padding:7px 10px}
+.sug-pop.compact .sp-head{margin-bottom:0}
 .sp-head b{color:var(--text-strong);font-family:var(--font-mono);font-size:12px;font-weight:500}
 .sp-acts{display:flex;gap:6px;flex-wrap:wrap}

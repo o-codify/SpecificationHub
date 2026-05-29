@@ -9,6 +9,7 @@ import { pathToSlug, slugToPath } from "../docpath";
 import { statusColor } from "../status";
 import { mdToHtml, stripLeadingH1 } from "../markdownConvert";
 import { Markdown } from "../components/Markdown";
+import { BranchChanges } from "../components/BranchChanges";
 import { StatusBadge } from "../components/StatusBadge";
 import { Highlight } from "../components/Highlight";
 import { InlineEditor, type EditorInitial } from "../components/InlineEditor";
@@ -22,6 +23,8 @@ export function DocsReader() {
   const { sidebarOpen, setSidebarOpen } = useLayout();
   const [branch, setBranch] = useBranchParam();
   const [branches, setBranches] = useState<string[]>(["main"]);
+  const [defaultBranch, setDefaultBranch] = useState("main");
+  const [baseDoc, setBaseDoc] = useState<Doc | null>(null);
   const [tree, setTree] = useState<TreeItem[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [query, setQuery] = useState("");
@@ -38,6 +41,7 @@ export function DocsReader() {
   const location = useLocation();
   const navigate = useNavigate();
   const branchQuery = `?branch=${encodeURIComponent(branch)}`;
+  const branchView = branch !== defaultBranch;
 
   const slug = useMemo(() => {
     const m = location.pathname.match(/^\/docs\/?(.*)$/);
@@ -45,7 +49,13 @@ export function DocsReader() {
   }, [location.pathname]);
 
   useEffect(() => {
-    api.branches().then((r) => setBranches(r.branches.map((b) => b.name))).catch(() => {});
+    api
+      .branches()
+      .then((r) => {
+        setBranches(r.branches.map((b) => b.name));
+        setDefaultBranch(r.default);
+      })
+      .catch(() => {});
   }, []);
 
   const loadTree = useCallback(() => {
@@ -53,22 +63,34 @@ export function DocsReader() {
       .tree(branch)
       .then((r) => setTree(r.items))
       .catch((e) => setError(String(e.message ?? e)));
-    if (authed) {
-      api.suggestionSummary(branch).then((r) => setCounts(r.counts)).catch(() => setCounts({}));
+    if (branch !== defaultBranch) {
+      // Branch view: mark docs that differ from the default branch.
+      api
+        .diff(defaultBranch, branch)
+        .then((d) => {
+          const c: Record<string, number> = {};
+          for (const f of d.files) {
+            if (f.path.startsWith("docs/") && f.path.toLowerCase().endsWith(".md")) c[f.path] = 1;
+          }
+          setCounts(c);
+        })
+        .catch(() => setCounts({}));
     } else {
-      setCounts({});
+      api.suggestionSummary(branch).then((r) => setCounts(r.counts)).catch(() => setCounts({}));
     }
-  }, [branch, authed]);
+  }, [branch, defaultBranch, authed]);
 
   useEffect(loadTree, [loadTree]);
 
   const loadDoc = useCallback(() => {
     if (tree.length === 0) return;
+    const bv = branch !== defaultBranch;
     setMode("view");
     setLoading(true);
     setError("");
     setDoc(null);
     setSuggestions([]);
+    setBaseDoc(null);
     const known = tree.map((t) => t.path);
     let path = slug ? slugToPath(slug, known) : null;
     if (!path && !slug) path = known.find((p) => p.includes("00-introduction")) ?? known[0] ?? null;
@@ -79,9 +101,16 @@ export function DocsReader() {
     }
     api
       .getDoc(branch, path)
-      .then((d) => {
+      .then(async (d) => {
         setDoc(d);
-        if (authed) {
+        if (bv) {
+          // Branch view: diff against the default branch (main) only.
+          try {
+            setBaseDoc(await api.getDoc(defaultBranch, d.path));
+          } catch {
+            setBaseDoc(null);
+          }
+        } else {
           api
             .suggestions(d.path, branch)
             .then((r) => setSuggestions(r.suggestions))
@@ -90,7 +119,7 @@ export function DocsReader() {
       })
       .catch((e) => setError(String(e.message ?? e)))
       .finally(() => setLoading(false));
-  }, [slug, branch, tree, authed]);
+  }, [slug, branch, defaultBranch, tree, authed]);
 
   useEffect(loadDoc, [loadDoc]);
 
@@ -272,13 +301,27 @@ export function DocsReader() {
             </div>
             <div className="doc-path">{doc.path}</div>
             <div className="doc-rule" />
-            {authed && suggestions.length > 0 ? (
+            {branchView ? (
+              <BranchChanges
+                path={doc.path}
+                base={defaultBranch}
+                branch={branch}
+                baseBody={baseDoc?.content ?? ""}
+                headBody={doc.content}
+                frontmatter={fm}
+                onReverted={() => {
+                  loadDoc();
+                  loadTree();
+                }}
+              />
+            ) : suggestions.length > 0 ? (
               <InlineChanges
                 path={doc.path}
                 base={branch}
                 content={doc.content}
                 frontmatter={fm}
                 suggestions={suggestions}
+                readOnly={!authed}
                 onResolved={() => {
                   loadDoc();
                   loadTree();
@@ -289,7 +332,7 @@ export function DocsReader() {
                 <Markdown content={doc.content} currentPath={doc.path} branch={branch} />
               </div>
             )}
-            {authed && suggestions.length > 0 && (
+            {!branchView && authed && suggestions.length > 0 && (
               <Suggestions
                 path={doc.path}
                 base={branch}

@@ -7,8 +7,9 @@ export default defineConfig({
   outDir: "dist",
   clean: true,
   sourcemap: true,
-  // Native module — keep external and resolve from node_modules at runtime.
-  external: ["better-sqlite3"],
+  // Native module + the MCP SDK (many subpath ESM imports) — keep external and
+  // resolve from node_modules at runtime.
+  external: ["better-sqlite3", /^@modelcontextprotocol\/sdk/],
   // Bundle workspace deps (@hls/core) and pure-JS deps into the output.
   noExternal: ["@hls/core"],
   banner: {

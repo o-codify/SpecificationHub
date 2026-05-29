@@ -111,6 +111,29 @@ correctly (it normally is, from the repo HEAD).
 
 Without these vars the app runs in self-contained local mode (no network needed).
 
+## Connect to ChatGPT (MCP)
+
+The backend also exposes an **MCP server** (Model Context Protocol, Streamable
+HTTP) at `/mcp`, so it can be added as a connector in ChatGPT (Apps SDK) or any
+MCP client.
+
+- **Endpoint:** `POST https://<host>/mcp` (same server/port as the app).
+- **Read tools** (no auth): `search_docs`, `list_docs`, `read_doc`,
+  `list_branches`, `list_suggestions`.
+- **Write tools** (proposing edits): `create_branch`, `save_doc`. These appear
+  only when a write principal is available and are confined to `ai/*` branches
+  (never the default branch). `save_doc` creates the branch if needed, commits,
+  and opens/updates a PR in GitHub mode.
+
+Auth for writes uses the **same token system as the rest of the app**: create an
+`ai-agent` token in **Admin → Tokens** and have the MCP client send it as
+`Authorization: Bearer <token>`. No special env var — reads need no auth, writes
+need a token (confined to that token's `ai/*` prefixes).
+
+In ChatGPT: developer mode → add an MCP server with URL `https://<host>/mcp`, and
+set the connector's authorization to `Bearer <your ai-agent token>` for write
+access. Set `HLS_MCP_ENABLED=false` to disable the MCP endpoint.
+
 ## Markdown format
 
 Every document requires frontmatter:
@@ -222,6 +245,7 @@ curl -X POST $B/api/merge -H "Authorization: Bearer $ADMIN" \
 | `HLS_ADMIN_TOKEN`  | _(generated)_          | pin the programmatic API admin token |
 | `GITHUB_TOKEN`     | _(unset)_              | PAT — enables GitHub PR mode (with repo) |
 | `GITHUB_REPO`      | _(unset)_              | `owner/name` — enables GitHub PR mode |
+| `HLS_MCP_ENABLED`  | `true`                 | set `false` to disable the `/mcp` endpoint |
 | `HLS_SYNC_INTERVAL_MS` | `10000`            | min gap between background `git fetch` syncs |
 | `HLS_DOCS_SEED`    | `./docs`               | seed content for first boot          |
 | `HLS_WEB_DIST`     | `./apps/web/dist`      | built frontend to serve              |
