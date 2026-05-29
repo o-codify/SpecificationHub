@@ -2,45 +2,93 @@
 id: source-card-running-biomechanics
 title: "Source Card: Running Biomechanics"
 status: draft
-version: 26.529.2142
+version: 26.529.2217
 tags:
   - research
   - running
   - gait
+  - linked-source
 ---
 
 # Source Card: Running Biomechanics
 
 ## Metadata
 
-Type: biomechanics research topic.
+| Field | Value |
+|---|---|
+| Title | Running Biomechanics Overview |
+| Type | Biomechanics overview / research topic |
+| Reliability | Medium |
+| Relevance | High |
+| Access status | Accessible overview sources, more primary papers needed |
 
-Reliability: medium to high.
+## Links
 
-Relevance: high.
+- Review-style overview: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7575155/
+- Running gait cycle overview: https://www.physio-pedia.com/Running_Biomechanics
 
 ## What it says
 
-Running differs from walking by support timing and body dynamics. It has no double support, includes flight, uses shorter stance, stronger rebound, stronger arm motion, and more forward torso commitment.
+Running differs from walking by support timing and body dynamics. Running has no walking-style double support, includes flight, uses shorter stance timing, stronger rebound, stronger arm motion, and more forward torso commitment.
 
-## Useful HLS Facts
+## What HLS Used
 
-- Running has flight phase.
+- Running is not a sped-up walk.
+- Running includes flight phase.
 - Running stance is shorter than walking stance.
-- Arm swing is stronger than walking.
-- Pelvis vertical motion is stronger than walking.
-- Forward torso lean increases with speed.
+- Arm drive and vertical body motion are stronger than walking.
+- Load and injury should degrade running more strongly than walking.
+
+## What HLS Did Not Use
+
+- Exact sports-performance optimization.
+- Medical injury diagnosis.
+- Detailed foot strike classification as a required first-pass runtime state.
+
+## Extracted HLS Facts
+
+- Running support mode can include flight.
+- Run stance ratio should be lower than walk stance ratio.
+- Running needs stronger pelvis vertical amplitude and arm swing.
+- Forward torso lean should increase with speed.
 
 ## Candidate HLS Rules
 
-- RunStanceRatio should be lower than WalkStanceRatio.
-- Support mode can become flight.
-- Pelvis vertical amplitude increases with running speed.
-- ArmSwingAmplitude increases with running speed.
-- Load and injury reduce running quality strongly.
+```text
+RunStanceRatio < WalkStanceRatio
+RunSupportMode may become Flight
+RunArmSwingAmplitude > WalkArmSwingAmplitude
+RunPelvisVerticalAmplitude > WalkPelvisVerticalAmplitude
+```
 
-## HLS Target Sections
+## Numeric Data
 
-- docs/04-gait-cycle
-- docs/06-running
-- docs/09-solvers/gait-phase-generator.md
+| Value | Meaning | Usage in HLS |
+|---|---|---|
+| Run stance shorter than walk stance | qualitative source-backed relationship | `RunStanceRatio` lower than walking |
+| Flight phase exists | qualitative source-backed relationship | `supportMode = flight` |
+
+HLS tuning values such as `RunStanceRatio = 0.30..0.45` are gameplay defaults, not treated as fixed scientific constants.
+
+## HLS Transformation
+
+```text
+running biomechanics distinction
+  -> supportMode includes flight
+  -> shorter stance ratio
+  -> higher arm and pelvis amplitudes
+  -> Running solver profile
+```
+
+## Uncertainty
+
+- Exact runtime bands for jog versus run.
+- Whether slow jog should always include visible flight.
+- How much foot-strike pattern matters for Level 3 game motion.
+
+## Used By
+
+- `docs/06-running/index.md`
+- `docs/04-gait-cycle/index.md`
+- `docs/09-solvers/gait-phase-generator.md`
+- `docs/09-solvers/arm-swing-solver.md`
