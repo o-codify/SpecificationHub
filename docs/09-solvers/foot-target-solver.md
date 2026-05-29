@@ -2,12 +2,13 @@
 id: foot-target-solver
 title: Foot Target Solver
 status: draft
-version: 26.529.2229
+version: 26.529.2353
 tags:
   - solver
   - feet
   - ik
   - provenance
+  - links
 ---
 
 # Foot Target Solver
@@ -58,52 +59,52 @@ Foot locking is more important than exact anatomical motion. Visible foot slidin
 | Field | Value |
 |---|---|
 | Rule | During stance, foot target remains locked unless correction is required. |
-| Source card | `docs/research/source-cards/ik-foot-placement.md` |
+| Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
 | Source type | IK / game animation implementation constraint |
 | Used from source | IK can apply procedural foot targets; stable contact prevents sliding. |
 | HLS transformation | FootTargetSolver emits foot lock state for stance feet before IK. |
 | Confidence | high |
-| Applies to | `IK/FK Output`, `Runtime Constraints`, `Debug Visualization` |
+| Applies to | [Output Pose](../10-runtime/output-pose.md), [Runtime Constraints](../10-runtime/constraints.md), [Debug Visualization](../10-runtime/debug-visualization.md) |
 
 ### Swing foot arc
 
 | Field | Value |
 |---|---|
 | Rule | Swing foot follows a lifted arc toward next target. |
-| Source card | `docs/research/source-cards/normal-gait-overview.md`, `docs/research/source-cards/ik-foot-placement.md` |
+| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md), [IK Foot Placement](../research/source-cards/ik-foot-placement.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | gait overview plus procedural implementation |
 | Used from source | Swing is the recovery phase; procedural IK needs clearance over terrain. |
 | HLS transformation | Foot lift height and swing interpolation are solver parameters. |
 | Confidence | high for concept, medium for exact arc |
-| Applies to | `Walking`, `Running`, `Slope`, `Stairs` |
+| Applies to | [Walking](../05-walking/index.md), [Running](../06-running/index.md), [Slope Modifier](../08-modifiers/slope.md), [Stairs Modifier](../08-modifiers/stairs.md) |
 
 ### Terrain target selection
 
 | Field | Value |
 |---|---|
 | Rule | Slope and stairs modify foot target selection before IK. |
-| Source card | `docs/research/source-cards/stairs-and-slopes.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| Source card | [Stairs and Slopes](../research/source-cards/stairs-and-slopes.md), [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
 | Source type | terrain locomotion plus engine docs |
 | Used from source | Terrain-specific locomotion needs adjusted foot placement; IK applies targets. |
 | HLS transformation | FootTargetSolver consumes terrain traces and outputs slope/stair-aware targets. |
 | Confidence | high |
-| Applies to | `Slope Modifier`, `Stairs Modifier`, `Unreal Engine IK` |
+| Applies to | [Slope Modifier](../08-modifiers/slope.md), [Stairs Modifier](../08-modifiers/stairs.md), [Unreal Engine](../11-unreal-engine/index.md) |
 
 ### Step parameters from modifiers
 
 | Field | Value |
 |---|---|
 | Rule | Load and injury can alter step length, width, and confidence. |
-| Source card | `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/pathological-gait-asymmetry.md` |
+| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Pathological Gait Asymmetry](../research/source-cards/pathological-gait-asymmetry.md) |
 | External link | https://pubmed.ncbi.nlm.nih.gov/?term=pathological+gait+asymmetry+stance+time+step+length |
 | Source type | load carriage / pathological gait topics |
 | Used from source | Load and injury affect posture, symmetry, and gait parameters. |
 | HLS transformation | ModifierResolver changes step length, step width, and side-specific confidence before foot target solving. |
 | Confidence | medium |
-| Applies to | `ModifierStacking`, `Backpack`, `Injury`, `Asymmetric Load` |
+| Applies to | [Modifier Stacking](../10-runtime/modifier-stacking.md), [Backpack Load Modifier](../08-modifiers/backpack-load.md), [Injury and Limping Modifier](../08-modifiers/injury-limping.md), [Asymmetric Load Modifier](../08-modifiers/asymmetric-load.md) |
 
 ## Numeric Data Separation
 
