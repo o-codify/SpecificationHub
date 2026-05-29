@@ -2,7 +2,7 @@
 id: source-card-antalgic-gait
 title: "Source Card: Antalgic Gait"
 status: draft
-version: 26.529.2159
+version: 26.529.2203
 tags:
   - research
   - injury
@@ -14,61 +14,82 @@ tags:
 
 ## Metadata
 
-Title: Antalgic Gait in Adults.
+| Field | Value |
+|---|---|
+| Title | Antalgic Gait in Adults |
+| Type | Clinical reference |
+| Reliability | High |
+| Relevance | High |
+| Access status | Accessible NCBI Bookshelf page |
 
-Type: clinical gait reference.
+## Links
 
-URL:
-
-- https://www.ncbi.nlm.nih.gov/books/NBK559243/
-
-Access status: accessible NCBI Bookshelf page.
-
-Reliability: high.
-
-Relevance: high.
+- NCBI Bookshelf: https://www.ncbi.nlm.nih.gov/books/NBK559243/
 
 ## What it says
 
-Antalgic gait is a pain-related gait pattern. The person reduces loading time on the painful limb.
+Antalgic gait is a pain-related gait pattern. The person changes gait to reduce loading and discomfort on the painful limb.
 
 ## What HLS Used
 
-- painful limb has reduced stance time
-- limp is visible as asymmetry
-- gait changes are protective
-- speed and loading confidence can be reduced
+- Painful limb should spend less time in stance.
+- Limp should be visible as asymmetry.
+- Injury should reduce locomotion quality.
+- Protective posture can be represented by stiffness and compensation.
 
 ## What HLS Did Not Use
 
-- diagnostic workflow
-- disease-specific treatment information
-- medical recommendations
+- Diagnostic workflow.
+- Disease-specific treatment information.
+- Medical recommendations.
+- Exact pathology classification.
 
-## Useful HLS Facts
+## Extracted HLS Facts
 
-- Painful leg has shorter stance time.
-- Limp is mainly visible as asymmetry.
-- Walking speed is reduced in many protective gait patterns.
-- Torso and pelvis may compensate to avoid painful loading.
+- Painful leg has reduced loading time.
+- Limping is visually readable through asymmetry.
+- Speed and confidence can be reduced.
+- Pelvis and torso can compensate away from painful loading.
 
 ## Candidate HLS Rules
 
-- If one leg is injured, reduce stance time on that leg.
-- Reduce overall speed as injury severity increases.
-- Increase spine stiffness as injury severity increases.
-- Add pelvis compensation away from painful loading.
+```text
+if LeftLegPain > 0:
+    LeftStanceRatio *= InjuryStanceMultiplier
+    Speed *= InjurySpeedMultiplier
+    SpineStiffness += InjuryStiffnessBias
+```
+
+```text
+if RightLegPain > 0:
+    RightStanceRatio *= InjuryStanceMultiplier
+    Speed *= InjurySpeedMultiplier
+    SpineStiffness += InjuryStiffnessBias
+```
 
 ## Numeric Data
 
-No universal single value should be hard-coded. HLS uses tunable severity curves.
+No universal numeric multiplier is extracted from this source in first pass.
+
+HLS tuning values are stored in `docs/08-modifiers/injury-limping.md` and should be treated as gameplay defaults, not clinical constants.
+
+## HLS Transformation
+
+```text
+clinical pain-avoidance gait
+  -> reduced stance time on painful side
+  -> asymmetric step pattern
+  -> lower speed
+  -> protective stiffness
+```
 
 ## Uncertainty
 
-Hip, knee, ankle, and foot pain produce different patterns. First pass uses a generic limp modifier.
+Hip, knee, ankle, and foot injuries can produce different patterns. First pass uses a generic injury modifier.
 
-## HLS Target Sections
+## Used By
 
-- docs/08-modifiers/injury-limping.md
-- docs/09-solvers/gait-phase-generator.md
-- docs/09-solvers/pelvis-solver.md
+- `docs/08-modifiers/injury-limping.md`
+- `docs/09-solvers/gait-phase-generator.md`
+- `docs/09-solvers/pelvis-solver.md`
+- `docs/research/validation-methodology.md`
