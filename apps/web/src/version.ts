@@ -1,12 +1,11 @@
-const pad2 = (n: number) => String(n).padStart(2, "0");
+import { stampVersion } from "@hls/core";
 
 /**
- * Document version scheme: `YEAR.MDD.UPDATE` (e.g. 2026.529.3).
- * The date is set to today on every update; the update counter always grows.
+ * Version is auto-stamped from the clock (`YY.M{DD}.H{MM}`, minute granularity)
+ * and is authoritative on the server — clients/AI never set it. This is only an
+ * optimistic value; the server re-stamps on every write. Kept as a thin wrapper
+ * so existing call sites stay unchanged.
  */
-export function nextVersion(prev: unknown): string {
-  const d = new Date();
-  const parts = String(prev ?? "").split(".");
-  const u = parts.length === 3 && /^\d+$/.test(parts[2]) ? Number(parts[2]) + 1 : 1;
-  return `${d.getFullYear()}.${d.getMonth() + 1}${pad2(d.getDate())}.${u}`;
+export function nextVersion(_prev?: unknown): string {
+  return stampVersion();
 }

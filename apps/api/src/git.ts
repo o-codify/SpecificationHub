@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { config } from "./config.js";
-import type { DiffFile } from "@hls/core";
+import { parseFrontmatter, type DiffFile, type SearchHit } from "@hls/core";
 
 export class GitError extends Error {
   detail: string;
@@ -442,6 +442,70 @@ export function suggestionCounts(base: string): Record<string, number> {
     }
   }
   return counts;
+}
+
+export interface NewDoc {
+  path: string;
+  title: string;
+  status: string;
+  branch: string;
+}
+
+/** Docs markdown files that exist on some non-base branch but not on `base`
+ *  (whole-new documents proposed for addition). First proposing branch wins. */
+export function newDocsForBase(base: string): NewDoc[] {
+  if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
+  const seen = new Set<string>();
+  const out: NewDoc[] = [];
+  for (const b of listBranches()) {
+    if (b === base) continue;
+    for (const filePath of listMarkdownFiles(b)) {
+      if (seen.has(filePath) || fileExists(base, filePath)) continue;
+      seen.add(filePath);
+      let title = filePath;
+      let status = "draft";
+      try {
+        const { frontmatter } = parseFrontmatter(readFile(b, filePath));
+        title = String(frontmatter.title || filePath);
+        status = String(frontmatter.status || "draft");
+      } catch {
+        /* keep defaults */
+      }
+      out.push({ path: filePath, title, status, branch: b });
+    }
+  }
+  return out;
+}
+
+/**
+ * Full-text search over docs on a branch. The query is split into words and a
+ * document matches when it contains ALL of them (case-insensitive, anywhere in
+ * the title or body) — so "gait cycle stance swing" matches a doc mentioning
+ * those words even when they are not a contiguous phrase.
+ */
+export function searchDocs(branch: string, query: string): SearchHit[] {
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return [];
+  const hits: SearchHit[] = [];
+  for (const filePath of listMarkdownFiles(branch)) {
+    let raw: string;
+    try {
+      raw = readFile(branch, filePath);
+    } catch {
+      continue;
+    }
+    const { frontmatter, content } = parseFrontmatter(raw);
+    const title = frontmatter.title ? String(frontmatter.title) : filePath;
+    const hay = `${title}\n${content}`;
+    const lower = hay.toLowerCase();
+    if (!terms.every((t) => lower.includes(t))) continue;
+    const positions = terms.map((t) => lower.indexOf(t)).filter((i) => i >= 0);
+    const idx = positions.length ? Math.min(...positions) : 0;
+    const start = Math.max(0, idx - 40);
+    const body = hay.slice(start, idx + 120).replace(/\s+/g, " ").trim();
+    hits.push({ path: filePath, title, snippet: (start > 0 ? "…" : "") + body + "…" });
+  }
+  return hits;
 }
 
 /** Commit arbitrary `content` for `filePath` directly onto `base` (+push). This is

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import type { Doc, SearchHit, TreeItem } from "@hls/core";
-import { api, type FileSuggestion } from "../api";
+import { serializeDoc, type Doc, type SearchHit, type TreeItem } from "@hls/core";
+import { api, type FileSuggestion, type NewDoc } from "../api";
 import { useAuth } from "../auth";
 import { useLayout } from "../layout";
+import { useToast } from "../toast";
 import { useBranchParam } from "../hooks";
 import { pathToSlug, slugToPath } from "../docpath";
 import { statusColor } from "../status";
@@ -20,6 +21,7 @@ type Mode = "view" | "edit" | "new";
 
 export function DocsReader() {
   const { authed } = useAuth();
+  const toast = useToast();
   const { sidebarOpen, setSidebarOpen } = useLayout();
   const [branch, setBranch] = useBranchParam();
   const [branches, setBranches] = useState<string[]>(["main"]);
@@ -27,6 +29,11 @@ export function DocsReader() {
   const [baseDoc, setBaseDoc] = useState<Doc | null>(null);
   const [tree, setTree] = useState<TreeItem[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [newDocs, setNewDocs] = useState<NewDoc[]>([]);
+  // When the open doc is a brand-new file proposed on another branch (not yet in
+  // the default branch), this holds that branch; otherwise null.
+  const [newDocBranch, setNewDocBranch] = useState<string | null>(null);
+  const [acceptingNew, setAcceptingNew] = useState(false);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [searchedFor, setSearchedFor] = useState("");
@@ -65,6 +72,7 @@ export function DocsReader() {
       .catch((e) => setError(String(e.message ?? e)));
     if (branch !== defaultBranch) {
       // Branch view: mark docs that differ from the default branch.
+      setNewDocs([]);
       api
         .diff(defaultBranch, branch)
         .then((d) => {
@@ -76,14 +84,23 @@ export function DocsReader() {
         })
         .catch(() => setCounts({}));
     } else {
-      api.suggestionSummary(branch).then((r) => setCounts(r.counts)).catch(() => setCounts({}));
+      api
+        .suggestionSummary(branch)
+        .then((r) => {
+          setCounts(r.counts);
+          setNewDocs(r.news ?? []);
+        })
+        .catch(() => {
+          setCounts({});
+          setNewDocs([]);
+        });
     }
   }, [branch, defaultBranch, authed]);
 
   useEffect(loadTree, [loadTree]);
 
   const loadDoc = useCallback(() => {
-    if (tree.length === 0) return;
+    if (tree.length === 0 && newDocs.length === 0) return;
     const bv = branch !== defaultBranch;
     setMode("view");
     setLoading(true);
@@ -91,19 +108,27 @@ export function DocsReader() {
     setDoc(null);
     setSuggestions([]);
     setBaseDoc(null);
-    const known = tree.map((t) => t.path);
+    setNewDocBranch(null);
+    const treePaths = tree.map((t) => t.path);
+    const known = [...treePaths, ...newDocs.map((n) => n.path)];
     let path = slug ? slugToPath(slug, known) : null;
-    if (!path && !slug) path = known.find((p) => p.includes("00-introduction")) ?? known[0] ?? null;
+    if (!path && !slug) path = treePaths.find((p) => p.includes("00-introduction")) ?? treePaths[0] ?? null;
     if (!path) {
       setError(`Document not found: ${slug}`);
       setLoading(false);
       return;
     }
+    // A brand-new file proposed on a branch (present in `newDocs`, absent from the
+    // default branch's tree) is fetched from that branch and shown read-as-new.
+    const nd = !treePaths.includes(path) ? newDocs.find((n) => n.path === path) : undefined;
+    const sourceBranch = nd ? nd.branch : branch;
     api
-      .getDoc(branch, path)
+      .getDoc(sourceBranch, path)
       .then(async (d) => {
         setDoc(d);
-        if (bv) {
+        if (nd) {
+          setNewDocBranch(nd.branch);
+        } else if (bv) {
           // Branch view: diff against the default branch (main) only.
           try {
             setBaseDoc(await api.getDoc(defaultBranch, d.path));
@@ -119,7 +144,7 @@ export function DocsReader() {
       })
       .catch((e) => setError(String(e.message ?? e)))
       .finally(() => setLoading(false));
-  }, [slug, branch, defaultBranch, tree, authed]);
+  }, [slug, branch, defaultBranch, tree, newDocs, authed]);
 
   useEffect(loadDoc, [loadDoc]);
 
@@ -167,8 +192,41 @@ export function DocsReader() {
     setMode("new");
   };
 
+  const acceptNewDoc = async () => {
+    if (!doc || !newDocBranch) return;
+    setAcceptingNew(true);
+    try {
+      const full = serializeDoc(doc.frontmatter, doc.content);
+      await api.acceptSuggestion(doc.path, defaultBranch, full, `Add ${doc.path} from ${newDocBranch}`);
+      toast.show(
+        <>
+          Added <code>{doc.path}</code> to <code>{defaultBranch}</code>
+        </>,
+      );
+      loadTree();
+      loadDoc();
+    } catch (err) {
+      toast.show(<>Could not add: {String((err as Error).message)}</>);
+    } finally {
+      setAcceptingNew(false);
+    }
+  };
+
   const fm = doc?.frontmatter;
   const hlStyle = { ["--hl" as string]: statusColor(String(fm?.status ?? "")) } as CSSProperties;
+  // Branch view, whole-new doc: it exists on this branch but not on the default
+  // branch (baseDoc fetch 404'd → null once loading settled).
+  const isBranchNewDoc = branchView && !!doc && baseDoc === null && !loading && !error;
+  const treePaths = useMemo(() => new Set(tree.map((t) => t.path)), [tree]);
+  const sidebarItems = useMemo(
+    () => [
+      ...tree.map((t) => ({ path: t.path, title: t.title, status: t.status, isNew: false })),
+      ...newDocs
+        .filter((n) => !treePaths.has(n.path))
+        .map((n) => ({ path: n.path, title: n.title, status: n.status, isNew: true })),
+    ],
+    [tree, newDocs, treePaths],
+  );
 
   return (
     <div className="docs-shell">
@@ -227,7 +285,7 @@ export function DocsReader() {
           </div>
         ) : (
           <div className="sb-list">
-            {tree.map((item) => {
+            {sidebarItems.map((item) => {
               const active = doc?.path === item.path;
               const n = counts[item.path] || 0;
               return (
@@ -241,16 +299,22 @@ export function DocsReader() {
                     <i className="dot" />
                     <b>{item.title}</b>
                   </span>
-                  {n > 0 && (
-                    <span className="sb-change" title={`${n} proposed change${n > 1 ? "s" : ""}`}>
-                      {n}
+                  {item.isNew ? (
+                    <span className="sb-new" title="New document proposed on a branch">
+                      new
                     </span>
+                  ) : (
+                    n > 0 && (
+                      <span className="sb-change" title={`${n} proposed change${n > 1 ? "s" : ""}`}>
+                        {n}
+                      </span>
+                    )
                   )}
                   <StatusBadge status={item.status} />
                 </div>
               );
             })}
-            {tree.length === 0 && !error && <div className="muted">No documents.</div>}
+            {sidebarItems.length === 0 && !error && <div className="muted">No documents.</div>}
           </div>
         )}
 
@@ -287,6 +351,14 @@ export function DocsReader() {
             <div className="doc-meta">
               <StatusBadge status={String(fm.status ?? "")} />
               <span className="pill">v{String(fm.version ?? "0.1.0")}</span>
+              {(newDocBranch || isBranchNewDoc) && (
+                <span
+                  className="badge-new"
+                  title={newDocBranch ? `New document proposed on ${newDocBranch}` : `New on ${branch} (not in ${defaultBranch})`}
+                >
+                  NEW
+                </span>
+              )}
               {Array.isArray(fm.tags) &&
                 fm.tags.map((t) => (
                   <span key={String(t)} className="tag">
@@ -301,7 +373,27 @@ export function DocsReader() {
             </div>
             <div className="doc-path">{doc.path}</div>
             <div className="doc-rule" />
-            {branchView ? (
+            {newDocBranch ? (
+              <>
+                {authed && (
+                  <div className="newdoc-bar">
+                    <span>
+                      New document proposed on <b>{newDocBranch}</b>
+                    </span>
+                    <button
+                      className="btn btn-good sp-btn"
+                      disabled={acceptingNew}
+                      onClick={acceptNewDoc}
+                    >
+                      {acceptingNew ? "Adding…" : `Add to ${defaultBranch}`}
+                    </button>
+                  </div>
+                )}
+                <div className="doc-body">
+                  <Markdown content={doc.content} currentPath={doc.path} branch={newDocBranch} />
+                </div>
+              </>
+            ) : branchView ? (
               <BranchChanges
                 path={doc.path}
                 base={defaultBranch}

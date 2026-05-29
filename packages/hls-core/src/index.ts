@@ -109,6 +109,20 @@ export function serializeDoc(frontmatter: Record<string, unknown>, content: stri
   return `---\n${yamlText}\n---\n\n${body.replace(/^\n+/, "")}`;
 }
 
+/**
+ * Automatic, time-based document version: `YY.M{DD}.H{MM}` (server clock).
+ * e.g. 2026-05-30 14:32 → "26.530.1432". Minute granularity acts as a built-in
+ * cooldown: multiple edits within the same minute keep the same version. The
+ * version is never set by clients/AI — the server stamps it on every write.
+ */
+export function stampVersion(date: Date = new Date()): string {
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  const yy = pad2(date.getFullYear() % 100);
+  const mdd = `${date.getMonth() + 1}${pad2(date.getDate())}`;
+  const hmm = `${date.getHours()}${pad2(date.getMinutes())}`;
+  return `${yy}.${mdd}.${hmm}`;
+}
+
 export class FrontmatterError extends Error {
   fields: string[];
   constructor(message: string, fields: string[]) {

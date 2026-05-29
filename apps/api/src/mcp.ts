@@ -8,6 +8,7 @@ import {
   DOC_STATUSES,
   parseFrontmatter,
   serializeDoc,
+  stampVersion,
   validateFrontmatter,
   type DocStatus,
 } from "@hls/core";
@@ -69,19 +70,7 @@ function buildServer(principal: Principal | null): McpServer {
     async ({ query, branch }) => {
       const b = branch || base;
       try {
-        const needle = query.toLowerCase();
-        const hits: { path: string; title: string; snippet: string }[] = [];
-        for (const path of gitlib.listMarkdownFiles(b)) {
-          const { frontmatter, content } = parseFrontmatter(gitlib.readFile(b, path));
-          const title = String(frontmatter.title || path);
-          const hay = `${title}\n${content}`;
-          const idx = hay.toLowerCase().indexOf(needle);
-          if (idx >= 0) {
-            const start = Math.max(0, idx - 40);
-            const snippet = hay.slice(start, idx + needle.length + 80).replace(/\s+/g, " ").trim();
-            hits.push({ path, title, snippet });
-          }
-        }
+        const hits = gitlib.searchDocs(b, query);
         return ok(
           hits.length ? hits.map((h) => `• ${h.title} — ${h.path}\n  ${h.snippet}`).join("\n") : "No matches.",
           { branch: b, query, hits },
@@ -213,20 +202,20 @@ function buildServer(principal: Principal | null): McpServer {
           content: z.string().describe("Markdown body of the document"),
           status: z.enum(DOC_STATUSES as unknown as [DocStatus, ...DocStatus[]]).optional(),
           tags: z.array(z.string()).optional(),
-          version: z.string().optional(),
           message: z.string().optional().describe("Commit message"),
         },
       },
-      async ({ branch, path, title, content, status, tags, version, message }) => {
+      async ({ branch, path, title, content, status, tags, message }) => {
         const verdict = canWriteBranch(principal, branch);
         if (!verdict.ok) return fail(verdict.reason ?? "Not allowed");
         try {
           if (!gitlib.branchExists(branch)) gitlib.createBranch(branch, base);
+          // Version is auto-stamped server-side (time-based); not an AI input.
           const frontmatter = validateFrontmatter({
             id: slugify(title),
             title,
             status: status || "draft",
-            version: version || "0.1.0",
+            version: stampVersion(),
             tags: tags || [],
           });
           gitlib.writeFileToBranch(branch, path, serializeDoc(frontmatter, content));

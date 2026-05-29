@@ -3,6 +3,7 @@ import type { FrontMatter } from "@hls/core";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { useToast } from "../toast";
+import { Markdown } from "./Markdown";
 import { applyChanges, changesFor, renderTrackedHtml } from "../trackChanges";
 import { nextVersion } from "../version";
 
@@ -24,6 +25,9 @@ interface Props {
 export function BranchChanges({ path, base, branch, baseBody, headBody, frontmatter, onReverted }: Props) {
   const { authed } = useAuth();
   const toast = useToast();
+  // Whole-new document on this branch (nothing to diff against in the base
+  // branch): show the content normally — the "NEW" badge lives in the header.
+  const isNewDoc = baseBody.trim() === "" && headBody.trim() !== "";
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [pop, setPop] = useState<{ id: string; x: number; y: number } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -82,6 +86,14 @@ export function BranchChanges({ path, base, branch, baseBody, headBody, frontmat
       setBusy(false);
     }
   };
+
+  if (isNewDoc) {
+    return (
+      <div className="doc-body">
+        <Markdown content={headBody} currentPath={path} branch={branch} />
+      </div>
+    );
+  }
 
   const c = current();
   return (

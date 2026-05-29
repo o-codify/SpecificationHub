@@ -86,6 +86,13 @@ export interface FileSuggestion {
   headContent: string;
 }
 
+export interface NewDoc {
+  path: string;
+  title: string;
+  status: string;
+  branch: string;
+}
+
 export const api = {
   health: () => request<{ status: string }>("GET", "/api/health"),
   meta: () => request<MetaResponse>("GET", "/api/meta"),
@@ -155,7 +162,7 @@ export const api = {
       true,
     ),
   suggestionSummary: (base: string) =>
-    request<{ base: string; counts: Record<string, number> }>(
+    request<{ base: string; counts: Record<string, number>; news: NewDoc[] }>(
       "GET",
       `/api/suggestions/summary?base=${encodeURIComponent(base)}`,
       undefined,

@@ -5,8 +5,8 @@ import {
   isValidRole,
   parseFrontmatter,
   serializeDoc,
+  stampVersion,
   validateFrontmatter,
-  type SearchHit,
   type TreeItem,
 } from "@hls/core";
 import * as gitlib from "./git.js";
@@ -205,9 +205,11 @@ export function createRouter(): Router {
       const docPath = validateDocPath(req.body?.path);
       ensureCanWrite(req, branch);
 
-      const frontmatter = validateFrontmatter(
-        (req.body?.frontmatter as Record<string, unknown>) ?? {},
-      );
+      // Version is server-authoritative (time-based, minute cooldown); any
+      // client-supplied version is ignored so neither users nor AI control it.
+      const fmInput = (req.body?.frontmatter as Record<string, unknown>) ?? {};
+      fmInput.version = stampVersion();
+      const frontmatter = validateFrontmatter(fmInput);
       const content = typeof req.body?.content === "string" ? req.body.content : "";
 
       if (mode === "create" && gitlib.fileExists(branch, docPath)) {
@@ -308,7 +310,7 @@ export function createRouter(): Router {
     "/suggestions/summary",
     h((req, res) => {
       const base = (req.query.base as string) || config.defaultBranch;
-      res.json({ base, counts: gitlib.suggestionCounts(base) });
+      res.json({ base, counts: gitlib.suggestionCounts(base), news: gitlib.newDocsForBase(base) });
     }),
   );
 
@@ -320,7 +322,13 @@ export function createRouter(): Router {
     h((req, res) => {
       const base = (req.body?.base as string) || config.defaultBranch;
       const docPath = validateDocPath(req.body?.path);
-      const content = typeof req.body?.content === "string" ? req.body.content : "";
+      const rawContent = typeof req.body?.content === "string" ? req.body.content : "";
+      // Re-stamp the version server-side so accepting into main updates the timestamp.
+      const parsed = parseFrontmatter(rawContent);
+      const content =
+        Object.keys(parsed.frontmatter).length > 0
+          ? serializeDoc({ ...parsed.frontmatter, version: stampVersion() }, parsed.content)
+          : rawContent;
       const message = (req.body?.message as string) || `Update ${docPath}`;
       const result = gitlib.applyContentToBase(base, docPath, content, message, req.principal!.name);
       res.json(result);
@@ -333,33 +341,7 @@ export function createRouter(): Router {
     h((req, res) => {
       const branch = (req.query.branch as string) || config.defaultBranch;
       const q = ((req.query.q as string) || "").trim();
-      if (!q) {
-        res.json({ branch, query: q, hits: [] });
-        return;
-      }
-      const needle = q.toLowerCase();
-      const hits: SearchHit[] = [];
-      for (const path of gitlib.listMarkdownFiles(branch)) {
-        let raw: string;
-        try {
-          raw = gitlib.readFile(branch, path);
-        } catch {
-          continue;
-        }
-        const { frontmatter, content } = parseFrontmatter(raw);
-        const title = frontmatter.title ? String(frontmatter.title) : path;
-        const hay = `${title}\n${content}`;
-        const idx = hay.toLowerCase().indexOf(needle);
-        if (idx >= 0) {
-          const start = Math.max(0, idx - 40);
-          const snippet = hay
-            .slice(start, idx + needle.length + 80)
-            .replace(/\s+/g, " ")
-            .trim();
-          hits.push({ path, title, snippet: (start > 0 ? "…" : "") + snippet + "…" });
-        }
-      }
-      res.json({ branch, query: q, hits });
+      res.json({ branch, query: q, hits: q ? gitlib.searchDocs(branch, q) : [] });
     }),
   );
 
