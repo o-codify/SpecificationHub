@@ -2,11 +2,12 @@
 id: parameter-system
 title: Parameter System
 status: draft
-version: 26.529.2149
+version: 26.529.2300
 tags:
   - runtime
   - parameters
   - tuning
+  - provenance
 ---
 
 # Parameter System
@@ -19,7 +20,7 @@ Parameters are the bridge between research rules and runtime solvers.
 
 ## Parameter Groups
 
-## Gait Parameters
+### Gait Parameters
 
 - cadence
 - stance ratio
@@ -29,7 +30,7 @@ Parameters are the bridge between research rules and runtime solvers.
 - foot lift height
 - gait phase speed
 
-## Pelvis Parameters
+### Pelvis Parameters
 
 - pelvis height
 - pelvis vertical amplitude
@@ -38,7 +39,7 @@ Parameters are the bridge between research rules and runtime solvers.
 - pelvis pitch bias
 - pelvis smoothing
 
-## Spine Parameters
+### Spine Parameters
 
 - torso lean
 - torso roll
@@ -46,7 +47,7 @@ Parameters are the bridge between research rules and runtime solvers.
 - spine stiffness
 - head stabilization
 
-## Arm Parameters
+### Arm Parameters
 
 - arm swing amplitude
 - arm phase offset
@@ -54,7 +55,7 @@ Parameters are the bridge between research rules and runtime solvers.
 - arm freedom
 - weapon stabilization
 
-## Terrain Parameters
+### Terrain Parameters
 
 - slope torso pitch
 - slope foot lift multiplier
@@ -62,7 +63,7 @@ Parameters are the bridge between research rules and runtime solvers.
 - stair pelvis smoothing
 - terrain confidence
 
-## Modifier Parameters
+### Modifier Parameters
 
 - load weight normalized
 - injury severity
@@ -100,6 +101,69 @@ Parameters are the bridge between research rules and runtime solvers.
 - maximum pelvis offset
 - maximum foot lift
 - maximum IK reach
+
+## Rule Provenance
+
+### Parameters bridge research and solvers
+
+| Field | Value |
+|---|---|
+| Rule | Research-backed concepts must become tunable runtime parameters before solvers use them. |
+| Source card | `docs/research/provenance-methodology.md`, `docs/research/source-cards/procedural-animation-overview.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
+| Source type | HLS methodology / procedural implementation constraint |
+| Used from source | Procedural systems need explicit controls and targets rather than vague descriptions. |
+| HLS transformation | Created grouped parameter system for gait, pelvis, spine, arms, terrain, and modifiers. |
+| Confidence | high |
+| Applies to | all solvers and modifiers |
+
+### Source numeric data must be separated from tuning values
+
+| Field | Value |
+|---|---|
+| Rule | Scientific numeric data, HLS defaults, and tuning ranges must be separated. |
+| Source card | `docs/research/provenance-methodology.md`, `docs/research/source-cards/normal-gait-overview.md` |
+| External link | https://www.physio-pedia.com/The_Gait_Cycle |
+| Source type | provenance methodology / gait overview |
+| Used from source | Some values, such as walking stance/swing ratio, are source-backed defaults; many other values are gameplay tuning. |
+| HLS transformation | Parameter docs mark tuning ranges separately from source-backed facts. |
+| Confidence | high |
+| Applies to | `GaitPhaseGenerator`, `ModifierStacking`, `Validation Methodology` |
+
+### Modifiers change parameters before solvers
+
+| Field | Value |
+|---|---|
+| Rule | Modifiers should change parameters before solvers run. |
+| Source card | `docs/research/source-cards/procedural-animation-overview.md`, `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/antalgic-gait.md` |
+| External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
+| Source type | procedural architecture plus gait/load evidence |
+| Used from source | Gameplay state such as injury, terrain, and load changes locomotion quality and posture. |
+| HLS transformation | ModifierResolver resolves gait/load/injury/terrain parameters before FootTarget, Pelvis, Spine, and Arm solvers. |
+| Confidence | high as architecture rule |
+| Applies to | `ModifierStacking`, `Solver Interfaces`, `PoseComposer` |
+
+### Safety clamps
+
+| Field | Value |
+|---|---|
+| Rule | Resolved parameters must be clamped before solver use. |
+| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
+| Source type | IK / implementation constraint |
+| Used from source | IK and skeletal solving require reachable targets and stable constraints. |
+| HLS transformation | Added safety clamps for step length, stance ratio, torso lean, pelvis offset, foot lift, and IK reach. |
+| Confidence | high |
+| Applies to | `Runtime Constraints`, `FootTargetSolver`, `PelvisSolver` |
+
+## Numeric Data Separation
+
+| Value | Category | Usage |
+|---|---|---|
+| walking stance/swing ratio | source-backed default | gait phase defaults |
+| run stance range | HLS tuning value | run profile |
+| pelvis/spine/arm amplitudes | HLS tuning values | visual tuning |
+| IK reach limits | implementation constraint / skeleton profile | safety clamp |
 
 ## Open Questions
 
