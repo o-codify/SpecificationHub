@@ -2,12 +2,13 @@
 id: spine-solver
 title: Spine Solver
 status: draft
-version: 26.529.2235
+version: 26.529.2359
 tags:
   - solver
   - spine
   - posture
   - provenance
+  - links
 ---
 
 # Spine Solver
@@ -70,39 +71,39 @@ The spine should react after pelvis is solved. Pelvis creates base motion; spine
 | Field | Value |
 |---|---|
 | Rule | Spine compensates pelvis motion and makes gait whole-body. |
-| Source card | `docs/research/source-cards/joint-kinematics-overview.md` |
+| Source card | [Joint Kinematics Overview](../research/source-cards/joint-kinematics-overview.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | gait kinematics overview |
 | Used from source | Human gait coordinates pelvis, trunk, shoulders, and limbs. |
 | HLS transformation | SpineSolver consumes pelvis transform and outputs torso offsets. |
 | Confidence | medium to high |
-| Applies to | `Walking`, `Running`, `PoseComposer` |
+| Applies to | [Walking](../05-walking/index.md), [Running](../06-running/index.md), [Pose Composer](./pose-composer.md) |
 
 ### Load affects torso posture
 
 | Field | Value |
 |---|---|
 | Rule | Load position changes torso pitch, roll, and stiffness. |
-| Source card | `docs/research/source-cards/load-carriage-posture.md` |
+| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md) |
 | External link | https://pubmed.ncbi.nlm.nih.gov/?term=load+carriage+posture+gait+trunk+lean |
 | Source type | load carriage research topic |
 | Used from source | Load carriage affects posture and gait. |
 | HLS transformation | Added `LoadPitchBias`, `LoadRollBias`, and `SpineStiffness`. |
 | Confidence | medium |
-| Applies to | `Backpack`, `Front Load`, `Asymmetric Load` |
+| Applies to | [Backpack Load Modifier](../08-modifiers/backpack-load.md), [Front Load Modifier](../08-modifiers/front-load.md), [Asymmetric Load Modifier](../08-modifiers/asymmetric-load.md) |
 
 ### Injury and weapon reduce torso freedom
 
 | Field | Value |
 |---|---|
 | Rule | Injury and weapon carry increase stiffness and reduce normal counter-rotation. |
-| Source card | `docs/research/source-cards/antalgic-gait.md`, `docs/research/source-cards/procedural-animation-overview.md` |
+| Source card | [Antalgic Gait](../research/source-cards/antalgic-gait.md), [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
 | External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
 | Source type | clinical gait reference plus animation constraint |
 | Used from source | Pain-related gait protects the painful side; weapon/carry states constrain upper body. |
 | HLS transformation | Added `InjuryStiffnessBias`, `ShoulderCounterRotation`, and weapon/carry restrictions. |
 | Confidence | medium |
-| Applies to | `Injury`, `Weapon Carry`, `ArmSwingSolver` |
+| Applies to | [Injury and Limping Modifier](../08-modifiers/injury-limping.md), [Weapon Carry Modifier](../08-modifiers/weapon-carry.md), [Arm Swing Solver](./arm-swing-solver.md) |
 
 ## Open Questions
 
