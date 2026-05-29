@@ -2,11 +2,12 @@
 id: walking
 title: Walking
 status: draft
-version: 26.529.2043
+version: 26.529.2155
 tags:
   - walking
   - gait
   - locomotion
+  - provenance
 ---
 
 # Walking
@@ -99,24 +100,67 @@ The spine compensates pelvis motion and expresses state. Load increases forward 
 
 Arms swing in opposition to legs. Arm swing increases with speed and decreases with weapon carry, two-hand carry, or heavy asymmetric load.
 
-## Pseudocode
+## Rule Provenance
 
-```ts
-function solveWalkingPose(input: WalkingInput): WalkingOutput {
-  const cycle = solveGaitCycle({ gaitPhase: input.gaitPhase, speed: input.speed, gaitType: "walk" });
-  const params = resolveWalkingParameters(input);
-  const leftFoot = solveFootTarget(cycle.left, params, input);
-  const rightFoot = solveFootTarget(cycle.right, params, input);
-  const pelvis = solvePelvis({ cycle, leftFoot, rightFoot, params, input });
-  const spine = solveSpine({ pelvis, params, load: input.load, slope: input.slope, fatigue: input.fatigue });
-  const arms = solveArmSwing({ cycle, params, load: input.load });
-  return { leftFootTarget: leftFoot, rightFootTarget: rightFoot, pelvisTransform: pelvis, spinePose: spine, armPose: arms };
-}
-```
+### Full-body walking coordination
+
+Rule: walking is solved as feet, pelvis, spine, and arms together.
+
+Source type: biomechanics overview plus game procedural animation constraint.
+
+Used from source: human walking is coordinated across lower body, pelvis, trunk, and arms; procedural systems need separate targets and solvers.
+
+HLS transformation: split walking into FootTargetSolver, PelvisSolver, SpineSolver, ArmSwingSolver, and PoseComposer.
+
+Confidence: high.
+
+Source cards: joint-kinematics-overview, procedural-animation-overview, ik-foot-placement.
+
+### Pelvis vertical and yaw motion
+
+Rule: pelvis has vertical oscillation and slight yaw coupled to gait rhythm.
+
+Source type: joint kinematics overview and normal gait references.
+
+Used from source: pelvis participates in gait and is not static.
+
+HLS transformation: PelvisSolver receives pelvis vertical, yaw, roll amplitudes as tunable parameters.
+
+Confidence: medium for exact amplitude, high for direction of effect.
+
+Source cards: joint-kinematics-overview, normal-gait-overview.
+
+### Arm-leg opposition
+
+Rule: arms swing opposite to legs.
+
+Source type: joint kinematics overview and normal gait observation.
+
+Used from source: shoulder and arm motion counterbalances lower-body gait.
+
+HLS transformation: ArmSwingSolver uses gait phase with opposite phase relation.
+
+Confidence: high.
+
+Source cards: joint-kinematics-overview, normal-gait-overview.
+
+### Foot target arc during swing
+
+Rule: swinging foot follows a lifted arc toward the next target.
+
+Source type: procedural animation technique and IK foot placement.
+
+Used from source: procedural locomotion controls foot targets and uses lifting arcs to clear terrain.
+
+HLS transformation: FootTargetSolver owns foot lift height and swing interpolation.
+
+Confidence: high for visual/game implementation, medium for exact arc shape.
+
+Source cards: ik-foot-placement, procedural-animation-overview.
 
 ## Source Notes
 
-Source cards: normal-gait-overview, gait-cycle-clinical, joint-kinematics-overview, procedural-animation-overview.
+Source cards: normal-gait-overview, gait-cycle-clinical, joint-kinematics-overview, procedural-animation-overview, ik-foot-placement.
 
 ## Open Questions
 
