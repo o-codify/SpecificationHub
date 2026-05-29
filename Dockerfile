@@ -41,6 +41,9 @@ RUN git config --global user.email "hub@hls.local" \
   && git config --global --add safe.directory '*'
 
 COPY --from=builder /app/node_modules ./node_modules
+# npm workspaces may install some prod deps (e.g. drizzle-orm) under the package
+# rather than hoisting to the root, so copy the workspace's node_modules too.
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 # Drizzle migrations are read at runtime (apps/api/drizzle, resolved relative to dist).
 COPY --from=builder /app/apps/api/drizzle ./apps/api/drizzle
