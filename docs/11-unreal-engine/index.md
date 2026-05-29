@@ -2,7 +2,7 @@
 id: unreal-engine
 title: Unreal Engine
 status: draft
-version: 26.529.2311
+version: 26.529.2335
 tags:
   - unreal-engine
   - control-rig
@@ -110,6 +110,16 @@ Required debug views:
 - active modifiers
 - final IK target positions
 
+## Related HLS Docs
+
+- [Runtime](../10-runtime/index.md)
+- [Runtime Update Order](../10-runtime/update-order.md)
+- [Output Pose](../10-runtime/output-pose.md)
+- [Solver Interfaces](../10-runtime/solver-interfaces.md)
+- [Foot Target Solver](../09-solvers/foot-target-solver.md)
+- [Pelvis Solver](../09-solvers/pelvis-solver.md)
+- [Pose Composer](../09-solvers/pose-composer.md)
+
 ## Rule Provenance
 
 ### C++ owns runtime intent
@@ -117,52 +127,52 @@ Required debug views:
 | Field | Value |
 |---|---|
 | Rule | C++ runtime component owns deterministic HLS state and solver logic. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/programming-with-cplusplus-in-unreal-engine |
 | Source type | Unreal Engine implementation architecture / HLS runtime rule |
 | Used from source | UE supports C++ gameplay systems and animation systems as separate layers. |
 | HLS transformation | Added `UHLSLocomotionComponent` as the primary runtime owner. |
 | Confidence | high |
-| Applies to | `Runtime`, `Solver Interfaces`, `Networking` |
+| Applies to | [Runtime](../10-runtime/index.md), [Solver Interfaces](../10-runtime/solver-interfaces.md), [Networking](../10-runtime/networking.md) |
 
 ### AnimBP and Control Rig apply pose intent
 
 | Field | Value |
 |---|---|
 | Rule | AnimBP and Control Rig consume HLS output and apply it to the skeleton. |
-| Source card | `docs/research/source-cards/unreal-engine-control-rig.md` |
+| Source card | [Unreal Engine Control Rig](../research/source-cards/unreal-engine-control-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
 | Source type | Unreal Engine documentation |
 | Used from source | Control Rig and Animation Blueprints can drive skeletal animation from controls and variables. |
 | HLS transformation | HLS separates `FHLSOutputPose` from final skeletal application. |
 | Confidence | high |
-| Applies to | `OutputPose`, `PoseComposer`, `Control Rig` |
+| Applies to | [Output Pose](../10-runtime/output-pose.md), [Pose Composer](../09-solvers/pose-composer.md), Control Rig |
 
 ### IK applies foot and body constraints
 
 | Field | Value |
 |---|---|
 | Rule | IK systems apply HLS foot targets and pelvis/body constraints. |
-| Source card | `docs/research/source-cards/unreal-engine-ik-rig.md`, `docs/research/source-cards/ik-foot-placement.md` |
+| Source card | [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md), [IK Foot Placement](../research/source-cards/ik-foot-placement.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
 | Source type | Unreal Engine IK documentation |
 | Used from source | IK Rig and Full Body IK solve skeletons toward targets and constraints. |
 | HLS transformation | FootTargetSolver and PelvisSolver output IK-ready target data. |
 | Confidence | high |
-| Applies to | `FootTargetSolver`, `PelvisSolver`, `Runtime Constraints` |
+| Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md), [Runtime Constraints](../10-runtime/constraints.md) |
 
 ### Compact network state
 
 | Field | Value |
 |---|---|
 | Rule | UE implementation should replicate compact HLS state, not full bone poses. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/networking-and-multiplayer-in-unreal-engine |
 | Source type | Unreal Engine networking / HLS architecture |
 | Used from source | Gameplay state and visual reconstruction can be separated in networked animation. |
 | HLS transformation | Replicate movement, locomotion state, modifiers, optional compressed phase; solve pose locally. |
 | Confidence | high |
-| Applies to | `Networking`, `Network Notes` |
+| Applies to | [Networking](../10-runtime/networking.md), Network Notes |
 
 ## Open Questions
 
