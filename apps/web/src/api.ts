@@ -154,6 +154,13 @@ export const api = {
       undefined,
       true,
     ),
+  suggestionSummary: (base: string) =>
+    request<{ base: string; counts: Record<string, number> }>(
+      "GET",
+      `/api/suggestions/summary?base=${encodeURIComponent(base)}`,
+      undefined,
+      true,
+    ),
   acceptSuggestion: (path: string, branch: string, base: string, message?: string) =>
     request<{ sha: string; branch: string; pullRequest: PullRequestInfo | null }>(
       "POST",

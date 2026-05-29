@@ -422,6 +422,28 @@ export function suggestionsForFile(filePath: string, base: string): FileSuggesti
   return result;
 }
 
+/** For each docs markdown file, how many non-base branches changed it. */
+export function suggestionCounts(base: string): Record<string, number> {
+  if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
+  const counts: Record<string, number> = {};
+  for (const b of listBranches()) {
+    if (b === base) continue;
+    let out: string;
+    try {
+      out = repo(["diff", "--name-only", `${base}...${b}`]);
+    } catch {
+      continue;
+    }
+    for (const line of out.split("\n")) {
+      const p = line.trim();
+      if (p.startsWith("docs/") && p.toLowerCase().endsWith(".md")) {
+        counts[p] = (counts[p] || 0) + 1;
+      }
+    }
+  }
+  return counts;
+}
+
 /** Apply `branch`'s version of `filePath` onto `base` and commit (+push). The
  *  reviewer-accepts-a-proposed-change action. */
 export function acceptFileFromBranch(
