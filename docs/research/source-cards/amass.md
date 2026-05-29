@@ -2,82 +2,46 @@
 id: source-card-amass
 title: "Source Card: AMASS"
 status: draft
-version: 26.529.2203
+version: 26.529.2226
 tags:
   - research
   - dataset
   - mocap
-  - linked-source
 ---
 
 # Source Card: AMASS
 
 ## Metadata
 
-| Field | Value |
-|---|---|
-| Title | AMASS: Archive of Motion Capture as Surface Shapes |
-| Type | Dataset / paper |
-| Reliability | High |
-| Relevance | High |
-| Access status | Official dataset page and paper available |
+Type: unified human motion dataset.
 
-## Links
+Reliability: high as motion reference.
 
-- Official dataset page: https://amass.is.tue.mpg.de/
-- Paper: https://arxiv.org/abs/1904.03278
+Relevance: high.
 
 ## What it contains
 
-AMASS is a large unified human motion collection. It converts many marker-based motion capture datasets into a common human body representation.
+AMASS unifies many marker-based motion capture datasets into a common body representation.
 
-## What HLS Used
+## Useful HLS Facts
 
-- Broad human motion diversity for validation planning.
-- Whole-body coordination reference.
-- Walking, running, transition, and posture reference.
-- Dataset policy: HLS can use datasets for analysis and validation without requiring them at runtime.
+- Useful for broad locomotion diversity.
+- Useful for comparing generated movement across many motions.
+- Useful for validating posture and whole-body coordination.
 
-## What HLS Did Not Use
+## Candidate HLS Use
 
-- AMASS is not required as a runtime dependency.
-- HLS does not require motion matching over AMASS.
-- HLS does not assume AMASS license terms apply uniformly to all underlying datasets.
-
-## Extracted HLS Facts
-
-- Large motion datasets are useful for validating generated gait statistics.
-- Whole-body motion data can help tune pelvis, spine, and arm coordination.
-- Dataset-backed validation should be separate from runtime procedural generation.
-
-## Candidate HLS Rules
-
-```text
-if validationMode == DatasetReference:
-    compare generated cadence, support timing, pelvis rhythm, and arm opposition against reference clips
-```
-
-```text
-HLS runtime must not depend on AMASS being present.
-```
-
-## Numeric Data
-
-No numeric gait rule is directly extracted in this first pass.
-
-## License / Usage Notes
-
-AMASS combines many datasets. Underlying datasets may have different licenses. Verify terms before training, redistribution, or commercial use.
+- Offline analysis of motion ranges.
+- Validation of generated walking and running.
+- Reference for transitions and unusual states.
 
 ## Uncertainty
 
-- Which underlying subsets are best for walking, running, load, injury, stairs, and transitions.
-- Whether specific subsets allow training use.
+Licensing can depend on underlying datasets. Check terms before training or redistribution.
 
-## Used By
+## HLS Target Sections
 
-- `docs/research/datasets.md`
-- `docs/research/validation-methodology.md`
-- `docs/03-joints/index.md`
-- `docs/05-walking/index.md`
-- `docs/06-running/index.md`
+- docs/research/datasets.md
+- docs/03-joints
+- docs/05-walking
+- docs/06-running
