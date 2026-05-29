@@ -2,11 +2,12 @@
 id: solvers
 title: Solvers
 status: draft
-version: 26.529.2333
+version: 26.529.2339
 tags:
   - solvers
   - runtime
   - provenance
+  - links
 ---
 
 # Solvers
@@ -33,12 +34,12 @@ GaitPhaseGenerator
 
 | Solver | Document | Main responsibility | Provenance status |
 |---|---|---|---|
-| GaitPhaseGenerator | [Gait Phase Generator](gait-phase-generator.md) | cadence, phase, stance/swing timing | upgraded |
-| FootTargetSolver | [Foot Target Solver](foot-target-solver.md) | foot targets, contact, lock state | upgraded |
-| PelvisSolver | [Pelvis Solver](pelvis-solver.md) | pelvis rhythm, weight carrier, IK reach | upgraded |
-| SpineSolver | [Spine Solver](spine-solver.md) | torso compensation, posture, stiffness | upgraded |
-| ArmSwingSolver | [Arm Swing Solver](arm-swing-solver.md) | arm swing, carry/weapon restrictions | upgraded |
-| PoseComposer | [Pose Composer](pose-composer.md) | priority, conflict resolution, final pose intent | upgraded |
+| GaitPhaseGenerator | [Gait Phase Generator](./gait-phase-generator.md) | cadence, phase, stance/swing timing | upgraded |
+| FootTargetSolver | [Foot Target Solver](./foot-target-solver.md) | foot targets, contact, lock state | upgraded |
+| PelvisSolver | [Pelvis Solver](./pelvis-solver.md) | pelvis rhythm, weight carrier, IK reach | upgraded |
+| SpineSolver | [Spine Solver](./spine-solver.md) | torso compensation, posture, stiffness | upgraded |
+| ArmSwingSolver | [Arm Swing Solver](./arm-swing-solver.md) | arm swing, carry/weapon restrictions | upgraded |
+| PoseComposer | [Pose Composer](./pose-composer.md) | priority, conflict resolution, final pose intent | upgraded |
 
 ## Shared Solver Principles
 
