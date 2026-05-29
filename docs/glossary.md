@@ -2,18 +2,65 @@
 id: glossary
 title: Glossary
 status: draft
-version: 2026.529.1
-tags: [glossary, reference]
+version: 26.529.2046
+tags:
+  - glossary
 ---
 
 # Glossary
 
-- **Gait cycle** — one normalized stride from heel-strike to the next
-  heel-strike of the same foot. See [Gait Cycle](04-gait-cycle/index.md).
-- **Stance phase** — the portion of the cycle where the foot is on the ground.
-- **Swing phase** — the portion of the cycle where the foot is in the air.
-- **Phase** — normalized position within the gait cycle, in `[0, 1)`.
-- **Solver** — a procedure that resolves constraints into a final pose. See
-  [Solvers](09-solvers/index.md).
+## Alive Game Motion
 
-> Skeleton placeholder — to be authored.
+Target quality level for HLS. The character looks alive because state affects the body: load, fatigue, injury, slope, turning, stopping, and weapon carry.
+
+## Cadence
+
+Step rhythm. In runtime, cadence controls how fast gait phase advances.
+
+## Double Support
+
+Walking interval where both feet are in contact with the ground.
+
+## Flight Phase
+
+Running interval where neither foot contacts the ground.
+
+## Gait Phase
+
+Normalized cycle value from 0 to 1 used to coordinate legs, pelvis, spine, and arms.
+
+## Heel Strike
+
+Initial foot contact at the beginning of stance.
+
+## Stance Phase
+
+Part of gait where the foot is in contact with the ground.
+
+## Swing Phase
+
+Part of gait where the foot moves forward to the next contact.
+
+## Foot Target
+
+Procedural transform used by IK to place a foot.
+
+## Foot Locking
+
+Keeping a planted foot stable during stance to avoid sliding.
+
+## Modifier
+
+A state-driven change to locomotion parameters. Examples: load, injury, slope, fatigue, weapon carry.
+
+## Pose Composer
+
+Runtime layer that combines solver outputs into final pose intent before IK or FK application.
+
+## Solver
+
+Runtime module that computes one part of procedural locomotion, such as feet, pelvis, spine, or arms.
+
+## Stance Ratio
+
+Fraction of the gait cycle spent in contact with the ground.
