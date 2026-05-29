@@ -2,12 +2,13 @@
 id: gait-phase-generator
 title: Gait Phase Generator
 status: draft
-version: 26.529.2336
+version: 26.529.2341
 tags:
   - solver
   - gait
   - phase
   - provenance
+  - links
 ---
 
 # Gait Phase Generator
@@ -68,7 +69,7 @@ Phase continuity is more important than exact biomechanical timing. A small timi
 | Used from source | Walking is cyclic and can be divided into repeated phases. |
 | HLS transformation | Converted clinical gait cycle into normalized runtime `gaitPhase`. |
 | Confidence | high |
-| Applies to | [Walking](../05-walking/index.md), [Running](../06-running/index.md), [Foot Target Solver](foot-target-solver.md), [Arm Swing Solver](arm-swing-solver.md) |
+| Applies to | [Walking](../05-walking/index.md), [Running](../06-running/index.md), [Foot Target Solver](./foot-target-solver.md), [Arm Swing Solver](./arm-swing-solver.md) |
 
 ### Left and right leg phase offset
 
@@ -81,7 +82,7 @@ Phase continuity is more important than exact biomechanical timing. A small timi
 | Used from source | Human walking alternates left and right support/swing phases. |
 | HLS transformation | `rightLegPhase = (leftLegPhase + 0.5) % 1.0`. |
 | Confidence | high |
-| Applies to | [Foot Target Solver](foot-target-solver.md), [Pelvis Solver](pelvis-solver.md), [Arm Swing Solver](arm-swing-solver.md) |
+| Applies to | [Foot Target Solver](./foot-target-solver.md), [Pelvis Solver](./pelvis-solver.md), [Arm Swing Solver](./arm-swing-solver.md) |
 
 ### Walking stance and swing ratio
 
@@ -107,7 +108,7 @@ Phase continuity is more important than exact biomechanical timing. A small timi
 | Used from source | Running differs from walking by support timing and aerial behavior. |
 | HLS transformation | Added run-specific stance/swing values and `supportMode = flight`. |
 | Confidence | high for distinction, medium for exact phase bands |
-| Applies to | [Running](../06-running/index.md), [Foot Target Solver](foot-target-solver.md), [Pelvis Solver](pelvis-solver.md) |
+| Applies to | [Running](../06-running/index.md), [Foot Target Solver](./foot-target-solver.md), [Pelvis Solver](./pelvis-solver.md) |
 
 ### Modifier phase warping
 
@@ -133,7 +134,7 @@ Phase continuity is more important than exact biomechanical timing. A small timi
 | Used from source | Transition quality and temporal continuity are important for believable animation. |
 | HLS transformation | Network smoothing and state transitions should warp phase gradually instead of resetting it. |
 | Confidence | high as game animation rule |
-| Applies to | [Networking](../10-runtime/networking.md), [Pose Composer](pose-composer.md), [Validation Methodology](../research/validation-methodology.md) |
+| Applies to | [Networking](../10-runtime/networking.md), [Pose Composer](./pose-composer.md), [Validation Methodology](../research/validation-methodology.md) |
 
 ## Numeric Data Separation
 
