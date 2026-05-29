@@ -2,11 +2,12 @@
 id: research-provenance-methodology
 title: Research Provenance Methodology
 status: draft
-version: 26.529.2154
+version: 26.529.2158
 tags:
   - research
   - provenance
   - sources
+  - links
 ---
 
 # Research Provenance Methodology
@@ -15,7 +16,7 @@ tags:
 
 Defines how HLS records where rules came from, what was used, what was inferred, and how confident the specification is.
 
-HLS must not only contain final rules. It must also preserve research provenance so future developers can understand why a rule exists.
+HLS must not only contain final rules. It must preserve research provenance so future developers can inspect the original source whenever possible.
 
 ## Core Requirement
 
@@ -30,12 +31,31 @@ Every non-trivial HLS rule should be traceable to one of these categories:
 - gameplay readability decision
 - HLS inference
 
+## Link Requirement
+
+Whenever possible, provenance must include a real external link.
+
+Preferred identifiers:
+
+1. DOI link
+2. publisher page
+3. PubMed or NCBI page
+4. official dataset page
+5. official engine documentation
+6. official talk or slide page
+7. stable GitHub repository
+8. archived page if original is unavailable
+
+Avoid using unsourced claims when a source can be linked.
+
 ## Source Card Requirement
 
 Each source card should include:
 
 - source identity
 - source type
+- URL or DOI
+- access status: accessible, abstract-only, paywalled, unavailable, unknown
 - reliability
 - relevance
 - what it says
@@ -49,13 +69,14 @@ Each source card should include:
 
 ## Rule Provenance Block
 
-When a document contains important rules, it should include a section named Source Notes or Rule Provenance.
+When a document contains important rules, it should include a section named Rule Provenance.
 
 Recommended format:
 
 ```text
 Rule: walking stance is longer than swing.
-Source type: clinical gait overview.
+Source: Normal gait overview source card.
+External link: official URL or DOI.
 Used from source: stance and swing phase relationship.
 HLS transformation: converted clinical phase description into default runtime stance ratio.
 Confidence: high.
@@ -121,6 +142,7 @@ Datasets can be used for analysis and validation. They are not required runtime 
 
 Dataset cards must mention:
 
+- official link
 - what the dataset contains
 - license or usage uncertainty
 - possible HLS use
@@ -136,13 +158,14 @@ Examples:
 - not replicating every bone comes from multiplayer bandwidth constraints
 - Control Rig use comes from Unreal Engine implementation constraints
 
-These should be labeled as implementation constraints.
+These should be labeled as implementation constraints and linked to engine docs or implementation notes where possible.
 
 ## Review Checklist
 
 For each HLS document, reviewers should ask:
 
 - Which source cards support this document.
+- Which source cards contain real links.
 - Which rules are source-backed.
 - Which rules are HLS inference.
 - Which numbers are scientific and which are tuned defaults.
