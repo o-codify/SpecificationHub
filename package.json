@@ -1,0 +1,26 @@
+{
+  "name": "hls-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Human Locomotion Specification Hub — Git-backed Markdown documentation platform",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm -w @hls/api run dev",
+    "dev:web": "npm -w @hls/web run dev",
+    "build": "npm -w @hls/web run build && npm -w @hls/api run build",
+    "build:web": "npm -w @hls/web run build",
+    "build:api": "npm -w @hls/api run build",
+    "start": "node apps/api/dist/index.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

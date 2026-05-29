@@ -1,0 +1,25 @@
+services:
+  hls-hub:
+    build: .
+    image: hls-hub:latest
+    ports:
+      - "8080:8080"
+    environment:
+      # Admin UI login (used at /admin). If the password is unset, one is
+      # generated on first boot and printed to the logs (and /data/admin-password.txt).
+      - HLS_ADMIN_USERNAME=${HLS_ADMIN_USERNAME:-admin}
+      - HLS_ADMIN_PASSWORD=${HLS_ADMIN_PASSWORD:-}
+      # Optional: pin the programmatic API admin token (for scripts / AI agents).
+      # If unset, one is generated on first boot and printed to the logs.
+      - HLS_ADMIN_TOKEN=${HLS_ADMIN_TOKEN:-}
+      # Optional GitHub integration. When BOTH are set, GitHub becomes the source
+      # of truth: commits are pushed, PRs opened, and merges go through the PR API.
+      # PAT needs Contents + Pull requests write on the repo.
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - GITHUB_REPO=${GITHUB_REPO:-}
+    volumes:
+      - hls-data:/data
+    restart: unless-stopped
+
+volumes:
+  hls-data:
