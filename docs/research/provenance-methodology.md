@@ -2,7 +2,7 @@
 id: research-provenance-methodology
 title: Research Provenance Methodology
 status: draft
-version: 26.529.2204
+version: 26.529.2326
 tags:
   - research
   - provenance
@@ -46,6 +46,35 @@ Preferred identifiers:
 6. official talk or slide page
 7. stable GitHub repository
 8. archived page if original is unavailable
+
+## Internal HLS Link Requirement
+
+When referencing another HLS document, use clickable relative Markdown links.
+
+Correct:
+
+```md
+- [Gait Cycle](../../04-gait-cycle/index.md)
+- [Foot Target Solver](../../09-solvers/foot-target-solver.md)
+- [Runtime Update Order](../update-order.md)
+```
+
+Incorrect:
+
+```md
+- `docs/04-gait-cycle/index.md`
+- `docs/09-solvers/foot-target-solver.md`
+- docs/10-runtime/update-order.md
+```
+
+Rule provenance tables should also use clickable internal links:
+
+```md
+| Source card | [Normal Gait Overview](../source-cards/normal-gait-overview.md) |
+| Applies to | [Gait Phase Generator](../../09-solvers/gait-phase-generator.md) |
+```
+
+Use paths relative to the file that contains the link, matching the style used by the main branch introduction document.
 
 ## Markdown Source Card Format
 
@@ -121,7 +150,7 @@ What is unknown or needs validation.
 
 ## Used By
 
-- `docs/...`
+- [Readable Doc Title](../../target-doc.md)
 ```
 
 ## Rule Provenance Format
@@ -136,13 +165,13 @@ Recommended format:
 | Field | Value |
 |---|---|
 | Rule | ... |
-| Source card | `docs/research/source-cards/...` |
+| Source card | [Source Card Title](../research/source-cards/source-card.md) |
 | External link | https://... |
 | Source type | clinical / paper / dataset / docs / inference |
 | Used from source | ... |
 | HLS transformation | ... |
 | Confidence | high / medium / low |
-| Applies to | ... |
+| Applies to | [Target Doc](../target-doc.md) |
 ```
 
 ## Confidence Levels
