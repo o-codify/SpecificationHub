@@ -399,3 +399,57 @@ export function merge(base: string, head: string, message: string): CommitResult
   }
   return { sha: headSha(base), branch: base };
 }
+
+export interface FileSuggestion {
+  branch: string;
+  baseContent: string;
+  headContent: string;
+}
+
+/** Branches (other than base) whose version of `filePath` differs from base. */
+export function suggestionsForFile(filePath: string, base: string): FileSuggestion[] {
+  if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
+  const baseContent = fileExists(base, filePath) ? readFile(base, filePath) : "";
+  const result: FileSuggestion[] = [];
+  for (const b of listBranches()) {
+    if (b === base) continue;
+    if (!fileExists(b, filePath)) continue;
+    const headContent = readFile(b, filePath);
+    if (headContent !== baseContent) {
+      result.push({ branch: b, baseContent, headContent });
+    }
+  }
+  return result;
+}
+
+/** Apply `branch`'s version of `filePath` onto `base` and commit (+push). The
+ *  reviewer-accepts-a-proposed-change action. */
+export function acceptFileFromBranch(
+  base: string,
+  branch: string,
+  filePath: string,
+  message: string,
+  author: string,
+): CommitResult {
+  if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
+  if (!branchExists(branch)) throw new NotFoundError(`Branch not found: ${branch}`);
+  if (!fileExists(branch, filePath)) {
+    throw new NotFoundError(`File not found: ${filePath} on ${branch}`);
+  }
+  const content = readFile(branch, filePath);
+  const dir = ensureWorktree(base);
+  inDir(dir, ["checkout", base]);
+  inDir(dir, ["reset", "--hard", base]);
+  const abs = path.join(dir, filePath);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, content, "utf8");
+  inDir(dir, ["add", "--", filePath]);
+  if (!inDir(dir, ["status", "--porcelain"]).trim()) {
+    throw new GitError("Nothing to accept — base already matches this branch");
+  }
+  const name = author || config.gitAuthorName;
+  const safe = name.replace(/[^a-zA-Z0-9._-]+/g, "-").toLowerCase() || "author";
+  inDir(dir, [...identityArgs(name, `${safe}@hls.local`), "commit", "-m", message]);
+  pushBranch(base);
+  return { sha: headSha(base), branch: base };
+}

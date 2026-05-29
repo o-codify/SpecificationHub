@@ -80,6 +80,12 @@ export interface MetaResponse {
   github: { repo: string; url: string } | null;
 }
 
+export interface FileSuggestion {
+  branch: string;
+  baseContent: string;
+  headContent: string;
+}
+
 export const api = {
   health: () => request<{ status: string }>("GET", "/api/health"),
   meta: () => request<MetaResponse>("GET", "/api/meta"),
@@ -138,6 +144,21 @@ export const api = {
       "POST",
       "/api/merge",
       { base, head, message },
+      true,
+    ),
+
+  suggestions: (path: string, base: string) =>
+    request<{ path: string; base: string; suggestions: FileSuggestion[] }>(
+      "GET",
+      `/api/suggestions?base=${encodeURIComponent(base)}&path=${encodeURIComponent(path)}`,
+      undefined,
+      true,
+    ),
+  acceptSuggestion: (path: string, branch: string, base: string, message?: string) =>
+    request<{ sha: string; branch: string; pullRequest: PullRequestInfo | null }>(
+      "POST",
+      "/api/suggestions/accept",
+      { path, branch, base, message },
       true,
     ),
 

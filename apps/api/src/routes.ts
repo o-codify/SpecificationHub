@@ -293,6 +293,37 @@ export function createRouter(): Router {
     }),
   );
 
+  // ---- Suggestions (inline proposed changes from branches) ----
+  router.get(
+    "/suggestions",
+    requireAuth,
+    h((req, res) => {
+      const base = (req.query.base as string) || config.defaultBranch;
+      const docPath = validateDocPath(req.query.path);
+      const suggestions = gitlib.suggestionsForFile(docPath, base);
+      res.json({ path: docPath, base, suggestions });
+    }),
+  );
+
+  router.post(
+    "/suggestions/accept",
+    requireRole("admin", "reviewer"),
+    h(async (req, res) => {
+      const base = (req.body?.base as string) || config.defaultBranch;
+      const branch = requireBranch(req.body?.branch, "branch");
+      const docPath = validateDocPath(req.body?.path);
+      const message =
+        (req.body?.message as string) || `Accept ${docPath} from ${branch}`;
+      const result = gitlib.acceptFileFromBranch(base, branch, docPath, message, req.principal!.name);
+      let pullRequest = null;
+      if (config.githubEnabled) {
+        // Best-effort: surface the branch's PR if one exists.
+        pullRequest = await github.findOpenPullRequest(branch, base);
+      }
+      res.json({ ...result, pullRequest });
+    }),
+  );
+
   // ---- Search ----
   router.get(
     "/search",
