@@ -2,11 +2,12 @@
 id: front-load-modifier
 title: Front Load Modifier
 status: draft
-version: 26.529.2134
+version: 26.529.2225
 tags:
   - modifier
   - load
   - front-load
+  - provenance
 ---
 
 # Front Load Modifier
@@ -41,6 +42,43 @@ The character should look braced. The torso should resist collapse, steps should
 ## Runtime Rule
 
 A front load should mainly restrict the upper body and shorten steps. The exact pitch direction depends on whether the character hugs the load, carries it low, or braces it at chest height.
+
+## Rule Provenance
+
+### Arm restriction from front load
+
+| Field | Value |
+|---|---|
+| Rule | Front load strongly reduces normal arm swing. |
+| Source card | `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/kit-whole-body.md` |
+| External link | https://motion-database.humanoids.kit.edu/ |
+| Source type | load carriage topic / whole-body dataset reference / HLS inference |
+| Used from source | Carrying objects affects whole-body posture and arm availability. |
+| HLS transformation | Added `ArmSwingMultiplier` and carry override priority for front-load states. |
+| Confidence | medium |
+| Applies to | `ArmSwingSolver`, `PoseComposer`, `ModifierStacking` |
+
+### Shorter steps and braced torso
+
+| Field | Value |
+|---|---|
+| Rule | Front load shortens step length and increases spine stiffness. |
+| Source card | `docs/research/source-cards/load-carriage-posture.md` |
+| External link | https://pubmed.ncbi.nlm.nih.gov/?term=load+carriage+posture+gait+trunk+lean |
+| Source type | load carriage research topic plus gameplay readability inference |
+| Used from source | Load carriage changes posture and gait parameters. |
+| HLS transformation | Added `StepLengthMultiplier`, `CadenceMultiplier`, and `SpineStiffness` for front load. |
+| Confidence | medium |
+| Applies to | `Posture`, `ParameterSystem`, `ModifierStacking` |
+
+## Numeric Data Separation
+
+| Value | Category | Usage |
+|---|---|---|
+| front load restricts arms | HLS rule from load/carry logic | reduce arm swing |
+| `StepLengthMultiplier = 1.0..0.65` | HLS tuning range | first-pass gameplay value |
+| `ArmSwingMultiplier = 1.0..0.1` | HLS tuning range | first-pass gameplay value |
+| `SpineStiffness = 0.2..0.9` | HLS tuning range | first-pass gameplay value |
 
 ## Open Questions
 
