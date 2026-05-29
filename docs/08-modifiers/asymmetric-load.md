@@ -2,11 +2,12 @@
 id: asymmetric-load-modifier
 title: Asymmetric Load Modifier
 status: draft
-version: 26.529.2134
+version: 26.529.2225
 tags:
   - modifier
   - load
   - asymmetry
+  - provenance
 ---
 
 # Asymmetric Load Modifier
@@ -37,6 +38,56 @@ Defines how one-sided load changes locomotion.
 ## Runtime Rule
 
 The loaded side should visually pull the torso while pelvis and step width compensate for balance.
+
+## Rule Provenance
+
+### Lateral torso tilt
+
+| Field | Value |
+|---|---|
+| Rule | One-sided load creates lateral torso tilt. |
+| Source card | `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/kit-whole-body.md` |
+| External link | https://motion-database.humanoids.kit.edu/ |
+| Source type | load carriage topic / whole-body dataset reference / HLS inference |
+| Used from source | Load position affects posture and whole-body coordination. |
+| HLS transformation | Added `TorsoRollOffset` and `PelvisRollCompensation` for left/right loads. |
+| Confidence | medium |
+| Applies to | `Posture`, `SpineSolver`, `PelvisSolver` |
+
+### Loaded-side arm restriction
+
+| Field | Value |
+|---|---|
+| Rule | Loaded-side arm swing is reduced. |
+| Source card | `docs/research/source-cards/load-carriage-posture.md` |
+| External link | https://pubmed.ncbi.nlm.nih.gov/?term=load+carriage+posture+gait+trunk+lean |
+| Source type | load carriage topic plus implementation inference |
+| Used from source | Carrying load occupies or restricts body segments. |
+| HLS transformation | Added `LoadedArmSwingMultiplier` and carry-side restriction. |
+| Confidence | medium |
+| Applies to | `ArmSwingSolver`, `PoseComposer` |
+
+### Wider support for balance readability
+
+| Field | Value |
+|---|---|
+| Rule | Step width can increase under heavy asymmetric load. |
+| Source card | `docs/research/source-cards/load-carriage-posture.md` |
+| External link | https://scholar.google.com/scholar?q=load+carriage+posture+gait+trunk+lean |
+| Source type | HLS gameplay readability inference from load carriage |
+| Used from source | Asymmetric load changes balance demands. |
+| HLS transformation | Added `StepWidthMultiplier` as a tunable stability/readability parameter. |
+| Confidence | low to medium |
+| Applies to | `FootTargetSolver`, `ModifierStacking` |
+
+## Numeric Data Separation
+
+| Value | Category | Usage |
+|---|---|---|
+| one-sided load affects posture | source-backed relationship | enable asymmetric modifier |
+| `TorsoRollOffset = 0..8 deg` | HLS tuning range | visual lean |
+| `PelvisRollCompensation = 0..5 deg` | HLS tuning range | balance compensation |
+| `StepWidthMultiplier = 1.0..1.25` | HLS tuning range | stability readability |
 
 ## Open Questions
 
