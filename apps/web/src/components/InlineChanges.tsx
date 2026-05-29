@@ -4,6 +4,7 @@ import type { FileSuggestion } from "../api";
 import { api } from "../api";
 import { useToast } from "../toast";
 import { applyChange, changesFor, renderTrackedHtml, type Change } from "../trackChanges";
+import { rewriteDocLinks } from "../docpath";
 import { nextVersion } from "../version";
 
 interface Props {
@@ -39,7 +40,10 @@ export function InlineChanges({ path, base, content, frontmatter, suggestions, r
     [content, suggestions],
   );
   const visible = changes.filter((c) => !dismissed.includes(c.id));
-  const html = useMemo(() => renderTrackedHtml(content, visible), [content, visible]);
+  const html = useMemo(
+    () => rewriteDocLinks(renderTrackedHtml(content, visible), path, base),
+    [content, visible, path, base],
+  );
 
   const current = (): Change | undefined => changes.find((c) => c.id === pop?.id);
 

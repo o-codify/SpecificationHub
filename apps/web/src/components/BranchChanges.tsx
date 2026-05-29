@@ -4,6 +4,7 @@ import { api } from "../api";
 import { useAuth } from "../auth";
 import { useToast } from "../toast";
 import { Markdown } from "./Markdown";
+import { rewriteDocLinks } from "../docpath";
 import { applyChanges, changesFor, renderTrackedHtml } from "../trackChanges";
 import { nextVersion } from "../version";
 
@@ -37,7 +38,10 @@ export function BranchChanges({ path, base, branch, baseBody, headBody, frontmat
     [baseBody, headBody, branch],
   );
   const visible = changes.filter((c) => !dismissed.includes(c.id));
-  const html = useMemo(() => renderTrackedHtml(baseBody, visible), [baseBody, visible]);
+  const html = useMemo(
+    () => rewriteDocLinks(renderTrackedHtml(baseBody, visible), path, branch),
+    [baseBody, visible, path, branch],
+  );
 
   const current = () => changes.find((c) => c.id === pop?.id);
 

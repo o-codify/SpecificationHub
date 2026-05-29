@@ -32,6 +32,20 @@ function normalize(p: string): string {
 }
 
 /**
+ * Rewrite relative doc links inside a generated HTML string to in-app
+ * `/docs/:slug` routes (resolved relative to `currentPath`). Used by the
+ * track-changes views, which inject raw HTML and otherwise leave `./x.md`
+ * to be (mis)resolved by the browser against the current URL. External and
+ * non-doc links are left untouched.
+ */
+export function rewriteDocLinks(html: string, currentPath: string, branch: string): string {
+  return html.replace(/(<a\b[^>]*\bhref=")([^"]*)(")/gi, (m, pre, href, post) => {
+    const resolved = resolveDocHref(currentPath, href, branch);
+    return resolved ? `${pre}${resolved}${post}` : m;
+  });
+}
+
+/**
  * Resolve a relative markdown link (href) found inside `currentPath` to an
  * in-app `/docs/:slug` route. Returns null if the href is external/non-doc.
  */
