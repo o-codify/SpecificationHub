@@ -2,7 +2,7 @@
 id: gait-phase-generator
 title: Gait Phase Generator
 status: draft
-version: 26.529.2238
+version: 26.529.2336
 tags:
   - solver
   - gait
@@ -62,78 +62,78 @@ Phase continuity is more important than exact biomechanical timing. A small timi
 | Field | Value |
 |---|---|
 | Rule | Gait phase is normalized from 0 to 1 and wraps continuously. |
-| Source card | `docs/research/source-cards/normal-gait-overview.md`, `docs/research/source-cards/procedural-animation-overview.md` |
+| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md), [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | gait overview plus procedural animation abstraction |
 | Used from source | Walking is cyclic and can be divided into repeated phases. |
 | HLS transformation | Converted clinical gait cycle into normalized runtime `gaitPhase`. |
 | Confidence | high |
-| Applies to | `Walking`, `Running`, `FootTargetSolver`, `ArmSwingSolver` |
+| Applies to | [Walking](../05-walking/index.md), [Running](../06-running/index.md), [Foot Target Solver](foot-target-solver.md), [Arm Swing Solver](arm-swing-solver.md) |
 
 ### Left and right leg phase offset
 
 | Field | Value |
 |---|---|
 | Rule | Left and right legs are offset by half a cycle. |
-| Source card | `docs/research/source-cards/normal-gait-overview.md` |
+| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md) |
 | External link | https://teachmeanatomy.info/lower-limb/misc/gait-cycle/ |
 | Source type | gait overview |
 | Used from source | Human walking alternates left and right support/swing phases. |
 | HLS transformation | `rightLegPhase = (leftLegPhase + 0.5) % 1.0`. |
 | Confidence | high |
-| Applies to | `FootTargetSolver`, `PelvisSolver`, `ArmSwingSolver` |
+| Applies to | [Foot Target Solver](foot-target-solver.md), [Pelvis Solver](pelvis-solver.md), [Arm Swing Solver](arm-swing-solver.md) |
 
 ### Walking stance and swing ratio
 
 | Field | Value |
 |---|---|
 | Rule | Walking uses longer stance than swing; default stance ratio is about 0.60. |
-| Source card | `docs/research/source-cards/normal-gait-overview.md` |
+| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | clinical / educational gait overview |
 | Used from source | Normal walking is commonly described with stance around 60 percent and swing around 40 percent. |
 | HLS transformation | Added `stanceRatio` and `swingRatio` outputs with walk defaults. |
 | Confidence | high for relationship, medium for exact runtime default |
-| Applies to | `docs/04-gait-cycle/index.md`, `docs/05-walking/index.md` |
+| Applies to | [Gait Cycle](../04-gait-cycle/index.md), [Walking](../05-walking/index.md) |
 
 ### Running support mode and flight
 
 | Field | Value |
 |---|---|
 | Rule | Running uses a separate phase profile and may include flight. |
-| Source card | `docs/research/source-cards/running-biomechanics.md` |
+| Source card | [Running Biomechanics](../research/source-cards/running-biomechanics.md) |
 | External link | https://www.physio-pedia.com/Running_Biomechanics |
 | Source type | running biomechanics overview |
 | Used from source | Running differs from walking by support timing and aerial behavior. |
 | HLS transformation | Added run-specific stance/swing values and `supportMode = flight`. |
 | Confidence | high for distinction, medium for exact phase bands |
-| Applies to | `docs/06-running/index.md`, `FootTargetSolver`, `PelvisSolver` |
+| Applies to | [Running](../06-running/index.md), [Foot Target Solver](foot-target-solver.md), [Pelvis Solver](pelvis-solver.md) |
 
 ### Modifier phase warping
 
 | Field | Value |
 |---|---|
 | Rule | Load, injury, slope, and fatigue may alter cadence or phase ratios but must preserve continuity. |
-| Source card | `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/antalgic-gait.md`, `docs/research/source-cards/stairs-and-slopes.md` |
+| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Antalgic Gait](../research/source-cards/antalgic-gait.md), [Stairs and Slopes](../research/source-cards/stairs-and-slopes.md) |
 | External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
 | Source type | load carriage, clinical gait, terrain locomotion topics |
 | Used from source | Load, pain, and terrain affect gait timing and movement quality. |
 | HLS transformation | ModifierResolver changes cadence, stance ratio, and side-specific stance while GaitPhaseGenerator preserves continuous phase. |
 | Confidence | medium |
-| Applies to | `ModifierStacking`, `Injury`, `Slope`, `Stairs`, `Backpack` |
+| Applies to | [Modifier Stacking](../10-runtime/modifier-stacking.md), [Injury and Limping Modifier](../08-modifiers/injury-limping.md), [Slope Modifier](../08-modifiers/slope.md), [Stairs Modifier](../08-modifiers/stairs.md), [Backpack Load Modifier](../08-modifiers/backpack-load.md) |
 
 ### Phase continuity priority
 
 | Field | Value |
 |---|---|
 | Rule | Phase continuity is more important than exact timing during runtime corrections. |
-| Source card | `docs/research/source-cards/motion-matching.md`, `docs/research/source-cards/lafan1.md` |
+| Source card | [Motion Matching](../research/source-cards/motion-matching.md), [LaFAN1](../research/source-cards/lafan1.md) |
 | External link | https://github.com/ubisoft/ubisoft-laforge-animation-dataset |
 | Source type | animation continuity / dataset validation reference |
 | Used from source | Transition quality and temporal continuity are important for believable animation. |
 | HLS transformation | Network smoothing and state transitions should warp phase gradually instead of resetting it. |
 | Confidence | high as game animation rule |
-| Applies to | `Networking`, `PoseComposer`, `Validation Methodology` |
+| Applies to | [Networking](../10-runtime/networking.md), [Pose Composer](pose-composer.md), [Validation Methodology](../research/validation-methodology.md) |
 
 ## Numeric Data Separation
 
