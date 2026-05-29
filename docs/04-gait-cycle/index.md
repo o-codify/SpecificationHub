@@ -2,12 +2,13 @@
 id: gait-cycle
 title: Gait Cycle
 status: draft
-version: 26.529.2043
+version: 26.529.2154
 tags:
   - gait
   - phase
   - walking
   - running
+  - provenance
 ---
 
 # Gait Cycle
@@ -85,20 +86,6 @@ type GaitCycleOutput = {
 };
 ```
 
-## Pseudocode
-
-```ts
-function solveLegPhase(phase: number, gait: "walk" | "run"): LegPhase {
-  if (gait === "walk") {
-    if (phase < 0.60) return { phase, contact: true, subPhase: solveWalkingStanceSubPhase(phase) };
-    return { phase, contact: false, subPhase: solveWalkingSwingSubPhase(phase) };
-  }
-
-  if (phase < 0.40) return { phase, contact: true, subPhase: "run_stance" };
-  return { phase, contact: false, subPhase: "run_swing_or_flight" };
-}
-```
-
 ## HLS Rules
 
 ```text
@@ -111,9 +98,77 @@ R6. Arm phase is opposite to leg advancement.
 R7. Modifiers may warp phase ratios but must preserve continuity.
 ```
 
-## Source Notes
+## Rule Provenance
 
-Source cards: normal-gait-overview, gait-cycle-clinical, running-biomechanics.
+### Walking stance and swing ratio
+
+Rule: walking uses default stance ratio 0.60 and swing ratio 0.40.
+
+Source type: clinical gait overview and normal gait descriptions.
+
+Used from source: normal gait is commonly described as stance plus swing, with stance taking the larger part of the walking cycle.
+
+HLS transformation: converted the clinical phase description into runtime defaults for GaitPhaseGenerator and Walking.
+
+Confidence: high for the relationship, medium for exact gameplay tuning.
+
+Source cards: normal-gait-overview, gait-cycle-clinical.
+
+### Double support in walking
+
+Rule: walking has double support.
+
+Source type: clinical gait overview.
+
+Used from source: walking includes intervals where both feet contact the ground.
+
+HLS transformation: represented support mode as double, left, right, or flight.
+
+Confidence: high.
+
+Source cards: normal-gait-overview, gait-cycle-clinical.
+
+### Running flight phase
+
+Rule: running can enter flight mode and does not use walking-style double support.
+
+Source type: running biomechanics.
+
+Used from source: running differs from walking by support timing and flight.
+
+HLS transformation: added supportMode flight and lower running stance ratio.
+
+Confidence: high for the distinction, medium for exact runtime bands.
+
+Source cards: running-biomechanics.
+
+### Foot locking priority
+
+Rule: planted feet should remain stable during stance.
+
+Source type: procedural animation and game animation implementation constraint.
+
+Used from source: foot sliding breaks perceived contact and weight.
+
+HLS transformation: stance phase generates foot lock state for FootTargetSolver.
+
+Confidence: high for visual importance, medium for exact correction thresholds.
+
+Source cards: ik-foot-placement, procedural-animation-overview.
+
+## Numeric Data Separation
+
+Source-backed numeric default:
+
+- walking stance approximately 60 percent
+- walking swing approximately 40 percent
+
+HLS tuning values:
+
+- running stance 0.30 to 0.45
+- runtime subphase bands
+
+These tuning values are not presented as clinical facts. They are implementation ranges for Level 3 game motion.
 
 ## Open Questions
 
