@@ -314,22 +314,18 @@ export function createRouter(): Router {
     }),
   );
 
+  // Accept a specific (possibly edited) change: write the resulting content
+  // directly onto base (main). Reviewer/admin only.
   router.post(
     "/suggestions/accept",
     requireRole("admin", "reviewer"),
-    h(async (req, res) => {
+    h((req, res) => {
       const base = (req.body?.base as string) || config.defaultBranch;
-      const branch = requireBranch(req.body?.branch, "branch");
       const docPath = validateDocPath(req.body?.path);
-      const message =
-        (req.body?.message as string) || `Accept ${docPath} from ${branch}`;
-      const result = gitlib.acceptFileFromBranch(base, branch, docPath, message, req.principal!.name);
-      let pullRequest = null;
-      if (config.githubEnabled) {
-        // Best-effort: surface the branch's PR if one exists.
-        pullRequest = await github.findOpenPullRequest(branch, base);
-      }
-      res.json({ ...result, pullRequest });
+      const content = typeof req.body?.content === "string" ? req.body.content : "";
+      const message = (req.body?.message as string) || `Update ${docPath}`;
+      const result = gitlib.applyContentToBase(base, docPath, content, message, req.principal!.name);
+      res.json(result);
     }),
   );
 

@@ -12,6 +12,7 @@ import { Markdown } from "../components/Markdown";
 import { StatusBadge } from "../components/StatusBadge";
 import { Highlight } from "../components/Highlight";
 import { InlineEditor, type EditorInitial } from "../components/InlineEditor";
+import { InlineChanges } from "../components/InlineChanges";
 import { Suggestions } from "../components/Suggestions";
 
 type Mode = "view" | "edit" | "new";
@@ -271,10 +272,24 @@ export function DocsReader() {
             </div>
             <div className="doc-path">{doc.path}</div>
             <div className="doc-rule" />
-            <div className="doc-body">
-              <Markdown content={doc.content} currentPath={doc.path} branch={branch} />
-            </div>
-            {authed && (
+            {authed && suggestions.length > 0 ? (
+              <InlineChanges
+                path={doc.path}
+                base={branch}
+                content={doc.content}
+                frontmatter={fm}
+                suggestions={suggestions}
+                onResolved={() => {
+                  loadDoc();
+                  loadTree();
+                }}
+              />
+            ) : (
+              <div className="doc-body">
+                <Markdown content={doc.content} currentPath={doc.path} branch={branch} />
+              </div>
+            )}
+            {authed && suggestions.length > 0 && (
               <Suggestions
                 path={doc.path}
                 base={branch}

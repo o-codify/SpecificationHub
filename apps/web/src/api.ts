@@ -161,11 +161,11 @@ export const api = {
       undefined,
       true,
     ),
-  acceptSuggestion: (path: string, branch: string, base: string, message?: string) =>
-    request<{ sha: string; branch: string; pullRequest: PullRequestInfo | null }>(
+  acceptSuggestion: (path: string, base: string, content: string, message?: string) =>
+    request<{ sha: string; branch: string }>(
       "POST",
       "/api/suggestions/accept",
-      { path, branch, base, message },
+      { path, base, content, message },
       true,
     ),
 

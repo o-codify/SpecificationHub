@@ -444,30 +444,26 @@ export function suggestionCounts(base: string): Record<string, number> {
   return counts;
 }
 
-/** Apply `branch`'s version of `filePath` onto `base` and commit (+push). The
- *  reviewer-accepts-a-proposed-change action. */
-export function acceptFileFromBranch(
+/** Commit arbitrary `content` for `filePath` directly onto `base` (+push). This is
+ *  the reviewer action of accepting a specific (possibly edited) change into main. */
+export function applyContentToBase(
   base: string,
-  branch: string,
   filePath: string,
+  content: string,
   message: string,
   author: string,
 ): CommitResult {
   if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
-  if (!branchExists(branch)) throw new NotFoundError(`Branch not found: ${branch}`);
-  if (!fileExists(branch, filePath)) {
-    throw new NotFoundError(`File not found: ${filePath} on ${branch}`);
-  }
-  const content = readFile(branch, filePath);
   const dir = ensureWorktree(base);
   inDir(dir, ["checkout", base]);
   inDir(dir, ["reset", "--hard", base]);
   const abs = path.join(dir, filePath);
+  if (!abs.startsWith(dir)) throw new GitError("Invalid path");
   fs.mkdirSync(path.dirname(abs), { recursive: true });
   fs.writeFileSync(abs, content, "utf8");
   inDir(dir, ["add", "--", filePath]);
   if (!inDir(dir, ["status", "--porcelain"]).trim()) {
-    throw new GitError("Nothing to accept — base already matches this branch");
+    throw new GitError("No change to apply — base already has this content");
   }
   const name = author || config.gitAuthorName;
   const safe = name.replace(/[^a-zA-Z0-9._-]+/g, "-").toLowerCase() || "author";

@@ -406,3 +406,22 @@ tbody tr:hover{background:var(--surface-2)}
 /* suggestions panel */
 .suggestions{margin-top:32px;border-top:1px solid var(--border);padding-top:22px}
 .sug-h{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--text-strong);margin:0 0 14px}
+.branch-row code{margin-right:2px}
+
+/* inline track-changes woven into the document body */
+.doc-body .sug{display:block;cursor:pointer;border:1px solid var(--border-strong);border-radius:6px;margin:0 0 18px;transition:box-shadow .15s ease}
+.doc-body .sug:hover{box-shadow:0 0 0 3px color-mix(in oklch,var(--p2) 26%,transparent)}
+.doc-body .sug-add{background:color-mix(in oklch,var(--good) 12%,transparent);border-color:color-mix(in oklch,var(--good) 45%,var(--border));border-left:3px solid var(--good);padding:6px 15px}
+.doc-body .sug-del{border-color:color-mix(in oklch,var(--bad-tx) 35%,var(--border));border-left:3px solid var(--bad-tx)}
+.doc-body .sug-del .sug-old{background:color-mix(in oklch,var(--bad-tx) 8%,transparent);padding:6px 15px;color:var(--faint);text-decoration:line-through;text-decoration-color:color-mix(in oklch,var(--bad-tx) 45%,transparent)}
+.doc-body .sug-replace{border-left:3px solid var(--p2)}
+.doc-body .sug-replace .sug-old{background:color-mix(in oklch,var(--bad-tx) 8%,transparent);border-bottom:1px solid var(--border);padding:6px 15px;color:var(--faint);text-decoration:line-through;text-decoration-color:color-mix(in oklch,var(--bad-tx) 45%,transparent)}
+.doc-body .sug-replace .sug-new{background:color-mix(in oklch,var(--good) 12%,transparent);padding:6px 15px}
+.doc-body .sug p,.doc-body .sug h1,.doc-body .sug h2,.doc-body .sug h3{margin:0 0 8px}
+.doc-body .sug p:last-child,.doc-body .sug *:last-child{margin-bottom:0}
+/* suggestion popover */
+.sug-pop{position:fixed;z-index:75;min-width:200px;max-width:320px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);box-shadow:var(--shadow);padding:11px;display:none}
+.sug-pop.open{display:block}
+.sp-head{font-size:12px;color:var(--muted);margin-bottom:9px}
+.sp-head b{color:var(--text-strong);font-family:var(--font-mono);font-size:12px;font-weight:500}
+.sp-acts{display:flex;gap:6px;flex-wrap:wrap}
