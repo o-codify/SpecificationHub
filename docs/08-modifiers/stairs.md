@@ -2,11 +2,12 @@
 id: stairs-modifier
 title: Stairs Modifier
 status: draft
-version: 26.529.2133
+version: 26.529.2223
 tags:
   - modifier
   - stairs
   - terrain
+  - provenance
 ---
 
 # Stairs Modifier
@@ -66,6 +67,56 @@ Stairs are not treated as ordinary slopes. They require discrete foot targets an
 ## Runtime Rule
 
 When stairs are detected, FootTargetSolver should switch from continuous ground projection to discrete tread selection. PelvisSolver should follow stair height with smoothing.
+
+## Rule Provenance
+
+### Stairs are not slopes
+
+| Field | Value |
+|---|---|
+| Rule | Stairs use discrete tread targets instead of continuous slope projection. |
+| Source card | `docs/research/source-cards/stairs-and-slopes.md` |
+| External link | https://www.physio-pedia.com/Stair_Gait |
+| Source type | gait overview / HLS implementation transformation |
+| Used from source | Stair gait is a distinct locomotion context from level walking. |
+| HLS transformation | FootTargetSolver switches to discrete tread selection when stairs are detected. |
+| Confidence | high for distinction, medium for exact implementation |
+| Applies to | `FootTargetSolver`, `LocomotionStateResolver` |
+
+### Pelvis height follows stair height
+
+| Field | Value |
+|---|---|
+| Rule | Pelvis height changes with stair height and must be smoothed. |
+| Source card | `docs/research/source-cards/stairs-and-slopes.md` |
+| External link | https://www.physio-pedia.com/Stair_Gait |
+| Source type | gait overview plus procedural implementation constraint |
+| Used from source | Stair ascent and descent involve vertical displacement between steps. |
+| HLS transformation | Added `PelvisStepHeightSmoothing` and stair-specific pelvis height offsets. |
+| Confidence | medium |
+| Applies to | `PelvisSolver`, `PoseComposer` |
+
+### Stair foot placement before IK
+
+| Field | Value |
+|---|---|
+| Rule | Foot target selection on stairs happens before IK application. |
+| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
+| Source type | implementation constraint / engine documentation |
+| Used from source | IK systems solve bones toward targets and constraints. |
+| HLS transformation | Stairs modifier outputs target constraints for FootTargetSolver; IK only applies final foot placement. |
+| Confidence | high |
+| Applies to | `FootTargetSolver`, `Unreal Engine`, `Runtime Update Order` |
+
+## Numeric Data Separation
+
+| Value | Category | Usage |
+|---|---|---|
+| stairs require distinct foot placement | source-backed relationship | stairs modifier and state resolver |
+| `FootClearance` | HLS tuning value | step-height-dependent clearance |
+| `PelvisStepHeightSmoothing` | HLS tuning value | visual smoothing over step height |
+| `StairCadenceMultiplier` | HLS tuning value | cautious ascent/descent control |
 
 ## Open Questions
 
