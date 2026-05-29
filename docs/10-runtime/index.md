@@ -2,7 +2,7 @@
 id: runtime
 title: Runtime
 status: draft
-version: 26.529.2335
+version: 26.529.2338
 tags:
   - runtime
   - architecture
@@ -36,16 +36,16 @@ CharacterInputState
 
 | Document | Responsibility | Provenance status |
 |---|---|---|
-| [Character Input State](input-state.md) | gameplay-to-HLS input packet | upgraded |
-| [Locomotion State Resolver](locomotion-state-resolver.md) | active locomotion state selection | upgraded |
-| [Parameter System](parameter-system.md) | parameter groups, defaults, tuning, clamps | upgraded |
-| [Modifier Stacking](modifier-stacking.md) | modifier order and conflict resolution | upgraded |
-| [Solver Interfaces](solver-interfaces.md) | common solver contract | upgraded |
-| [Output Pose](output-pose.md) | final pose intent contract | upgraded |
-| [Runtime Constraints](constraints.md) | runtime safety rules | upgraded |
-| [Networking Model](networking.md) | multiplayer state and proxy behavior | upgraded |
-| [Debug Visualization](debug-visualization.md) | debug views and warnings | upgraded |
-| [Runtime Update Order](update-order.md) | execution order | upgraded |
+| [Character Input State](./input-state.md) | gameplay-to-HLS input packet | upgraded |
+| [Locomotion State Resolver](./locomotion-state-resolver.md) | active locomotion state selection | upgraded |
+| [Parameter System](./parameter-system.md) | parameter groups, defaults, tuning, clamps | upgraded |
+| [Modifier Stacking](./modifier-stacking.md) | modifier order and conflict resolution | upgraded |
+| [Solver Interfaces](./solver-interfaces.md) | common solver contract | upgraded |
+| [Output Pose](./output-pose.md) | final pose intent contract | upgraded |
+| [Runtime Constraints](./constraints.md) | runtime safety rules | upgraded |
+| [Networking Model](./networking.md) | multiplayer state and proxy behavior | upgraded |
+| [Debug Visualization](./debug-visualization.md) | debug views and warnings | upgraded |
+| [Runtime Update Order](./update-order.md) | execution order | upgraded |
 
 ## Architecture Rule
 
