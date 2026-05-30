@@ -2,12 +2,13 @@
 id: source-card-normal-gait-overview
 title: "Source Card: Normal Gait Overview"
 status: draft
-version: 26.529.2203
+version: 26.530.1004
 tags:
   - research
   - gait
   - walking
   - linked-source
+  - links
 ---
 
 # Source Card: Normal Gait Overview
@@ -86,6 +87,6 @@ The 60 / 40 split is a useful default, not a mandatory value for every character
 
 ## Used By
 
-- `docs/04-gait-cycle/index.md`
-- `docs/05-walking/index.md`
-- `docs/09-solvers/gait-phase-generator.md`
+- [Gait Cycle](../../04-gait-cycle/index.md)
+- [Walking](../../05-walking/index.md)
+- [Gait Phase Generator](../../09-solvers/gait-phase-generator.md)
