@@ -161,20 +161,68 @@ function pairDiff(a: string[], b: string[]): { kind: "same" | "add" | "del" | "m
   return out;
 }
 
+type Aligned = { kind: "same" | "add" | "del" | "mod"; old?: string; neu?: string };
+
+/**
+ * Align two lists of entries by *similarity* (an LCS over `similar`), so a
+ * changed entry pairs with its real counterpart even when other entries were
+ * inserted/removed around it — index-pairing would otherwise mismatch them.
+ */
+function alignBy(olds: string[], news: string[], similar: (a: string, b: string) => boolean): Aligned[] {
+  const m = olds.length;
+  const n = news.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = m - 1; i >= 0; i--)
+    for (let j = n - 1; j >= 0; j--)
+      dp[i][j] = similar(olds[i], news[j]) ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out: Aligned[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < m && j < n) {
+    if (similar(olds[i], news[j])) {
+      out.push({ kind: olds[i] === news[j] ? "same" : "mod", old: olds[i], neu: news[j] });
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      out.push({ kind: "del", old: olds[i++] });
+    } else {
+      out.push({ kind: "add", neu: news[j++] });
+    }
+  }
+  while (i < m) out.push({ kind: "del", old: olds[i++] });
+  while (j < n) out.push({ kind: "add", neu: news[j++] });
+  return out;
+}
+
+/** Two entries are "the same entry" if they share a label (text before ":") or a real prefix. */
+function similarEntry(x: string, y: string): boolean {
+  const label = (s: string) => {
+    const i = s.indexOf(":");
+    return i > 0 ? s.slice(0, i).trim().toLowerCase() : "";
+  };
+  const lx = label(x);
+  const ly = label(y);
+  if (lx && ly) return lx === ly;
+  let p = 0;
+  while (p < x.length && p < y.length && x[p] === y[p]) p++;
+  return p >= 3 && p >= Math.min(x.length, y.length) * 0.3;
+}
+
 /** Replace a list block item-by-item; only the changed clause/bullet is interactive. */
 function listReplace(c: Change, oldBlock: string, newBlock: string): string {
-  const lines = (b: string) => b.trim().split("\n").filter((l) => l.trim());
-  const a = lines(oldBlock);
-  const b = lines(newBlock);
-  const ordered = /^\s*\d+\./.test(a[0] ?? b[0] ?? "");
-  const tag = ordered ? "ol" : "ul";
   const strip = (l: string) => l.replace(/^\s*([-*+]|\d+\.)\s+/, "");
+  const lines = (b: string) => b.trim().split("\n").filter((l) => l.trim());
+  const rawA = lines(oldBlock);
+  const ordered = /^\s*\d+\./.test(rawA[0] ?? lines(newBlock)[0] ?? "");
+  const tag = ordered ? "ol" : "ul";
+  const a = rawA.map(strip);
+  const b = lines(newBlock).map(strip);
   let inner = "";
-  for (const e of pairDiff(a, b)) {
-    if (e.kind === "same") inner += `<li>${mdInline(strip(e.old!))}</li>`;
-    else if (e.kind === "mod") inner += `<li>${clauseInner(c, strip(e.old!), strip(e.neu!))}</li>`;
-    else if (e.kind === "del") inner += `<li>${wholeSpan(c, mdInline(strip(e.old!)), "del")}</li>`;
-    else inner += `<li>${wholeSpan(c, mdInline(strip(e.neu!)), "ins")}</li>`;
+  for (const e of alignBy(a, b, similarEntry)) {
+    if (e.kind === "same") inner += `<li>${mdInline(e.old!)}</li>`;
+    else if (e.kind === "mod") inner += `<li>${clauseInner(c, e.old!, e.neu!)}</li>`;
+    else if (e.kind === "del") inner += `<li>${wholeSpan(c, mdInline(e.old!), "del")}</li>`;
+    else inner += `<li>${wholeSpan(c, mdInline(e.neu!), "ins")}</li>`;
   }
   return `<${tag}>${inner}</${tag}>`;
 }
@@ -190,8 +238,9 @@ function tableReplace(c: Change, oldBlock: string, newBlock: string): string {
   const header = cells(b[0] ?? a[0] ?? "");
   const head = `<thead><tr>${header.map((h) => `<th>${mdInline(h)}</th>`).join("")}</tr></thead>`;
   const tds = (cs: string[]) => cs.map((x) => `<td>${mdInline(x)}</td>`).join("");
+  const sameFirstCell = (x: string, y: string) => cells(x)[0]?.toLowerCase() === cells(y)[0]?.toLowerCase();
   let body = "";
-  for (const e of pairDiff(a.slice(2), b.slice(2))) {
+  for (const e of alignBy(a.slice(2), b.slice(2), sameFirstCell)) {
     if (e.kind === "same") {
       body += `<tr>${tds(cells(e.old!))}</tr>`;
     } else if (e.kind === "mod") {
