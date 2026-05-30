@@ -1,8 +1,8 @@
 ---
 id: networking-model
 title: Networking Model
-status: draft
-version: 26.530.1354
+status: review
+version: 26.530.1515
 tags:
   - runtime
   - networking
@@ -96,6 +96,16 @@ TeleportPhaseSnapThreshold = 0.35..0.50 cycle error
 - Disable expensive debug or secondary motion by distance.
 - First-pass remote pose smoothing should use 0.08..0.20 s for pelvis/spine and 0.10..0.30 s for phase correction.
 
+## Output Pose Contract
+
+Simulated proxies should reconstruct [Output Pose](./output-pose.md) locally from compact replicated state and local traces where possible.
+
+```text
+ReplicatedCompactState -> LocalParameterResolution -> LocalSolvers -> PoseComposer -> OutputPose
+```
+
+Normal locomotion replication should not transmit authoritative final bone transforms. Output pose remains a local visual reconstruction derived from server-owned gameplay state.
+
 ## Rule Provenance
 
 ### Replicate compact state, not bones
@@ -137,6 +147,19 @@ TeleportPhaseSnapThreshold = 0.35..0.50 cycle error
 | Confidence | high |
 | Applies to | [Locomotion State Resolver](./locomotion-state-resolver.md), [Modifier Stacking](./modifier-stacking.md), [Unreal Engine](../11-unreal-engine/index.md) |
 
+### Local reconstruction of output pose
+
+| Field | Value |
+|---|---|
+| Rule | Simulated proxies reconstruct pose intent locally from compact replicated state. |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Output Pose](./output-pose.md) |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
+| Source type | procedural animation / HLS architecture rule |
+| Used from source | Runtime intent can be converted into animation controls locally. |
+| HLS transformation | ReplicatedCompactState feeds local parameter resolution and solvers. OutputPose stays local and debug-visible; final bone transforms are not authoritative network state for normal locomotion. |
+| Confidence | high |
+| Applies to | [Output Pose](./output-pose.md), [Runtime Update Order](./update-order.md), [Solver Interfaces](./solver-interfaces.md) |
+
 ## Numeric Data Separation
 
 | Value | Category | Usage |
@@ -153,3 +176,4 @@ TeleportPhaseSnapThreshold = 0.35..0.50 cycle error
 - Exact compressed state layout.
 - Whether foot lock state needs replication for high fidelity.
 - How to handle teleportation, knockback, and ragdoll transitions.
+- Whether simulated proxies need local terrain traces or replicated terrain hints for stairs.

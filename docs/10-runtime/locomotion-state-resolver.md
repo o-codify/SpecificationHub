@@ -1,8 +1,8 @@
 ---
 id: locomotion-state-resolver
 title: Locomotion State Resolver
-status: draft
-version: 26.530.1354
+status: review
+version: 26.530.1515
 tags:
   - runtime
   - state
@@ -65,6 +65,7 @@ This layer converts gameplay intent and physical context into a locomotion mode 
 - Stop activates when desired speed drops quickly while current speed is high.
 - Start activates when speed rises from idle.
 - State changes should use hysteresis and minimum state time to avoid flicker.
+- Server-owned state should be compact enough for networking; clients can reconstruct visual pose locally.
 
 ## Priority Order
 
@@ -94,6 +95,15 @@ MinimumStateTime = 0.15..0.35 s
 StateConfidenceSmoothing = 0.08..0.20 s
 SevereInjuryThreshold = 0.65..0.80
 HeavyLoadThreshold = 0.65..0.80
+TreadConfidenceForStairs = 0.60..0.80
+```
+
+## Network Contract
+
+The server owns gameplay-relevant state choice. Clients may smooth and reconstruct visual pose, but they should not invent gameplay-relevant locomotion states.
+
+```text
+ServerState -> ReplicatedCompactState -> ClientLocalSolvers -> OutputPose
 ```
 
 ## Rule Provenance
@@ -150,6 +160,19 @@ HeavyLoadThreshold = 0.65..0.80
 | Confidence | high as implementation rule |
 | Applies to | [Networking](./networking.md), [Pose Composer](../09-solvers/pose-composer.md), [Validation Methodology](../research/validation-methodology.md) |
 
+### Server-owned state for networking
+
+| Field | Value |
+|---|---|
+| Rule | Gameplay-relevant locomotion state is server-owned, while visual pose may be reconstructed locally. |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Networking Model](./networking.md) |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/networking-and-multiplayer-in-unreal-engine |
+| Source type | multiplayer architecture / HLS runtime contract |
+| Used from source | Multiplayer systems distinguish authoritative gameplay state from client-side visual presentation. |
+| HLS transformation | Resolver outputs compact state suitable for replication. Clients reconstruct pose from replicated state, local smoothing, and local solvers without owning gameplay-relevant state transitions. |
+| Confidence | high |
+| Applies to | [Networking](./networking.md), [Output Pose](./output-pose.md), [Runtime Update Order](./update-order.md) |
+
 ## Numeric Data Separation
 
 | Value | Category | Usage |
@@ -163,6 +186,7 @@ HeavyLoadThreshold = 0.65..0.80
 | `MinimumStateTime = 0.15..0.35 s` | HLS tuning range | anti-flicker |
 | `SevereInjuryThreshold = 0.65..0.80` | HLS tuning range | downgrade state |
 | `HeavyLoadThreshold = 0.65..0.80` | HLS tuning range | downgrade state |
+| `TreadConfidenceForStairs = 0.60..0.80` | HLS tuning threshold | stair override |
 | start/stop thresholds | HLS tuning values | transition detection |
 | injury/load downgrade thresholds | HLS tuning values | gameplay + visual readability |
 
@@ -171,3 +195,4 @@ HeavyLoadThreshold = 0.65..0.80
 - Exact thresholds for start, stop, and turn states.
 - Whether jog should be a separate state or a speed range inside running.
 - How much weapon aiming should restrict locomotion state.
+- Which state fields must be replicated versus derived on clients.
