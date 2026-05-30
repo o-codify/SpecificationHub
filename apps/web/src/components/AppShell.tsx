@@ -53,6 +53,9 @@ export function AppShell() {
           <NavLink to="/branches" onClick={(e) => goAdmin(e, "/branches")}>
             Branches
           </NavLink>
+          <NavLink to="/review" onClick={(e) => goAdmin(e, "/review")}>
+            Review
+          </NavLink>
           <NavLink to="/tokens" onClick={(e) => goAdmin(e, "/tokens")}>
             Tokens
           </NavLink>

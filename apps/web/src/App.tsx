@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { DocsReader } from "./pages/DocsReader";
 import { AdminBranches } from "./pages/AdminBranches";
+import { AdminDiff } from "./pages/AdminDiff";
 import { AdminTokens } from "./pages/AdminTokens";
 import { useAuth } from "./auth";
 
@@ -28,6 +29,16 @@ export function App() {
             <RequireAuth>
               <div className="page">
                 <AdminBranches />
+              </div>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/review"
+          element={
+            <RequireAuth>
+              <div className="page">
+                <AdminDiff />
               </div>
             </RequireAuth>
           }
