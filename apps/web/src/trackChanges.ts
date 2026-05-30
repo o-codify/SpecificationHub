@@ -118,8 +118,17 @@ function wholeSpan(c: Change, html: string, kind: "ins" | "del"): string {
   return `<span class="sug" data-id="${c.id}" data-branch="${escAttr(c.branch)}"><${kind}>${html}</${kind}></span>`;
 }
 
-function inlineReplace(c: Change): string {
-  return `<p>${clauseInner(c, c.oldBlocks[0], c.newBlocks[0])}</p>`;
+/** Render one changed block against its old version, picking the right granularity. */
+function renderReplacePair(c: Change, oldBlock: string, newBlock: string): string {
+  const attrs = `data-id="${c.id}" data-branch="${escAttr(c.branch)}"`;
+  if (isProse(oldBlock) && isProse(newBlock)) return `<p>${clauseInner(c, oldBlock, newBlock)}</p>`;
+  if (isList(oldBlock) && isList(newBlock)) return listReplace(c, oldBlock, newBlock);
+  if (isTable(oldBlock) && isTable(newBlock)) return tableReplace(c, oldBlock, newBlock);
+  // Different block kinds (e.g. code) — show as struck old + green new callouts.
+  return (
+    `<div class="sug del" ${attrs}>${mdToHtmlDoc(oldBlock)}</div>` +
+    `<div class="sug add" ${attrs}>${mdToHtmlDoc(newBlock)}</div>`
+  );
 }
 
 /** Pair adjacent removed/added runs so a modified entry is one item (not del+add). */
@@ -153,10 +162,10 @@ function pairDiff(a: string[], b: string[]): { kind: "same" | "add" | "del" | "m
 }
 
 /** Replace a list block item-by-item; only the changed clause/bullet is interactive. */
-function listReplace(c: Change): string {
+function listReplace(c: Change, oldBlock: string, newBlock: string): string {
   const lines = (b: string) => b.trim().split("\n").filter((l) => l.trim());
-  const a = lines(c.oldBlocks[0]);
-  const b = lines(c.newBlocks[0]);
+  const a = lines(oldBlock);
+  const b = lines(newBlock);
   const ordered = /^\s*\d+\./.test(a[0] ?? b[0] ?? "");
   const tag = ordered ? "ol" : "ul";
   const strip = (l: string) => l.replace(/^\s*([-*+]|\d+\.)\s+/, "");
@@ -171,13 +180,13 @@ function listReplace(c: Change): string {
 }
 
 /** Replace a table block row-by-row; only changed rows/cells are interactive. */
-function tableReplace(c: Change): string {
+function tableReplace(c: Change, oldBlock: string, newBlock: string): string {
   const attrs = `data-id="${c.id}" data-branch="${escAttr(c.branch)}"`;
   const rows = (b: string) => b.trim().split("\n").filter((l) => l.includes("|"));
   const cells = (row: string) =>
     row.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((s) => s.trim());
-  const a = rows(c.oldBlocks[0]);
-  const b = rows(c.newBlocks[0]);
+  const a = rows(oldBlock);
+  const b = rows(newBlock);
   const header = cells(b[0] ?? a[0] ?? "");
   const head = `<thead><tr>${header.map((h) => `<th>${mdInline(h)}</th>`).join("")}</tr></thead>`;
   const tds = (cs: string[]) => cs.map((x) => `<td>${mdInline(x)}</td>`).join("");
@@ -207,11 +216,6 @@ function tableReplace(c: Change): string {
 
 function sugBlock(c: Change): string {
   const attrs = `data-id="${c.id}" data-branch="${escAttr(c.branch)}"`;
-  if (c.kind === "replace" && c.oldBlocks.length === 1 && c.newBlocks.length === 1) {
-    if (isProse(c.oldBlocks[0]) && isProse(c.newBlocks[0])) return inlineReplace(c);
-    if (isList(c.oldBlocks[0]) && isList(c.newBlocks[0])) return listReplace(c);
-    if (isTable(c.oldBlocks[0]) && isTable(c.newBlocks[0])) return tableReplace(c);
-  }
   if (c.kind === "add") {
     return c.newBlocks.length === 1 && isProse(c.newBlocks[0])
       ? `<p class="sug add" ${attrs}>${mdInline(c.newBlocks[0])}</p>`
@@ -222,11 +226,17 @@ function sugBlock(c: Change): string {
       ? `<p class="sug del" ${attrs}>${mdInline(c.oldBlocks[0])}</p>`
       : `<div class="sug del" ${attrs}>${mdToHtmlDoc(joinBlocks(c.oldBlocks))}</div>`;
   }
-  // multi-block replace → struck old callout + green new callout
-  return (
-    `<div class="sug del" ${attrs}>${mdToHtmlDoc(joinBlocks(c.oldBlocks))}</div>` +
-    `<div class="sug add" ${attrs}>${mdToHtmlDoc(joinBlocks(c.newBlocks))}</div>`
-  );
+  // replace — decompose block-by-block so adjacent changed blocks (e.g. a list
+  // followed by a code block) each get the right granularity instead of one
+  // giant struck/green callout.
+  let html = "";
+  for (const e of pairDiff(c.oldBlocks, c.newBlocks)) {
+    if (e.kind === "same") html += mdToHtmlDoc(e.old!);
+    else if (e.kind === "mod") html += renderReplacePair(c, e.old!, e.neu!);
+    else if (e.kind === "del") html += `<div class="sug del" ${attrs}>${mdToHtmlDoc(e.old!)}</div>`;
+    else html += `<div class="sug add" ${attrs}>${mdToHtmlDoc(e.neu!)}</div>`;
+  }
+  return html;
 }
 
 /** Render the document body with the (visible) changes woven inline as track-changes. */
