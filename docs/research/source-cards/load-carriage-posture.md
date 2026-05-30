@@ -2,12 +2,13 @@
 id: source-card-load-carriage-posture
 title: "Source Card: Load Carriage Posture"
 status: draft
-version: 26.529.2220
+version: 26.530.1011
 tags:
   - research
   - load
   - posture
   - linked-source
+  - links
 ---
 
 # Source Card: Load Carriage Posture
@@ -26,7 +27,7 @@ tags:
 
 - PubMed search: https://pubmed.ncbi.nlm.nih.gov/?term=load+carriage+posture+gait+trunk+lean
 - Google Scholar search: https://scholar.google.com/scholar?q=load+carriage+posture+gait+trunk+lean
-- Related dataset source card: `docs/research/source-cards/kit-whole-body.md`
+- Related dataset source card: [KIT Whole-Body](./kit-whole-body.md)
 
 ## What it says
 
@@ -93,8 +94,8 @@ load carriage posture concept
 
 ## Used By
 
-- `docs/07-posture/index.md`
-- `docs/08-modifiers/backpack-load.md`
-- `docs/08-modifiers/front-load.md`
-- `docs/08-modifiers/asymmetric-load.md`
-- `docs/10-runtime/modifier-stacking.md`
+- [Posture](../../07-posture/index.md)
+- [Backpack Load Modifier](../../08-modifiers/backpack-load.md)
+- [Front Load Modifier](../../08-modifiers/front-load.md)
+- [Asymmetric Load Modifier](../../08-modifiers/asymmetric-load.md)
+- [Modifier Stacking](../../10-runtime/modifier-stacking.md)
