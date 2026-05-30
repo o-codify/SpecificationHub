@@ -2,12 +2,13 @@
 id: source-card-mixamo-samples
 title: "Source Card: Mixamo Samples"
 status: draft
-version: 26.529.2221
+version: 26.530.1011
 tags:
   - research
   - animation
   - reference
   - linked-source
+  - links
 ---
 
 # Source Card: Mixamo Samples
@@ -75,6 +76,6 @@ Check Adobe/Mixamo terms before using downloaded animations in training, redistr
 
 ## Used By
 
-- `docs/research/datasets.md`
-- `docs/research/validation-methodology.md`
-- `docs/11-unreal-engine/index.md`
+- [Motion Datasets](../datasets.md)
+- [Validation Methodology](../validation-methodology.md)
+- [Unreal Engine](../../11-unreal-engine/index.md)
