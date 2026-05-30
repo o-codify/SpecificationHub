@@ -2,12 +2,13 @@
 id: source-card-antalgic-gait
 title: "Source Card: Antalgic Gait"
 status: draft
-version: 26.529.2203
+version: 26.530.1005
 tags:
   - research
   - injury
   - limp
   - linked-source
+  - links
 ---
 
 # Source Card: Antalgic Gait
@@ -71,7 +72,7 @@ if RightLegPain > 0:
 
 No universal numeric multiplier is extracted from this source in first pass.
 
-HLS tuning values are stored in `docs/08-modifiers/injury-limping.md` and should be treated as gameplay defaults, not clinical constants.
+HLS tuning values are stored in [Injury and Limping Modifier](../../08-modifiers/injury-limping.md) and should be treated as gameplay defaults, not clinical constants.
 
 ## HLS Transformation
 
@@ -89,7 +90,7 @@ Hip, knee, ankle, and foot injuries can produce different patterns. First pass u
 
 ## Used By
 
-- `docs/08-modifiers/injury-limping.md`
-- `docs/09-solvers/gait-phase-generator.md`
-- `docs/09-solvers/pelvis-solver.md`
-- `docs/research/validation-methodology.md`
+- [Injury and Limping Modifier](../../08-modifiers/injury-limping.md)
+- [Gait Phase Generator](../../09-solvers/gait-phase-generator.md)
+- [Pelvis Solver](../../09-solvers/pelvis-solver.md)
+- [Validation Methodology](../validation-methodology.md)
