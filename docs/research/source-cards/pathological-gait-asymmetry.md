@@ -2,12 +2,13 @@
 id: source-card-pathological-gait-asymmetry
 title: "Source Card: Pathological Gait Asymmetry"
 status: draft
-version: 26.529.2220
+version: 26.530.1012
 tags:
   - research
   - pathological-gait
   - asymmetry
   - linked-source
+  - links
 ---
 
 # Source Card: Pathological Gait Asymmetry
@@ -26,7 +27,7 @@ tags:
 
 - PubMed search: https://pubmed.ncbi.nlm.nih.gov/?term=pathological+gait+asymmetry+stance+time+step+length
 - Google Scholar search: https://scholar.google.com/scholar?q=pathological+gait+asymmetry+stance+time+step+length
-- Related clinical source card: `docs/research/source-cards/antalgic-gait.md`
+- Related clinical source card: [Antalgic Gait](./antalgic-gait.md)
 
 ## What it says
 
@@ -90,7 +91,7 @@ pathological gait asymmetry
 
 ## Used By
 
-- `docs/08-modifiers/injury-limping.md`
-- `docs/09-solvers/gait-phase-generator.md`
-- `docs/09-solvers/pelvis-solver.md`
-- `docs/10-runtime/modifier-stacking.md`
+- [Injury and Limping Modifier](../../08-modifiers/injury-limping.md)
+- [Gait Phase Generator](../../09-solvers/gait-phase-generator.md)
+- [Pelvis Solver](../../09-solvers/pelvis-solver.md)
+- [Modifier Stacking](../../10-runtime/modifier-stacking.md)
