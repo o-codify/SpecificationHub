@@ -146,6 +146,12 @@ export const api = {
       `/api/diff?base=${encodeURIComponent(base)}&head=${encodeURIComponent(head)}`,
     ),
 
+  changedDocs: (base: string, head: string) =>
+    request<{ base: string; head: string; paths: string[] }>(
+      "GET",
+      `/api/changed-docs?base=${encodeURIComponent(base)}&head=${encodeURIComponent(head)}`,
+    ),
+
   merge: (base: string, head: string, message: string) =>
     request<{ sha: string; merged?: boolean; pullRequest?: PullRequestInfo | null }>(
       "POST",

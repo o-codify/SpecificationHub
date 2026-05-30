@@ -76,12 +76,10 @@ export function DocsReader() {
       // Branch view: mark docs that differ from the default branch.
       setNewDocs([]);
       api
-        .diff(defaultBranch, branch)
+        .changedDocs(defaultBranch, branch)
         .then((d) => {
           const c: Record<string, number> = {};
-          for (const f of d.files) {
-            if (f.path.startsWith("docs/") && f.path.toLowerCase().endsWith(".md")) c[f.path] = 1;
-          }
+          for (const p of d.paths) c[p] = 1;
           setCounts(c);
         })
         .catch(() => setCounts({}));

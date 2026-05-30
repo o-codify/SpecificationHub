@@ -270,6 +270,17 @@ export function createRouter(): Router {
     }),
   );
 
+  // Docs whose body meaningfully changed between two branches (ignores the
+  // auto-stamped version / whitespace) — drives the branch-view change chips.
+  router.get(
+    "/changed-docs",
+    h((req, res) => {
+      const base = requireBranch(req.query.base, "base");
+      const head = requireBranch(req.query.head, "head");
+      res.json({ base, head, paths: gitlib.changedDocsBetween(base, head) });
+    }),
+  );
+
   // ---- Merge ----
   router.post(
     "/merge",

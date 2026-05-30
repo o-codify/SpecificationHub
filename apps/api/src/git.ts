@@ -406,16 +406,40 @@ export interface FileSuggestion {
   headContent: string;
 }
 
-/** Branches (other than base) whose version of `filePath` differs from base. */
+/**
+ * Canonical body of a document for change detection — the Markdown body split
+ * into trimmed blocks (exactly how the UI's `changesFor` compares them), with
+ * frontmatter dropped. Two docs with the same `bodyKey` render as "0 changes",
+ * so they must not be reported as proposed changes. This ignores frontmatter-
+ * only differences (notably the auto-stamped `version`) and cosmetic whitespace.
+ */
+function bodyKey(raw: string): string {
+  if (!raw) return "";
+  let body = raw;
+  try {
+    body = parseFrontmatter(raw).content;
+  } catch {
+    /* treat as raw body */
+  }
+  return body
+    .replace(/\r\n/g, "\n")
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/** Branches (other than base) whose body of `filePath` differs from base. */
 export function suggestionsForFile(filePath: string, base: string): FileSuggestion[] {
   if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
   const baseContent = fileExists(base, filePath) ? readFile(base, filePath) : "";
+  const baseKey = bodyKey(baseContent);
   const result: FileSuggestion[] = [];
   for (const b of listBranches()) {
     if (b === base) continue;
     if (!fileExists(b, filePath)) continue;
     const headContent = readFile(b, filePath);
-    if (headContent !== baseContent) {
+    if (bodyKey(headContent) !== baseKey) {
       result.push({ branch: b, baseContent, headContent });
     }
   }
@@ -436,12 +460,38 @@ export function suggestionCounts(base: string): Record<string, number> {
     }
     for (const line of out.split("\n")) {
       const p = line.trim();
-      if (p.startsWith("docs/") && p.toLowerCase().endsWith(".md")) {
-        counts[p] = (counts[p] || 0) + 1;
-      }
+      if (!p.startsWith("docs/") || !p.toLowerCase().endsWith(".md")) continue;
+      // Skip files whose body is unchanged (e.g. only the auto-stamped version
+      // or cosmetic whitespace differs) — they render as "0 changes".
+      const baseC = fileExists(base, p) ? readFile(base, p) : "";
+      const headC = fileExists(b, p) ? readFile(b, p) : "";
+      if (bodyKey(headC) === bodyKey(baseC)) continue;
+      counts[p] = (counts[p] || 0) + 1;
     }
   }
   return counts;
+}
+
+/** Docs that meaningfully differ (by body) between `base` and `head` — used for
+ *  branch-view change chips, so version-only/whitespace diffs don't show up. */
+export function changedDocsBetween(base: string, head: string): string[] {
+  if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
+  if (!branchExists(head)) throw new NotFoundError(`Branch not found: ${head}`);
+  let out: string;
+  try {
+    out = repo(["diff", "--name-only", `${base}...${head}`]);
+  } catch {
+    return [];
+  }
+  const paths: string[] = [];
+  for (const line of out.split("\n")) {
+    const p = line.trim();
+    if (!p.startsWith("docs/") || !p.toLowerCase().endsWith(".md")) continue;
+    const baseC = fileExists(base, p) ? readFile(base, p) : "";
+    const headC = fileExists(head, p) ? readFile(head, p) : "";
+    if (bodyKey(headC) !== bodyKey(baseC)) paths.push(p);
+  }
+  return paths;
 }
 
 export interface NewDoc {
