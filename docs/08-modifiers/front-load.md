@@ -1,8 +1,8 @@
 ---
 id: front-load-modifier
 title: Front Load Modifier
-status: draft
-version: 26.530.1237
+status: review
+version: 26.530.1341
 tags:
   - modifier
   - load
