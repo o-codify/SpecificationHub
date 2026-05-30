@@ -2,12 +2,13 @@
 id: source-card-motion-matching
 title: "Source Card: Motion Matching"
 status: draft
-version: 26.529.2216
+version: 26.530.1011
 tags:
   - research
   - motion-matching
   - animation
   - linked-source
+  - links
 ---
 
 # Source Card: Motion Matching
@@ -81,7 +82,7 @@ motion matching trajectory concept
 
 ## Used By
 
-- `docs/10-runtime/input-state.md`
-- `docs/09-solvers/pose-composer.md`
-- `docs/research/validation-methodology.md`
-- `docs/11-unreal-engine/index.md`
+- [Character Input State](../../10-runtime/input-state.md)
+- [Pose Composer](../../09-solvers/pose-composer.md)
+- [Validation Methodology](../validation-methodology.md)
+- [Unreal Engine](../../11-unreal-engine/index.md)
