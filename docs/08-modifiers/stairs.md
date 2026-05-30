@@ -1,8 +1,8 @@
 ---
 id: stairs-modifier
 title: Stairs Modifier
-status: draft
-version: 26.530.1232
+status: review
+version: 26.530.1340
 tags:
   - modifier
   - stairs
