@@ -1,8 +1,8 @@
 ---
 id: foot-target-solver
 title: Foot Target Solver
-status: draft
-version: 26.530.1037
+status: review
+version: 26.530.1314
 tags:
   - solver
   - feet
