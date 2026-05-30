@@ -1,12 +1,13 @@
 ---
 id: pelvis-solver
 title: Pelvis Solver
-status: draft
-version: 26.530.1058
+status: review
+version: 26.530.1544
 tags:
   - solver
   - pelvis
-  - gait
+  - walking
+  - running
   - provenance
   - links
   - numeric
@@ -16,47 +17,33 @@ tags:
 
 ## Purpose
 
-Computes pelvis transform from gait phase, feet, speed, and modifiers.
+Computes pelvis position and rotation intent from gait phase, foot contacts, terrain, speed, and modifiers.
 
-The pelvis is the main visual carrier of weight in HLS.
+The pelvis solver connects lower-body support to whole-body posture.
 
 ## Inputs
 
-- gait cycle output
-- left foot target
-- right foot target
-- speed, meters per second
-- ground normal
-- locomotion modifiers
+- gait phase output
+- foot target output
+- stance side
+- contact state
+- speed
+- slope and stair data
+- load, injury, weapon, and turning modifiers
+- previous pelvis state
 
 ## Outputs
 
-- pelvis transform
-- pelvis velocity
-- debug weight side
+- pelvis position offset
+- pelvis rotation offset
+- vertical rhythm value
+- yaw rhythm value
+- roll / weight shift value
+- pitch bias
+- smoothing value
+- reach and clamp warnings
 
-## Rules
-
-- Pelvis has vertical oscillation.
-- Pelvis yaw follows leg advancement.
-- Pelvis roll shifts toward the stance side.
-- Load and injury may bias pelvis pitch or roll.
-- Pelvis motion must be smoothed.
-- Pelvis must not cause foot sliding.
-- Pelvis height and offsets must be clamped against leg reach.
-
-## Parameters
-
-- PelvisVerticalAmplitude: meters, first-pass walk 0.02..0.05, run multiplier 1.25..2.00
-- PelvisYawAmplitude: degrees, first-pass walk 2..6
-- PelvisRollAmplitude: degrees, first-pass walk 1..4
-- PelvisPitchBias: degrees, first-pass modifier range -10..15
-- PelvisHeightOffset: meters, first-pass clamp -0.10..0.10 character-scale dependent
-- PelvisSmoothing: seconds, first-pass 0.08..0.20
-
-## Runtime Rule
-
-Use gait phase to create vertical motion, stance side to create subtle roll, leg advancement to create yaw, and modifiers to add persistent pitch or roll bias.
+## Runtime Formula
 
 ```text
 PelvisVertical = sin(gaitPhase * 2π * 2) * PelvisVerticalAmplitude
@@ -68,75 +55,96 @@ MaxPelvisOffset = LegLength * 0.10..0.18
 PelvisOffset = clampLength(PelvisOffset, MaxPelvisOffset)
 ```
 
+## Reference Parameters
+
+| Parameter | First-pass range | Usage |
+|---|---:|---|
+| PelvisVerticalAmplitude | 0.02..0.05 m | walking vertical rhythm |
+| RunVerticalMultiplier | 1.25..2.00 | running amplification |
+| PelvisYawAmplitude | 2..6 deg | gait rhythm |
+| PelvisRollAmplitude | 1..4 deg | weight transfer |
+| PelvisPitchBias | -10..15 deg | slope/load/posture |
+| PelvisHeightOffset | -0.10..0.10 m | crouch/load/terrain adjustment |
+| PelvisSmoothing | 0.08..0.20 s | continuity |
+| MaxPelvisOffset | 0.10..0.18 * LegLength | safety clamp |
+
+## Rules
+
+- Pelvis follows foot support and should not break locked stance feet.
+- Pelvis provides vertical rhythm, yaw rhythm, and roll/weight transfer.
+- Running can amplify pelvis motion relative to walking.
+- Load, slope, injury, and stairs may add pitch, height, and smoothing bias.
+- Pelvis output must be clamped before OutputPose.
+- Pelvis debug should expose target, smoothed value, clamp state, and reach warnings.
+
 ## Rule Provenance
 
-### Pelvis participates in gait rhythm
+### Pelvis rhythm and support
 
 | Field | Value |
 |---|---|
-| Rule | Pelvis has vertical oscillation and gait-coupled yaw/roll. |
-| Source card | [Joint Kinematics Overview](../research/source-cards/joint-kinematics-overview.md) |
+| Rule | Pelvis motion is coordinated with gait and foot support. |
+| Source card | [Joint Kinematics Overview](../research/source-cards/joint-kinematics-overview.md), [Normal Gait Overview](../research/source-cards/normal-gait-overview.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | gait kinematics overview |
-| Used from source | Human gait coordinates pelvis and lower limbs rather than keeping pelvis static. |
-| HLS transformation | Added `PelvisVerticalAmplitude`, `PelvisYawAmplitude`, and `PelvisRollAmplitude`. First-pass walk values are vertical 0.02..0.05 m, yaw 2..6 degrees, roll 1..4 degrees. |
-| Confidence | high for relationship, medium for exact amplitudes |
-| Applies to | [Walking](../05-walking/index.md), [Running](../06-running/index.md), [Pose Composer](./pose-composer.md) |
+| Used from source | Human gait coordinates pelvis, trunk, shoulders, and limbs with support timing. |
+| HLS transformation | PelvisSolver consumes phase and contact state to produce vertical, yaw, and roll offsets. |
+| Confidence | medium-high |
+| Applies to | [Walking](../05-walking/index.md), [Gait Phase Generator](./gait-phase-generator.md), [Spine Solver](./spine-solver.md) |
 
-### Pelvis as weight carrier
+### Running amplifies pelvis motion
 
 | Field | Value |
 |---|---|
-| Rule | Pelvis is the main visual carrier of weight and support side. |
-| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md), [Joint Kinematics Overview](../research/source-cards/joint-kinematics-overview.md) |
-| External link | https://teachmeanatomy.info/lower-limb/misc/gait-cycle/ |
-| Source type | gait overview plus HLS animation inference |
-| Used from source | Stance phase and support side define where body weight appears to be carried. |
-| HLS transformation | PelvisSolver outputs debug weight side and stance-side roll. Roll sign follows support side and should remain subtle for Level 3 motion. |
+| Rule | Running has stronger whole-body dynamics than walking. |
+| Source card | [Running Biomechanics](../research/source-cards/running-biomechanics.md) |
+| External link | https://www.physio-pedia.com/Running_Biomechanics |
+| Source type | running biomechanics overview |
+| Used from source | Running increases motion intensity relative to walking. |
+| HLS transformation | RunVerticalMultiplier uses 1.25..2.00 over walking pelvis vertical amplitude. |
 | Confidence | medium |
-| Applies to | [Foot Target Solver](./foot-target-solver.md), [Debug Visualization](../10-runtime/debug-visualization.md) |
+| Applies to | [Running](../06-running/index.md), [Pose Composer](./pose-composer.md) |
 
-### Modifier bias
-
-| Field | Value |
-|---|---|
-| Rule | Load and injury can bias pelvis pitch or roll. |
-| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Pathological Gait Asymmetry](../research/source-cards/pathological-gait-asymmetry.md) |
-| External link | https://pubmed.ncbi.nlm.nih.gov/?term=pathological+gait+asymmetry+stance+time+step+length |
-| Source type | load carriage and pathological gait topics |
-| Used from source | Load and injury alter posture, symmetry, and support confidence. |
-| HLS transformation | ModifierResolver adjusts pelvis pitch/roll bias before PelvisSolver output. First-pass modifier pitch/roll bias should stay within about -10..15 degrees before safety clamps. |
-| Confidence | medium |
-| Applies to | [Modifier Stacking](../10-runtime/modifier-stacking.md), [Injury and Limping Modifier](../08-modifiers/injury-limping.md), [Asymmetric Load Modifier](../08-modifiers/asymmetric-load.md), [Backpack Load Modifier](../08-modifiers/backpack-load.md) |
-
-### IK reach constraint
+### Pelvis supports IK reach
 
 | Field | Value |
 |---|---|
-| Rule | Pelvis motion must not overextend legs or cause foot sliding. |
+| Rule | Pelvis adjustment helps maintain reachable foot targets. |
 | Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md), [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md) |
-| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
-| Source type | implementation constraint / engine documentation |
-| Used from source | IK systems solve toward targets and constraints; unreachable targets create artifacts. |
-| HLS transformation | PelvisSolver must clamp height/offset and expose IK reach warnings. First-pass pelvis offset clamp is 0.10..0.18 of leg length, with smoothing 0.08..0.20 s to avoid pops. |
-| Confidence | high |
-| Applies to | [Runtime Constraints](../10-runtime/constraints.md), [Debug Visualization](../10-runtime/debug-visualization.md), [Unreal Engine](../11-unreal-engine/index.md) |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
+| Source type | IK implementation constraint |
+| Used from source | IK foot placement depends on reachable targets and body support adjustment. |
+| HLS transformation | PelvisOffset clamps to 0.10..0.18 * LegLength and emits reach warnings when support cannot be satisfied. |
+| Confidence | high as implementation rule |
+| Applies to | [Foot Target Solver](./foot-target-solver.md), [Runtime Constraints](../10-runtime/constraints.md), [Output Pose](../10-runtime/output-pose.md) |
+
+### Load, terrain, and injury bias pelvis posture
+
+| Field | Value |
+|---|---|
+| Rule | Load, terrain, stairs, and injury can bias pelvis height, pitch, or roll. |
+| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Stairs and Slopes](../research/source-cards/stairs-and-slopes.md), [Antalgic Gait](../research/source-cards/antalgic-gait.md) |
+| External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
+| Source type | load, terrain, and clinical gait references |
+| Used from source | Load, terrain, and pain alter posture and gait support. |
+| HLS transformation | ModifierPitchBias, PelvisHeightOffset, and PelvisSmoothing allow state-specific compensation while staying clamped. |
+| Confidence | medium |
+| Applies to | [Modifier Stacking](../10-runtime/modifier-stacking.md), [Runtime Constraints](../10-runtime/constraints.md) |
 
 ## Numeric Data Separation
 
 | Value | Category | Usage |
 |---|---|---|
-| pelvis moves with gait | source-backed relationship | pelvis rhythm |
-| `PelvisVerticalAmplitude = 0.02..0.05 m` | HLS tuning range | walking visual weight |
-| `RunPelvisMultiplier = 1.25..2.00` | HLS tuning range | running rebound |
-| `PelvisYawAmplitude = 2..6 deg` | HLS tuning range | walking rotation |
-| `PelvisRollAmplitude = 1..4 deg` | HLS tuning range | stance-side weight |
-| `PelvisSmoothing = 0.08..0.20 s` | HLS tuning range | prevent visual pops |
-| `MaxPelvisOffset = 0.10..0.18 * LegLength` | implementation safety range | IK reach clamp |
-| pelvis amplitude values | HLS tuning values | game visual tuning |
-| IK reach clamp | implementation constraint | prevent overextension |
+| pelvis coordination with gait | source-backed relationship | pelvis rhythm |
+| pelvis supports foot IK | implementation constraint | reach safety |
+| `PelvisVerticalAmplitude = 0.02..0.05 m` | HLS tuning range | walking rhythm |
+| `RunVerticalMultiplier = 1.25..2.00` | HLS tuning range | running rhythm |
+| `PelvisYawAmplitude = 2..6 deg` | HLS tuning range | gait rhythm |
+| `PelvisRollAmplitude = 1..4 deg` | HLS tuning range | weight transfer |
+| `PelvisSmoothing = 0.08..0.20 s` | HLS tuning range | continuity |
+| `MaxPelvisOffset = 0.10..0.18 * LegLength` | HLS safety clamp | IK reach |
 
 ## Open Questions
 
-- Should pelvis height be solved from foot contacts or phase first.
-- How much pelvis motion should be preserved on simulated network proxies.
+- Whether steep stair traversal needs a distinct pelvis solver profile.
+- How much pelvis smoothing remote proxies can use before contact looks delayed.
