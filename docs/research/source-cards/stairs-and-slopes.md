@@ -2,13 +2,14 @@
 id: source-card-stairs-and-slopes
 title: "Source Card: Stairs and Slopes"
 status: draft
-version: 26.529.2217
+version: 26.530.1015
 tags:
   - research
   - stairs
   - slope
   - terrain
   - linked-source
+  - links
 ---
 
 # Source Card: Stairs and Slopes
@@ -93,7 +94,7 @@ terrain-specific locomotion observation
 
 ## Used By
 
-- `docs/08-modifiers/slope.md`
-- `docs/08-modifiers/stairs.md`
-- `docs/09-solvers/foot-target-solver.md`
-- `docs/09-solvers/pelvis-solver.md`
+- [Slope Modifier](../../08-modifiers/slope.md)
+- [Stairs Modifier](../../08-modifiers/stairs.md)
+- [Foot Target Solver](../../09-solvers/foot-target-solver.md)
+- [Pelvis Solver](../../09-solvers/pelvis-solver.md)
