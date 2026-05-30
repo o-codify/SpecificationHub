@@ -2,7 +2,7 @@
 id: walking
 title: Walking
 status: review
-version: 26.530.1537
+version: 26.530.1548
 tags:
   - walking
   - gait
@@ -62,7 +62,7 @@ SwingDuration = CycleDuration * SwingRatio
 | Field | Value |
 |---|---|
 | Rule | Walking has stance, swing, and double support, with stance longer than swing. |
-| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md) |
+| Source card | [Normal Gait Overview](../../research/source-cards/normal-gait-overview.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | gait overview |
 | Used from source | Normal gait is organized into stance and swing, with stance longer than swing and double support present. |
@@ -75,7 +75,7 @@ SwingDuration = CycleDuration * SwingRatio
 | Field | Value |
 |---|---|
 | Rule | Walking speed follows step length times step frequency. |
-| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md) |
+| Source card | [Normal Gait Overview](../../research/source-cards/normal-gait-overview.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | gait timing relationship |
 | Used from source | Cadence and step length describe gait timing and displacement. |
@@ -88,7 +88,7 @@ SwingDuration = CycleDuration * SwingRatio
 | Field | Value |
 |---|---|
 | Rule | Walking includes coordinated pelvis, torso, and arm motion. |
-| Source card | [Joint Kinematics Overview](../research/source-cards/joint-kinematics-overview.md) |
+| Source card | [Joint Kinematics Overview](../../research/source-cards/joint-kinematics-overview.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | gait kinematics overview |
 | Used from source | Human gait coordinates pelvis, trunk, shoulders, and limbs. |
