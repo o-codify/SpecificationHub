@@ -1,8 +1,8 @@
 ---
 id: gait-cycle
 title: Gait Cycle
-status: draft
-version: 26.530.1028
+status: review
+version: 26.530.1306
 tags:
   - gait
   - phase
