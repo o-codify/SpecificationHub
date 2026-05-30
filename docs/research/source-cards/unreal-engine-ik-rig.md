@@ -2,12 +2,13 @@
 id: source-card-unreal-engine-ik-rig-and-full-body-ik
 title: "Source Card: Unreal Engine IK Rig and Full Body IK"
 status: draft
-version: 26.529.2215
+version: 26.530.1015
 tags:
   - research
   - unreal-engine
   - ik
   - linked-source
+  - links
 ---
 
 # Source Card: Unreal Engine IK Rig and Full Body IK
@@ -72,7 +73,7 @@ No numeric runtime rule is extracted.
 
 ## Used By
 
-- `docs/09-solvers/foot-target-solver.md`
-- `docs/09-solvers/pelvis-solver.md`
-- `docs/10-runtime/constraints.md`
-- `docs/11-unreal-engine/index.md`
+- [Foot Target Solver](../../09-solvers/foot-target-solver.md)
+- [Pelvis Solver](../../09-solvers/pelvis-solver.md)
+- [Runtime Constraints](../../10-runtime/constraints.md)
+- [Unreal Engine](../../11-unreal-engine/index.md)
