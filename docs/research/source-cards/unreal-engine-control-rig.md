@@ -2,12 +2,13 @@
 id: source-card-unreal-engine-control-rig
 title: "Source Card: Unreal Engine Control Rig"
 status: draft
-version: 26.529.2215
+version: 26.530.1015
 tags:
   - research
   - unreal-engine
   - control-rig
   - linked-source
+  - links
 ---
 
 # Source Card: Unreal Engine Control Rig
@@ -70,7 +71,7 @@ No numeric runtime rule is extracted.
 
 ## Used By
 
-- `docs/11-unreal-engine/index.md`
-- `docs/10-runtime/update-order.md`
-- `docs/10-runtime/solver-interfaces.md`
-- `docs/09-solvers/pose-composer.md`
+- [Unreal Engine](../../11-unreal-engine/index.md)
+- [Runtime Update Order](../../10-runtime/update-order.md)
+- [Solver Interfaces](../../10-runtime/solver-interfaces.md)
+- [Pose Composer](../../09-solvers/pose-composer.md)
