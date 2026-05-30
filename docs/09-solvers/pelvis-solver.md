@@ -1,8 +1,8 @@
 ---
 id: pelvis-solver
 title: Pelvis Solver
-status: draft
-version: 26.530.1045
+status: review
+version: 26.530.1314
 tags:
   - solver
   - pelvis
