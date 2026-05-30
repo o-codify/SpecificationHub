@@ -1,8 +1,8 @@
 ---
 id: injury-and-limping-modifier
 title: Injury and Limping Modifier
-status: draft
-version: 26.530.1229
+status: review
+version: 26.530.1336
 tags:
   - modifier
   - injury
