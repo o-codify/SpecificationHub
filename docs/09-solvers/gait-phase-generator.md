@@ -1,8 +1,8 @@
 ---
 id: gait-phase-generator
 title: Gait Phase Generator
-status: draft
-version: 26.530.1037
+status: review
+version: 26.530.1312
 tags:
   - solver
   - gait
