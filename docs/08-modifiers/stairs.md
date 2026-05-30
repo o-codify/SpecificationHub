@@ -2,12 +2,13 @@
 id: stairs-modifier
 title: Stairs Modifier
 status: draft
-version: 26.529.2223
+version: 26.530.020
 tags:
   - modifier
   - stairs
   - terrain
   - provenance
+  - links
 ---
 
 # Stairs Modifier
@@ -75,39 +76,39 @@ When stairs are detected, FootTargetSolver should switch from continuous ground 
 | Field | Value |
 |---|---|
 | Rule | Stairs use discrete tread targets instead of continuous slope projection. |
-| Source card | `docs/research/source-cards/stairs-and-slopes.md` |
+| Source card | [Stairs and Slopes](../research/source-cards/stairs-and-slopes.md) |
 | External link | https://www.physio-pedia.com/Stair_Gait |
 | Source type | gait overview / HLS implementation transformation |
 | Used from source | Stair gait is a distinct locomotion context from level walking. |
 | HLS transformation | FootTargetSolver switches to discrete tread selection when stairs are detected. |
 | Confidence | high for distinction, medium for exact implementation |
-| Applies to | `FootTargetSolver`, `LocomotionStateResolver` |
+| Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Locomotion State Resolver](../10-runtime/locomotion-state-resolver.md) |
 
 ### Pelvis height follows stair height
 
 | Field | Value |
 |---|---|
 | Rule | Pelvis height changes with stair height and must be smoothed. |
-| Source card | `docs/research/source-cards/stairs-and-slopes.md` |
+| Source card | [Stairs and Slopes](../research/source-cards/stairs-and-slopes.md) |
 | External link | https://www.physio-pedia.com/Stair_Gait |
 | Source type | gait overview plus procedural implementation constraint |
 | Used from source | Stair ascent and descent involve vertical displacement between steps. |
 | HLS transformation | Added `PelvisStepHeightSmoothing` and stair-specific pelvis height offsets. |
 | Confidence | medium |
-| Applies to | `PelvisSolver`, `PoseComposer` |
+| Applies to | [Pelvis Solver](../09-solvers/pelvis-solver.md), [Pose Composer](../09-solvers/pose-composer.md) |
 
 ### Stair foot placement before IK
 
 | Field | Value |
 |---|---|
 | Rule | Foot target selection on stairs happens before IK application. |
-| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md), [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
 | Source type | implementation constraint / engine documentation |
 | Used from source | IK systems solve bones toward targets and constraints. |
 | HLS transformation | Stairs modifier outputs target constraints for FootTargetSolver; IK only applies final foot placement. |
 | Confidence | high |
-| Applies to | `FootTargetSolver`, `Unreal Engine`, `Runtime Update Order` |
+| Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Unreal Engine](../11-unreal-engine/index.md), [Runtime Update Order](../10-runtime/update-order.md) |
 
 ## Numeric Data Separation
 
