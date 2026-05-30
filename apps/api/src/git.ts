@@ -429,6 +429,24 @@ function bodyKey(raw: string): string {
     .join("\n\n");
 }
 
+/**
+ * Like `bodyKey`, but also includes the frontmatter EXCEPT the auto-stamped
+ * `version`. So a doc that changed only its status/tags/title (not the body)
+ * still counts as a real change — used by the Review diff so such changes show
+ * up and can be accepted. Version-only differences still don't count.
+ */
+function changeKey(raw: string): string {
+  let fm = "";
+  try {
+    const front: Record<string, unknown> = { ...parseFrontmatter(raw).frontmatter };
+    delete front.version;
+    fm = JSON.stringify(front, Object.keys(front).sort());
+  } catch {
+    /* no frontmatter */
+  }
+  return `${fm} ${bodyKey(raw)}`;
+}
+
 /** Branches (other than base) whose body of `filePath` differs from base. */
 export function suggestionsForFile(filePath: string, base: string): FileSuggestion[] {
   if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
@@ -489,7 +507,8 @@ export function changedDocsBetween(base: string, head: string): string[] {
     if (!p.startsWith("docs/") || !p.toLowerCase().endsWith(".md")) continue;
     const baseC = fileExists(base, p) ? readFile(base, p) : "";
     const headC = fileExists(head, p) ? readFile(head, p) : "";
-    if (bodyKey(headC) !== bodyKey(baseC)) paths.push(p);
+    // Body OR status/tags/title differ (version-only/whitespace ignored).
+    if (changeKey(headC) !== changeKey(baseC)) paths.push(p);
   }
   return paths;
 }
