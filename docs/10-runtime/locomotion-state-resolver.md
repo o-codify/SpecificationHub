@@ -2,12 +2,13 @@
 id: locomotion-state-resolver
 title: Locomotion State Resolver
 status: draft
-version: 26.529.2240
+version: 26.530.950
 tags:
   - runtime
   - state
   - resolver
   - provenance
+  - links
 ---
 
 # Locomotion State Resolver
@@ -85,52 +86,52 @@ The resolver should avoid rapid state flicker. Use hysteresis, minimum state tim
 | Field | Value |
 |---|---|
 | Rule | Start, stop, turn, stairs, injury, and load should resolve to explicit locomotion states or profiles. |
-| Source card | `docs/research/source-cards/gait-transitions-turning.md`, `docs/research/source-cards/stairs-and-slopes.md`, `docs/research/source-cards/antalgic-gait.md` |
+| Source card | [Gait Transitions and Turning](../research/source-cards/gait-transitions-turning.md), [Stairs and Slopes](../research/source-cards/stairs-and-slopes.md), [Antalgic Gait](../research/source-cards/antalgic-gait.md) |
 | External link | https://pubmed.ncbi.nlm.nih.gov/?term=gait+initiation+turning+walking+biomechanics |
 | Source type | gait transition, terrain, and clinical gait references |
 | Used from source | Transitions, terrain, and pain-related gait alter locomotion behavior beyond simple speed changes. |
 | HLS transformation | Resolver outputs active state, transition state, gait type, and solver profile. |
 | Confidence | medium |
-| Applies to | `GaitPhaseGenerator`, `ModifierStacking`, `PoseComposer` |
+| Applies to | [Gait Phase Generator](../09-solvers/gait-phase-generator.md), [Modifier Stacking](./modifier-stacking.md), [Pose Composer](../09-solvers/pose-composer.md) |
 
 ### Stairs override slope
 
 | Field | Value |
 |---|---|
 | Rule | Stairs override ordinary slope walking. |
-| Source card | `docs/research/source-cards/stairs-and-slopes.md` |
+| Source card | [Stairs and Slopes](../research/source-cards/stairs-and-slopes.md) |
 | External link | https://www.physio-pedia.com/Stair_Gait |
 | Source type | stair gait overview plus implementation rule |
 | Used from source | Stairs are a distinct locomotion context with discrete foot placement. |
 | HLS transformation | Resolver selects stair ascent/descent before generic slope walk. |
 | Confidence | high |
-| Applies to | `Stairs Modifier`, `FootTargetSolver`, `PelvisSolver` |
+| Applies to | [Stairs Modifier](../08-modifiers/stairs.md), [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md) |
 
 ### Injury and load downgrade gait
 
 | Field | Value |
 |---|---|
 | Rule | Severe injury or heavy load can downgrade sprint/run to slower locomotion profiles. |
-| Source card | `docs/research/source-cards/antalgic-gait.md`, `docs/research/source-cards/load-carriage-posture.md` |
+| Source card | [Antalgic Gait](../research/source-cards/antalgic-gait.md), [Load Carriage Posture](../research/source-cards/load-carriage-posture.md) |
 | External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
 | Source type | clinical gait reference / load carriage topic / gameplay constraint |
 | Used from source | Pain and load affect gait quality, stance confidence, posture, and speed. |
 | HLS transformation | Resolver can restrict requested gait based on severity and load. |
 | Confidence | medium |
-| Applies to | `Running`, `Injury`, `Backpack`, `Front Load` |
+| Applies to | [Running](../06-running/index.md), [Injury and Limping Modifier](../08-modifiers/injury-limping.md), [Backpack Load Modifier](../08-modifiers/backpack-load.md), [Front Load Modifier](../08-modifiers/front-load.md) |
 
 ### State hysteresis
 
 | Field | Value |
 |---|---|
 | Rule | Resolver should avoid rapid state flicker using smoothing, confidence, or minimum state time. |
-| Source card | `docs/research/source-cards/motion-matching.md`, `docs/research/source-cards/lafan1.md` |
+| Source card | [Motion Matching](../research/source-cards/motion-matching.md), [LaFAN1](../research/source-cards/lafan1.md) |
 | External link | https://github.com/ubisoft/ubisoft-laforge-animation-dataset |
 | Source type | animation continuity / transition quality reference |
 | Used from source | Temporal continuity matters for believable locomotion and transitions. |
 | HLS transformation | Added state confidence, recent transitions, and anti-flicker runtime rule. |
 | Confidence | high as implementation rule |
-| Applies to | `Networking`, `PoseComposer`, `Validation Methodology` |
+| Applies to | [Networking](./networking.md), [Pose Composer](../09-solvers/pose-composer.md), [Validation Methodology](../research/validation-methodology.md) |
 
 ## Numeric Data Separation
 
