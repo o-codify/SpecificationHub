@@ -2,12 +2,13 @@
 id: solver-interfaces
 title: Solver Interfaces
 status: draft
-version: 26.529.2311
+version: 26.530.1000
 tags:
   - runtime
   - solver
   - interfaces
   - provenance
+  - links
 ---
 
 # Solver Interfaces
@@ -93,7 +94,7 @@ PoseComposer outputs final pose intent and priority decisions.
 | Field | Value |
 |---|---|
 | Rule | Solvers consume resolved state and parameters and output pose intent plus debug data. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
 | Source type | procedural animation architecture |
 | Used from source | Procedural systems use controls, targets, and solver outputs that are later applied to a rig. |
@@ -106,39 +107,39 @@ PoseComposer outputs final pose intent and priority decisions.
 | Field | Value |
 |---|---|
 | Rule | Persistent solver state must be explicit and resettable. |
-| Source card | `docs/research/source-cards/motion-matching.md`, `docs/research/source-cards/lafan1.md` |
+| Source card | [Motion Matching](../research/source-cards/motion-matching.md), [LaFAN1](../research/source-cards/lafan1.md) |
 | External link | https://github.com/ubisoft/ubisoft-laforge-animation-dataset |
 | Source type | animation continuity and transition validation reference |
 | Used from source | Temporal continuity and previous pose context matter for animation quality. |
 | HLS transformation | Solver state includes gait phase, foot locks, smoothed offsets, and previous targets. |
 | Confidence | high as implementation rule |
-| Applies to | `GaitPhaseGenerator`, `FootTargetSolver`, `Networking` |
+| Applies to | [Gait Phase Generator](../09-solvers/gait-phase-generator.md), [Foot Target Solver](../09-solvers/foot-target-solver.md), [Networking](./networking.md) |
 
 ### Debug and warning outputs
 
 | Field | Value |
 |---|---|
 | Rule | Each solver exposes debug values and warnings. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md`, `docs/research/provenance-methodology.md` |
-| External link | `docs/research/provenance-methodology.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Research Provenance Methodology](../research/provenance-methodology.md) |
+| External link | [Research Provenance Methodology](../research/provenance-methodology.md) |
 | Source type | HLS methodology / implementation workflow |
 | Used from source | Runtime rules and tuning values must be inspectable and traceable. |
 | HLS transformation | Solver outputs include clamped values, warnings, and debug summaries. |
 | Confidence | high |
-| Applies to | `Debug Visualization`, `Validation Methodology` |
+| Applies to | [Debug Visualization](./debug-visualization.md), [Validation Methodology](../research/validation-methodology.md) |
 
 ### Graceful fallback
 
 | Field | Value |
 |---|---|
 | Rule | Solvers degrade gracefully when inputs are invalid. |
-| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/stairs-and-slopes.md` |
+| Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md), [Stairs and Slopes](../research/source-cards/stairs-and-slopes.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
 | Source type | IK / terrain implementation constraint |
 | Used from source | Terrain traces, IK targets, and constraints can fail or become invalid at runtime. |
 | HLS transformation | Added fallback rules for missing traces, invalid stairs, IK overreach, and missing modifiers. |
 | Confidence | high |
-| Applies to | `Runtime Constraints`, `FootTargetSolver`, `PelvisSolver` |
+| Applies to | [Runtime Constraints](./constraints.md), [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md) |
 
 ## Numeric Data Separation
 
