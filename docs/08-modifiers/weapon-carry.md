@@ -2,12 +2,13 @@
 id: weapon-carry-modifier
 title: Weapon Carry Modifier
 status: draft
-version: 26.529.2226
+version: 26.530.021
 tags:
   - modifier
   - weapon
   - carry
   - provenance
+  - links
 ---
 
 # Weapon Carry Modifier
@@ -46,39 +47,39 @@ Weapon pose has higher priority than normal arm swing. Lower body locomotion con
 | Field | Value |
 |---|---|
 | Rule | Weapon pose has higher priority than normal arm swing. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md`, `docs/research/source-cards/unreal-engine-control-rig.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Unreal Engine Control Rig](../research/source-cards/unreal-engine-control-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
 | Source type | procedural animation / implementation constraint |
 | Used from source | Runtime can compute pose intent and animation systems can apply constraints and controls. |
 | HLS transformation | Weapon carry sets upper-body priority in PoseComposer and reduces ArmSwingSolver output. |
 | Confidence | high as implementation rule |
-| Applies to | `ArmSwingSolver`, `PoseComposer`, `Unreal Engine` |
+| Applies to | [Arm Swing Solver](../09-solvers/arm-swing-solver.md), [Pose Composer](../09-solvers/pose-composer.md), [Unreal Engine](../11-unreal-engine/index.md) |
 
 ### Aiming reduces torso counter-rotation
 
 | Field | Value |
 |---|---|
 | Rule | Aiming reduces torso counter-rotation and increases upper-body stiffness. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/animation-blueprints-in-unreal-engine |
 | Source type | gameplay readability / animation layering inference |
 | Used from source | Animation systems can layer or constrain upper-body poses separately from locomotion. |
 | HLS transformation | Added `TorsoCounterRotationMultiplier`, `SpineStiffness`, and `AimStability`. |
 | Confidence | medium |
-| Applies to | `SpineSolver`, `ArmSwingSolver`, `PoseComposer` |
+| Applies to | [Spine Solver](../09-solvers/spine-solver.md), [Arm Swing Solver](../09-solvers/arm-swing-solver.md), [Pose Composer](../09-solvers/pose-composer.md) |
 
 ### Heavy weapon affects gait
 
 | Field | Value |
 |---|---|
 | Rule | Heavy weapon carry can reduce step length and increase stiffness. |
-| Source card | `docs/research/source-cards/load-carriage-posture.md` |
+| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md) |
 | External link | https://pubmed.ncbi.nlm.nih.gov/?term=load+carriage+posture+gait+trunk+lean |
 | Source type | load carriage topic plus HLS gameplay inference |
 | Used from source | Carried load changes posture and gait. |
 | HLS transformation | WeaponWeightNormalized modifies `StepLengthMultiplier` and `SpineStiffness`. |
 | Confidence | medium |
-| Applies to | `ModifierStacking`, `ParameterSystem` |
+| Applies to | [Modifier Stacking](../10-runtime/modifier-stacking.md), [Parameter System](../10-runtime/parameter-system.md) |
 
 ## Numeric Data Separation
 
