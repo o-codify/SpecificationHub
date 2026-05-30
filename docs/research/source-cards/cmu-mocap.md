@@ -2,12 +2,13 @@
 id: source-card-cmu-motion-capture-database
 title: "Source Card: CMU Motion Capture Database"
 status: draft
-version: 26.529.2214
+version: 26.530.1006
 tags:
   - research
   - dataset
   - mocap
   - linked-source
+  - links
 ---
 
 # Source Card: CMU Motion Capture Database
@@ -74,8 +75,8 @@ The official CMU page should be checked before commercial use, redistribution, o
 
 ## Used By
 
-- `docs/research/datasets.md`
-- `docs/research/validation-methodology.md`
-- `docs/04-gait-cycle/index.md`
-- `docs/05-walking/index.md`
-- `docs/06-running/index.md`
+- [Motion Datasets](../datasets.md)
+- [Validation Methodology](../validation-methodology.md)
+- [Gait Cycle](../../04-gait-cycle/index.md)
+- [Walking](../../05-walking/index.md)
+- [Running](../../06-running/index.md)
