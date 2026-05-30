@@ -2,7 +2,7 @@
 id: gait-cycle
 title: Gait Cycle
 status: review
-version: 26.530.1532
+version: 26.530.1547
 tags:
   - gait
   - phase
@@ -80,7 +80,7 @@ RightLegPhase = fract(GaitPhase + 0.5)
 | Field | Value |
 |---|---|
 | Rule | Walking stance is longer than swing and includes double support. |
-| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md) |
+| Source card | [Normal Gait Overview](../../research/source-cards/normal-gait-overview.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | gait overview |
 | Used from source | Normal walking divides the cycle into stance and swing, with stance longer than swing and double support present. |
@@ -93,7 +93,7 @@ RightLegPhase = fract(GaitPhase + 0.5)
 | Field | Value |
 |---|---|
 | Rule | Running has shorter stance than walking and may include flight. |
-| Source card | [Running Biomechanics](../research/source-cards/running-biomechanics.md) |
+| Source card | [Running Biomechanics](../../research/source-cards/running-biomechanics.md) |
 | External link | https://www.physio-pedia.com/Running_Biomechanics |
 | Source type | running biomechanics overview |
 | Used from source | Running differs from walking through shorter stance and flight dynamics. |
@@ -106,7 +106,7 @@ RightLegPhase = fract(GaitPhase + 0.5)
 | Field | Value |
 |---|---|
 | Rule | Speed is derived from step length and step frequency. |
-| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md), [Running Biomechanics](../research/source-cards/running-biomechanics.md) |
+| Source card | [Normal Gait Overview](../../research/source-cards/normal-gait-overview.md), [Running Biomechanics](../../research/source-cards/running-biomechanics.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | gait timing relationship |
 | Used from source | Cadence and step length describe locomotion timing and displacement. |
