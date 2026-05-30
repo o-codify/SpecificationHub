@@ -4,6 +4,16 @@ import { mdToHtmlDoc, mdInline } from "./markdownConvert";
 /** A "prose" block is a plain paragraph (not heading/list/quote/code/table). */
 const isProse = (b: string) => !/^(#{1,6}\s|>\s|[-*+]\s|\d+\.\s|```|\||\s{4})/.test(b.trim());
 
+/** A bullet/ordered list block (every line is a list item). */
+const isList = (b: string) =>
+  b.trim().split("\n").every((l) => /^\s*([-*+]|\d+\.)\s+/.test(l));
+
+/** A GitHub-flavoured table block (rows of `| … |` with a `---` separator row). */
+const isTable = (b: string) => {
+  const lines = b.trim().split("\n");
+  return lines.length >= 2 && lines.every((l) => l.includes("|")) && /^[\s|:-]+$/.test(lines[1]);
+};
+
 export type ChangeKind = "add" | "del" | "replace";
 
 export interface Change {
@@ -89,16 +99,52 @@ function inlineReplace(c: Change): string {
   return `<p>${inner}</p>`;
 }
 
+/** Replace a list block item-by-item: only changed bullets are struck/added. */
+function listReplace(c: Change): string {
+  const attrs = `data-id="${c.id}" data-branch="${escAttr(c.branch)}"`;
+  const lines = (b: string) => b.trim().split("\n").filter((l) => l.trim());
+  const a = lines(c.oldBlocks[0]);
+  const b = lines(c.newBlocks[0]);
+  const ordered = /^\s*\d+\./.test(a[0] ?? b[0] ?? "");
+  const strip = (l: string) => l.replace(/^\s*([-*+]|\d+\.)\s+/, "");
+  let inner = "";
+  for (const part of diffArrays(a, b)) {
+    for (const line of part.value) {
+      const html = mdInline(strip(line));
+      if (part.removed) inner += `<li class="li-del"><del>${html}</del></li>`;
+      else if (part.added) inner += `<li class="li-add"><ins>${html}</ins></li>`;
+      else inner += `<li>${html}</li>`;
+    }
+  }
+  return `<${ordered ? "ol" : "ul"} class="sug sug-block" ${attrs}>${inner}</${ordered ? "ol" : "ul"}>`;
+}
+
+/** Replace a table block row-by-row: only changed rows are struck/added. */
+function tableReplace(c: Change): string {
+  const attrs = `data-id="${c.id}" data-branch="${escAttr(c.branch)}"`;
+  const rows = (b: string) => b.trim().split("\n").filter((l) => l.includes("|"));
+  const cells = (row: string) =>
+    row.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((s) => s.trim());
+  const a = rows(c.oldBlocks[0]);
+  const b = rows(c.newBlocks[0]);
+  const header = cells(b[0] ?? a[0] ?? "");
+  const head = `<thead><tr>${header.map((h) => `<th>${mdInline(h)}</th>`).join("")}</tr></thead>`;
+  let body = "";
+  for (const part of diffArrays(a.slice(2), b.slice(2))) {
+    const cls = part.removed ? "row-del" : part.added ? "row-add" : "";
+    for (const line of part.value) {
+      body += `<tr class="${cls}">${cells(line).map((x) => `<td>${mdInline(x)}</td>`).join("")}</tr>`;
+    }
+  }
+  return `<table class="sug sug-block" ${attrs}>${head}<tbody>${body}</tbody></table>`;
+}
+
 function sugBlock(c: Change): string {
   const attrs = `data-id="${c.id}" data-branch="${escAttr(c.branch)}"`;
-  if (
-    c.kind === "replace" &&
-    c.oldBlocks.length === 1 &&
-    c.newBlocks.length === 1 &&
-    isProse(c.oldBlocks[0]) &&
-    isProse(c.newBlocks[0])
-  ) {
-    return inlineReplace(c);
+  if (c.kind === "replace" && c.oldBlocks.length === 1 && c.newBlocks.length === 1) {
+    if (isProse(c.oldBlocks[0]) && isProse(c.newBlocks[0])) return inlineReplace(c);
+    if (isList(c.oldBlocks[0]) && isList(c.newBlocks[0])) return listReplace(c);
+    if (isTable(c.oldBlocks[0]) && isTable(c.newBlocks[0])) return tableReplace(c);
   }
   if (c.kind === "add") {
     return c.newBlocks.length === 1 && isProse(c.newBlocks[0])
