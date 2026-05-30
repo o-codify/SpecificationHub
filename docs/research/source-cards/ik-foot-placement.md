@@ -2,12 +2,13 @@
 id: source-card-ik-foot-placement
 title: "Source Card: IK Foot Placement"
 status: draft
-version: 26.529.2215
+version: 26.530.1008
 tags:
   - research
   - ik
   - foot-placement
   - linked-source
+  - links
 ---
 
 # Source Card: IK Foot Placement
@@ -87,7 +88,7 @@ terrain trace + gait phase
 
 ## Used By
 
-- `docs/09-solvers/foot-target-solver.md`
-- `docs/09-solvers/pelvis-solver.md`
-- `docs/10-runtime/constraints.md`
-- `docs/11-unreal-engine/index.md`
+- [Foot Target Solver](../../09-solvers/foot-target-solver.md)
+- [Pelvis Solver](../../09-solvers/pelvis-solver.md)
+- [Runtime Constraints](../../10-runtime/constraints.md)
+- [Unreal Engine](../../11-unreal-engine/index.md)
