@@ -1,14 +1,15 @@
 ---
 id: modifier-stacking
 title: Modifier Stacking
-status: draft
-version: 26.530.1059
+status: review
+version: 26.530.1354
 tags:
   - runtime
   - modifiers
   - stacking
   - provenance
   - links
+  - numeric
 ---
 
 # Modifier Stacking
@@ -51,42 +52,57 @@ Terrain decides where feet can go. Load changes body posture. Injury changes asy
 
 Use multiplication for values like:
 
-- step length multiplier
-- cadence multiplier
-- speed multiplier
-- arm swing multiplier
-- turn speed multiplier
+- step length multiplier: first-pass combined clamp 0.65..1.20
+- cadence multiplier: first-pass combined clamp 0.70..1.15
+- speed multiplier: first-pass combined clamp 0.50..1.15
+- arm swing multiplier: first-pass combined clamp 0.00..1.75
+- turn speed multiplier: first-pass combined clamp 0.40..1.10
+
+```text
+CombinedMultiplier = clamp(Base * Terrain * Load * Injury * Fatigue * Weapon, Min, Max)
+ResolvedStepLength = BaseStepLength * CombinedStepLengthMultiplier
+ResolvedCadence = BaseCadence * CombinedCadenceMultiplier
+```
 
 ## Additive Parameters
 
 Use addition for values like:
 
-- torso pitch offset
-- torso roll offset
-- pelvis pitch bias
-- pelvis roll bias
-- foot clearance bonus
+- torso pitch offset: hard clamp -10..20 degrees after stacking
+- torso roll offset: hard clamp -10..10 degrees after stacking
+- pelvis pitch bias: first-pass clamp -10..15 degrees
+- pelvis roll bias: first-pass clamp -10..10 degrees
+- foot clearance bonus: first-pass clamp 0..0.20 m before stair override
+
+```text
+CombinedOffset = clamp(BaseOffset + TerrainOffset + LoadOffset + InjuryOffset + WeaponOffset, Min, Max)
+ResolvedFootLift = BaseFootLift + TerrainFootLiftBonus + StairFootLiftBonus
+```
 
 ## Max Parameters
 
 Use max for restrictions like:
 
-- spine stiffness
-- weapon stabilization
-- injury severity
-- caution value
+- spine stiffness: normalized 0..1
+- weapon stabilization: normalized 0..1
+- injury severity: normalized 0..1
+- caution value: normalized 0..1
+
+```text
+ResolvedRestriction = max(BaseRestriction, LoadRestriction, InjuryRestriction, WeaponRestriction)
+```
 
 ## Safety Clamps
 
 After all modifiers, clamp:
 
-- torso lean
-- pelvis offset
-- step length
-- stance ratio
-- cadence
-- arm swing
-- IK reach
+- torso lean: hard clamp 20 degrees
+- pelvis offset: 0.10..0.18 of leg length
+- step length: 0.20 m minimum, 0.80..1.10 of leg length maximum
+- stance ratio: 0.30..0.75
+- cadence: first-pass 60..220 steps/minute global runtime clamp
+- arm swing: 0..60 degrees hard clamp
+- IK reach: 0.85..0.95 of leg length
 
 ## Conflict Rules
 
@@ -95,6 +111,7 @@ After all modifiers, clamp:
 - Heavy load can downgrade sprinting.
 - Weapon aiming can override arm swing.
 - Foot locking has priority over cosmetic secondary motion.
+- If combined penalties reduce speed below the gait minimum, [Locomotion State Resolver](./locomotion-state-resolver.md) should downgrade state instead of forcing broken animation.
 
 ## Rule Provenance
 
@@ -107,7 +124,7 @@ After all modifiers, clamp:
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
 | Source type | procedural animation architecture |
 | Used from source | Runtime computes intent; animation systems apply pose. |
-| HLS transformation | Modifiers operate on parameter sets before solver execution. |
+| HLS transformation | Modifiers operate on parameter sets before solver execution. Multipliers, additive offsets, and max restrictions are combined, then clamped before solvers read them. |
 | Confidence | high |
 | Applies to | all solvers and [Pose Composer](../09-solvers/pose-composer.md) |
 
@@ -120,7 +137,7 @@ After all modifiers, clamp:
 | External link | https://www.physio-pedia.com/Stair_Gait |
 | Source type | terrain, load, and clinical gait references |
 | Used from source | Terrain determines feasible foot placement before posture and asymmetry adjustments. |
-| HLS transformation | Terrain modifies targets first, then load/injury adjust posture and timing. |
+| HLS transformation | Terrain modifies targets first, then load/injury adjust posture and timing. Stairs override slope foot target selection, but slope may still contribute torso pitch if the stair detector is uncertain. |
 | Confidence | medium-high |
 | Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md), [Parameter System](./parameter-system.md) |
 
@@ -133,7 +150,7 @@ After all modifiers, clamp:
 | External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
 | Source type | terrain, clinical gait, animation architecture |
 | Used from source | Some locomotion constraints are more fundamental than others. |
-| HLS transformation | Added deterministic conflict resolution order. |
+| HLS transformation | Added deterministic conflict resolution order. State downgrade happens when stacked multipliers fall below playable gait thresholds rather than allowing extreme pose values. |
 | Confidence | high as runtime rule |
 | Applies to | [Locomotion State Resolver](./locomotion-state-resolver.md), [Pose Composer](../09-solvers/pose-composer.md) |
 
@@ -146,7 +163,7 @@ After all modifiers, clamp:
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
 | Source type | implementation constraint |
 | Used from source | Final targets must remain reachable and stable. |
-| HLS transformation | Clamp stage executes after stacking to enforce safe ranges. |
+| HLS transformation | Clamp stage executes after stacking to enforce safe ranges: stance ratio 0.30..0.75, IK reach 0.85..0.95 of leg length, torso lean hard clamp 20 degrees. |
 | Confidence | high |
 | Applies to | [Runtime Constraints](./constraints.md), [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md) |
 
@@ -155,6 +172,13 @@ After all modifiers, clamp:
 | Value | Category | Usage |
 |---|---|---|
 | stacking order | HLS implementation rule | deterministic resolution |
+| `StepLengthMultiplier = 0.65..1.20` | HLS tuning range | stacked locomotion modifiers |
+| `CadenceMultiplier = 0.70..1.15` | HLS tuning range | speed/phase response |
+| `SpeedMultiplier = 0.50..1.15` | HLS tuning range | locomotion state downgrade trigger |
+| `ArmSwingMultiplier = 0.00..1.75` | HLS tuning range | carry/weapon/run blending |
+| `TurnSpeedMultiplier = 0.40..1.10` | HLS tuning range | turning with load/injury |
+| `FootClearanceBonus = 0..0.20 m` | HLS tuning range | terrain/stairs modifier |
+| `CadenceGlobalClamp = 60..220 spm` | HLS safety clamp | phase stability |
 | multipliers and offsets | HLS tuning values | parameter modification |
 | safety limits | implementation constraints | prevent invalid outputs |
 
