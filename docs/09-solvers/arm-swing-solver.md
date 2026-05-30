@@ -2,13 +2,14 @@
 id: arm-swing-solver
 title: Arm Swing Solver
 status: draft
-version: 26.529.2235
+version: 26.530.000
 tags:
   - solver
   - arms
   - walking
   - running
   - provenance
+  - links
 ---
 
 # Arm Swing Solver
@@ -69,39 +70,39 @@ Arm swing should be driven by gait phase and then reduced or overridden by carry
 | Field | Value |
 |---|---|
 | Rule | Arms swing opposite to legs. |
-| Source card | `docs/research/source-cards/joint-kinematics-overview.md`, `docs/research/source-cards/normal-gait-overview.md` |
+| Source card | [Joint Kinematics Overview](../research/source-cards/joint-kinematics-overview.md), [Normal Gait Overview](../research/source-cards/normal-gait-overview.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | gait kinematics overview |
 | Used from source | Human walking coordinates trunk, shoulders, arms, and legs. |
 | HLS transformation | ArmSwingSolver uses gait phase with opposite relation to leg advancement. |
 | Confidence | high |
-| Applies to | `Walking`, `Running`, `SpineSolver` |
+| Applies to | [Walking](../05-walking/index.md), [Running](../06-running/index.md), [Spine Solver](./spine-solver.md) |
 
 ### Running increases arm drive
 
 | Field | Value |
 |---|---|
 | Rule | Arm swing amplitude increases from walk to run. |
-| Source card | `docs/research/source-cards/running-biomechanics.md` |
+| Source card | [Running Biomechanics](../research/source-cards/running-biomechanics.md) |
 | External link | https://www.physio-pedia.com/Running_Biomechanics |
 | Source type | running biomechanics overview |
 | Used from source | Running has stronger whole-body dynamics than walking. |
 | HLS transformation | Running profile increases `ArmSwingAmplitude` and elbow bend. |
 | Confidence | medium |
-| Applies to | `Running`, `GaitPhaseGenerator` |
+| Applies to | [Running](../06-running/index.md), [Gait Phase Generator](./gait-phase-generator.md) |
 
 ### Carry and weapon override arm swing
 
 | Field | Value |
 |---|---|
 | Rule | Carry and weapon states reduce or replace normal arm swing. |
-| Source card | `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/procedural-animation-overview.md` |
+| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
 | Source type | load carriage topic plus animation implementation constraint |
 | Used from source | Carrying or constrained upper-body states occupy arms and require pose priority. |
 | HLS transformation | Added `ArmFreedom`, `WeaponStabilization`, and override priority in PoseComposer. |
 | Confidence | high as implementation rule, medium as biomechanics rule |
-| Applies to | `Front Load`, `Asymmetric Load`, `Weapon Carry`, `PoseComposer` |
+| Applies to | [Front Load Modifier](../08-modifiers/front-load.md), [Asymmetric Load Modifier](../08-modifiers/asymmetric-load.md), [Weapon Carry Modifier](../08-modifiers/weapon-carry.md), [Pose Composer](./pose-composer.md) |
 
 ## Numeric Data Separation
 
