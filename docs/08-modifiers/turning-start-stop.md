@@ -1,8 +1,8 @@
 ---
 id: turning-starting-and-stopping
 title: Turning, Starting, and Stopping
-status: draft
-version: 26.530.1239
+status: review
+version: 26.530.1346
 tags:
   - modifier
   - turning
