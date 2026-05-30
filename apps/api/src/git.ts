@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { config } from "./config.js";
-import { parseFrontmatter, type DiffFile, type SearchHit } from "@hls/core";
+import { parseFrontmatter, serializeDoc, stampVersion, type DiffFile, type SearchHit } from "@hls/core";
 
 export class GitError extends Error {
   detail: string;
@@ -584,4 +584,57 @@ export function applyContentToBase(
   inDir(dir, [...identityArgs(name, `${safe}@hls.local`), "commit", "-m", message]);
   pushBranch(base);
   return { sha: headSha(base), branch: base };
+}
+
+/** Write several files onto `base` in a single commit (+push). */
+export function applyContentsToBase(
+  base: string,
+  files: { path: string; content: string }[],
+  message: string,
+  author: string,
+): CommitResult {
+  if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
+  const dir = ensureWorktree(base);
+  inDir(dir, ["checkout", base]);
+  inDir(dir, ["reset", "--hard", base]);
+  for (const f of files) {
+    const abs = path.join(dir, f.path);
+    if (!abs.startsWith(dir)) throw new GitError("Invalid path");
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, f.content, "utf8");
+    inDir(dir, ["add", "--", f.path]);
+  }
+  if (!inDir(dir, ["status", "--porcelain"]).trim()) {
+    throw new GitError("No changes to apply — base already has this content");
+  }
+  const name = author || config.gitAuthorName;
+  const safe = name.replace(/[^a-zA-Z0-9._-]+/g, "-").toLowerCase() || "author";
+  inDir(dir, [...identityArgs(name, `${safe}@hls.local`), "commit", "-m", message]);
+  pushBranch(base);
+  return { sha: headSha(base), branch: base };
+}
+
+/**
+ * Accept ALL of a branch's meaningful doc changes into `base` in ONE commit:
+ * each changed doc is taken from `head` (so status/tags come along), its
+ * version re-stamped, and written to base. This applies the content directly
+ * and does NOT go through the branch's pull request — so it works even when
+ * individual changes were already accepted and the PR has diverged/conflicts.
+ */
+export function acceptBranchIntoBase(
+  base: string,
+  head: string,
+  message: string,
+  author: string,
+): CommitResult & { count: number } {
+  if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
+  if (!branchExists(head)) throw new NotFoundError(`Branch not found: ${head}`);
+  const paths = changedDocsBetween(base, head);
+  if (paths.length === 0) throw new GitError("No changes to accept");
+  const files = paths.map((p) => {
+    const { frontmatter, content } = parseFrontmatter(readFile(head, p));
+    return { path: p, content: serializeDoc({ ...frontmatter, version: stampVersion() }, content) };
+  });
+  const res = applyContentsToBase(base, files, message, author);
+  return { ...res, count: files.length };
 }

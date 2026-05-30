@@ -100,23 +100,33 @@ export function AdminDiff() {
     }
   };
 
-  // "Accept all" merges the whole branch into base in a single operation
-  // (one PR merge in GitHub mode, one git merge locally) — far faster than
-  // applying each document on its own.
+  // "Accept all" applies the whole branch's content into base in ONE commit
+  // (status/tags included, version re-stamped). It does NOT merge the PR —
+  // individual accepts already commit to base, so the PR usually diverged. The
+  // now-consumed branch is then deleted (which closes its PR).
   const acceptAll = async () => {
     if (!files || files.length === 0) return;
+    const branch = head;
     setBusy("*");
     setErr("");
     try {
-      const r = await api.merge(base, head, `Accept all changes from ${head}`);
-      const pr = r.pullRequest ? ` (PR #${r.pullRequest.number})` : "";
+      const r = await api.acceptAll(base, branch, `Accept all changes from ${branch}`);
+      try {
+        await api.deleteBranch(branch);
+      } catch {
+        /* branch cleanup is best-effort */
+      }
       toast.show(
         <>
-          Merged <code>{head}</code> into <code>{base}</code>
-          {pr}
+          Accepted {r.count} document{r.count === 1 ? "" : "s"} from <code>{branch}</code> into{" "}
+          <code>{base}</code>
         </>,
       );
-      await run();
+      const br = await api.branches();
+      const names = br.branches.map((b) => b.name);
+      setBranches(names);
+      setFiles(null);
+      setHead(names.find((n) => n !== base) ?? "");
     } catch (e) {
       setErr(String((e as Error).message));
     } finally {

@@ -181,6 +181,13 @@ export const api = {
       { path, base, content, message },
       true,
     ),
+  acceptAll: (base: string, head: string, message?: string) =>
+    request<{ sha: string; branch: string; count: number }>(
+      "POST",
+      "/api/suggestions/accept-all",
+      { base, head, message },
+      true,
+    ),
 
   search: (branch: string, q: string) =>
     request<{ hits: SearchHit[] }>(

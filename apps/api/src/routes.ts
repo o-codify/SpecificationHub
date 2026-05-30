@@ -346,6 +346,21 @@ export function createRouter(): Router {
     }),
   );
 
+  // Accept ALL of a branch's changes into base in a single commit (status/tags
+  // included, version re-stamped). Applies content directly — does not rely on
+  // the branch's PR, which may have diverged from prior individual accepts.
+  router.post(
+    "/suggestions/accept-all",
+    requireRole("admin", "reviewer"),
+    h((req, res) => {
+      const base = (req.body?.base as string) || config.defaultBranch;
+      const head = requireBranch(req.body?.head, "head");
+      const message = (req.body?.message as string) || `Accept all changes from ${head}`;
+      const result = gitlib.acceptBranchIntoBase(base, head, message, req.principal!.name);
+      res.json(result);
+    }),
+  );
+
   // ---- Search ----
   router.get(
     "/search",
