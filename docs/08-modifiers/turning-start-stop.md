@@ -1,8 +1,8 @@
 ---
 id: turning-starting-and-stopping
 title: Turning, Starting, and Stopping
-status: draft
-version: 26.530.1058
+status: review
+version: 26.530.1354
 tags:
   - modifier
   - turning
@@ -10,6 +10,7 @@ tags:
   - stop
   - provenance
   - links
+  - numeric
 ---
 
 # Turning, Starting, and Stopping
@@ -27,6 +28,7 @@ These actions are visual rules that make momentum and intention readable.
 - Arms begin moving after lower body starts.
 - Loaded characters start more slowly.
 - Injured characters avoid starting from the painful side.
+- Start transition should trigger from acceleration, not only from nonzero speed.
 
 ## Stopping Rules
 
@@ -35,6 +37,7 @@ These actions are visual rules that make momentum and intention readable.
 - Foot targets should land under the body to regain support.
 - Heavy load increases stopping stiffness.
 - Running stop needs stronger torso compensation than walking stop.
+- Stop transition should trigger from deceleration and target speed drop.
 
 ## Turning While Walking
 
@@ -43,6 +46,7 @@ These actions are visual rules that make momentum and intention readable.
 - Chest and shoulders may lag behind pelvis.
 - Head may look toward the target direction earlier than torso.
 - Step width can widen slightly for stability.
+- Turn speed can be reduced by load, injury, weapon aiming, or low confidence footing.
 
 ## Turning In Place
 
@@ -50,6 +54,7 @@ These actions are visual rules that make momentum and intention readable.
 - Feet should not slide in place without visible support.
 - Pelvis rotates in small increments.
 - Torso follows with slight lag.
+- Turn-in-place should activate at low speed and sufficiently large facing error.
 
 ## Sidestep Rules
 
@@ -66,13 +71,32 @@ These actions are visual rules that make momentum and intention readable.
 
 ## Parameters
 
-- TurnRate
-- TurnAnticipation
-- TorsoLag
-- StepWidthMultiplier
-- StopLeanAmount
-- StartLeanAmount
-- PivotStepThreshold
+- TurnRate: degrees per second, first-pass 90..360
+- TurnAnticipation: seconds, first-pass 0.10..0.25
+- TorsoLag: seconds, first-pass 0.08..0.20
+- StepWidthMultiplier: 1.0..1.25 during turning
+- StopLeanAmount: degrees, walk 0..5, run 5..12
+- StartLeanAmount: degrees, 0..8
+- PivotStepThreshold: 45..90 degrees
+- TurnInPlaceSpeedMax: 0.20..0.40 m/s
+- StartAccelThreshold: 0.50..1.50 m/s²
+- StopDecelThreshold: 1.50..3.00 m/s²
+- BackwardSpeedMultiplier: 1.0..0.60
+- SidestepStepLengthMultiplier: 1.0..0.70
+
+## Runtime Rule
+
+```text
+FacingErrorDeg = angleBetween(currentFacing, desiredFacing)
+StartActive = speed < WalkEnterSpeed and acceleration >= 0.50..1.50 m/s²
+StopActive = desiredSpeed < IdleSpeedThreshold and deceleration >= 1.50..3.00 m/s²
+TurnInPlaceActive = speed <= 0.20..0.40 m/s and FacingErrorDeg >= 45..90
+TurnStepWidth = BaseStepWidth * 1.0..1.25
+TorsoYaw = delayed(PelvisYaw, TorsoLag 0.08..0.20 s)
+StartLeanDeg = clamp(acceleration01 * 8, 0, 8)
+StopLeanDeg = clamp(deceleration01 * 12, 0, 12)
+TurnSpeed = BaseTurnSpeed * TurnSpeedMultiplier
+```
 
 ## Rule Provenance
 
@@ -85,7 +109,7 @@ These actions are visual rules that make momentum and intention readable.
 | External link | https://pubmed.ncbi.nlm.nih.gov/?term=gait+initiation+turning+walking+biomechanics |
 | Source type | gait transition research topic plus HLS gameplay readability |
 | Used from source | Gait initiation and stopping are transition behaviors with body preparation and support changes. |
-| HLS transformation | Added Start and Stop states in [Locomotion State Resolver](../10-runtime/locomotion-state-resolver.md) with lean and step adjustments. |
+| HLS transformation | Added Start and Stop states in [Locomotion State Resolver](../10-runtime/locomotion-state-resolver.md) with lean and step adjustments. First-pass start threshold is 0.50..1.50 m/s² and stop threshold is 1.50..3.00 m/s². |
 | Confidence | medium |
 | Applies to | [Locomotion State Resolver](../10-runtime/locomotion-state-resolver.md), [Spine Solver](../09-solvers/spine-solver.md), [Foot Target Solver](../09-solvers/foot-target-solver.md) |
 
@@ -98,7 +122,7 @@ These actions are visual rules that make momentum and intention readable.
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/pose-warping-in-unreal-engine |
 | Source type | locomotion topic / game animation implementation |
 | Used from source | Direction changes need trajectory adaptation and pose continuity. |
-| HLS transformation | Added foot target redirection, pelvis turn, chest lag, and optional head lead. |
+| HLS transformation | Added foot target redirection, pelvis turn, chest lag, and optional head lead. First-pass torso lag is 0.08..0.20 s and step width multiplier during turns is 1.0..1.25. |
 | Confidence | medium |
 | Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Spine Solver](../09-solvers/spine-solver.md), [Pose Composer](../09-solvers/pose-composer.md) |
 
@@ -111,7 +135,7 @@ These actions are visual rules that make momentum and intention readable.
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
 | Source type | implementation constraint / game animation readability |
 | Used from source | Foot contact stability is critical for believable ground interaction. |
-| HLS transformation | Added `PivotStepThreshold` and turn-in-place foot target rules. |
+| HLS transformation | Added `PivotStepThreshold` and turn-in-place foot target rules. First-pass pivot threshold is 45..90 degrees and turn-in-place speed max is 0.20..0.40 m/s. |
 | Confidence | high for visual rule, medium for thresholds |
 | Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pose Composer](../09-solvers/pose-composer.md), [Runtime Constraints](../10-runtime/constraints.md) |
 
@@ -120,9 +144,17 @@ These actions are visual rules that make momentum and intention readable.
 | Value | Category | Usage |
 |---|---|---|
 | start/stop/turn are transition behaviors | source-backed relationship | explicit resolver states |
-| `TurnAnticipation` | HLS tuning value | lead movement before full turn |
-| `TorsoLag` | HLS tuning value | readable body segmentation |
-| `PivotStepThreshold` | HLS tuning value | switch from twist to pivot steps |
+| `TurnRate = 90..360 deg/s` | HLS tuning range | turn responsiveness |
+| `TurnAnticipation = 0.10..0.25 s` | HLS tuning value | lead movement before full turn |
+| `TorsoLag = 0.08..0.20 s` | HLS tuning value | readable body segmentation |
+| `StepWidthMultiplier = 1.0..1.25` | HLS tuning range | turning stability |
+| `PivotStepThreshold = 45..90 deg` | HLS tuning value | switch from twist to pivot steps |
+| `StartAccelThreshold = 0.50..1.50 m/s²` | HLS tuning range | start detection |
+| `StopDecelThreshold = 1.50..3.00 m/s²` | HLS tuning range | stop detection |
+| `StartLeanAmount = 0..8 deg` | HLS tuning range | acceleration readability |
+| `StopLeanAmount = 0..12 deg` | HLS tuning range | braking readability |
+| `BackwardSpeedMultiplier = 1.0..0.60` | HLS tuning range | cautious backward walking |
+| `SidestepStepLengthMultiplier = 1.0..0.70` | HLS tuning range | lateral movement |
 
 ## Open Questions
 
