@@ -1,8 +1,8 @@
 ---
 id: spine-solver
 title: Spine Solver
-status: draft
-version: 26.530.1101
+status: review
+version: 26.530.1349
 tags:
   - solver
   - spine
