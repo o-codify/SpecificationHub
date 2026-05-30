@@ -1,14 +1,15 @@
 ---
 id: solver-interfaces
 title: Solver Interfaces
-status: draft
-version: 26.530.1000
+status: review
+version: 26.530.1447
 tags:
   - runtime
   - solver
   - interfaces
   - provenance
   - links
+  - numeric
 ---
 
 # Solver Interfaces
@@ -87,6 +88,19 @@ ArmSwingSolver outputs arm swing or carry restrictions.
 
 PoseComposer outputs final pose intent and priority decisions.
 
+## Runtime Interface Contract
+
+```text
+CharacterInputState + ResolvedParameters + PreviousSolverState
+  -> Solver
+  -> PoseIntent + DebugValues + WarningFlags
+```
+
+```text
+SolverOutput must be valid before PoseComposer.
+RuntimeConstraints must clamp invalid values before OutputPose.
+```
+
 ## Rule Provenance
 
 ### Common solver inputs and outputs
@@ -111,7 +125,7 @@ PoseComposer outputs final pose intent and priority decisions.
 | External link | https://github.com/ubisoft/ubisoft-laforge-animation-dataset |
 | Source type | animation continuity and transition validation reference |
 | Used from source | Temporal continuity and previous pose context matter for animation quality. |
-| HLS transformation | Solver state includes gait phase, foot locks, smoothed offsets, and previous targets. |
+| HLS transformation | Solver state includes gait phase, foot locks, smoothed offsets, and previous targets. Solver state reset is required for teleport, respawn, ragdoll recovery, and hard state reinitialization. |
 | Confidence | high as implementation rule |
 | Applies to | [Gait Phase Generator](../09-solvers/gait-phase-generator.md), [Foot Target Solver](../09-solvers/foot-target-solver.md), [Networking](./networking.md) |
 
@@ -141,6 +155,19 @@ PoseComposer outputs final pose intent and priority decisions.
 | Confidence | high |
 | Applies to | [Runtime Constraints](./constraints.md), [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md) |
 
+### Interface validity before composition
+
+| Field | Value |
+|---|---|
+| Rule | Solver output must be valid before PoseComposer consumes it. |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [IK Foot Placement](../research/source-cards/ik-foot-placement.md) |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
+| Source type | procedural architecture / IK implementation constraint |
+| Used from source | Procedural targets must remain valid before rig application. |
+| HLS transformation | Solvers emit warning flags when output is clamped, stale, fallback-generated, or unsafe. PoseComposer and OutputPose must preserve those flags for debug and validation. |
+| Confidence | high |
+| Applies to | [Pose Composer](../09-solvers/pose-composer.md), [Output Pose](./output-pose.md), [Runtime Update Order](./update-order.md) |
+
 ## Numeric Data Separation
 
 | Value | Category | Usage |
@@ -148,6 +175,7 @@ PoseComposer outputs final pose intent and priority decisions.
 | solver interface fields | HLS architecture contract | implementation |
 | warning thresholds | HLS tuning values | debug and validation |
 | persistent state layout | implementation detail | C++ API / networking |
+| solver validity flags | HLS implementation rule | PoseComposer and OutputPose |
 
 ## Open Questions
 
