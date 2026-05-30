@@ -2,13 +2,14 @@
 id: running
 title: Running
 status: draft
-version: 26.530.1002
+version: 26.530.1029
 tags:
   - running
   - gait
   - locomotion
   - provenance
   - links
+  - numeric
 ---
 
 # Running
@@ -27,8 +28,9 @@ The character should look like they are projecting the body forward, not simply 
 
 ## Inputs
 
-- speed
-- gaitPhase
+- speed, meters per second
+- cadence, steps per minute
+- gaitPhase, normalized 0..1 stride phase
 - direction
 - groundNormal
 - slope
@@ -57,15 +59,29 @@ The character should look like they are projecting the body forward, not simply 
 - Torso lean increases with speed.
 - Heavy load reduces running quality and may force a jog.
 - Injury should reduce running speed strongly and may prevent running at high severity.
+- Speed, stride, and cadence must remain dimensionally consistent.
 
 ## Suggested Parameters
 
 - RunStanceRatio: 0.30 to 0.45.
 - RunSwingAndFlightRatio: 0.55 to 0.70.
-- PelvisVerticalAmplitude: higher than walking.
-- FootLiftHeight: higher than walking.
-- ArmSwingAmplitude: higher than walking.
-- TorsoLean: higher than walking.
+- RunCadence: first-pass gameplay reference 150 to 190 steps per minute.
+- RunStepLength: first-pass gameplay reference 0.90 to 1.60 meters, character-scale dependent.
+- RunSpeed: first-pass jog/run reference 2.5 to 6.0 m/s.
+- FlightRatio: `max(0, 1 - RunStanceRatio * 2)` as a first-pass symmetric approximation.
+- PelvisVerticalAmplitude: 1.25 to 2.00 times walking amplitude.
+- FootLiftHeight: 1.25 to 2.00 times walking foot lift.
+- ArmSwingAmplitude: 1.20 to 1.75 times walking arm swing unless constrained.
+- TorsoLean: first-pass flat-ground range 5 to 15 degrees, increasing with speed.
+
+```text
+StepFrequencyHz = Cadence / 60
+Speed = StepLength * StepFrequencyHz
+StrideFrequencyHz = StepFrequencyHz / 2
+StrideDuration = 1 / StrideFrequencyHz
+StanceDuration = StrideDuration * RunStanceRatio
+SwingAndFlightDuration = StrideDuration * (1 - RunStanceRatio)
+```
 
 ## Runtime Bands
 
@@ -75,6 +91,8 @@ The exact phase bands are implementation ranges, not strict biomechanics.
 - 0.35 to 0.50: push off.
 - 0.50 to 0.75: flight and early swing.
 - 0.75 to 1.00: terminal swing and next contact preparation.
+
+For slower jogs, HLS may raise stance toward 0.45 and reduce visible flight. For faster runs, HLS may lower stance toward 0.30 and increase flight readability.
 
 ## Modifier Behavior
 
@@ -97,7 +115,7 @@ Fatigue reduces arm drive, rebound, and stride length.
 | External link | https://www.physio-pedia.com/Running_Biomechanics |
 | Source type | biomechanics overview |
 | Used from source | Running differs from walking in support timing and body dynamics. |
-| HLS transformation | Created a separate Running doc and running solver profile instead of scaling walk speed. |
+| HLS transformation | Created a separate Running doc and running solver profile instead of scaling walk speed. HLS keeps run stance below walking stance and increases vertical and arm amplitudes. |
 | Confidence | high for distinction, medium for exact values |
 | Applies to | [Gait Phase Generator](../09-solvers/gait-phase-generator.md), [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md), [Arm Swing Solver](../09-solvers/arm-swing-solver.md) |
 
@@ -110,7 +128,7 @@ Fatigue reduces arm drive, rebound, and stride length.
 | External link | https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7575155/ |
 | Source type | biomechanics overview |
 | Used from source | Running includes aerial / flight behavior unlike ordinary walking double support. |
-| HLS transformation | Added flight support mode and run-specific runtime bands. |
+| HLS transformation | Added flight support mode and run-specific runtime bands. First-pass flight amount can be derived from `max(0, 1 - RunStanceRatio * 2)` for symmetric left/right stance timing. |
 | Confidence | high |
 | Applies to | [Gait Cycle](../04-gait-cycle/index.md), [Running](./index.md) |
 
@@ -123,7 +141,7 @@ Fatigue reduces arm drive, rebound, and stride length.
 | External link | https://www.physio-pedia.com/Running_Biomechanics |
 | Source type | biomechanics overview plus HLS visual inference |
 | Used from source | Running has stronger whole-body dynamics than walking. |
-| HLS transformation | Exposed `ArmSwingAmplitude` and `PelvisVerticalAmplitude` as higher run parameters. |
+| HLS transformation | Exposed `ArmSwingAmplitude`, `FootLiftHeight`, and `PelvisVerticalAmplitude` as scaled run parameters. First-pass HLS uses pelvis and foot lift multipliers of 1.25..2.00 against walking. |
 | Confidence | medium |
 | Applies to | [Arm Swing Solver](../09-solvers/arm-swing-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md) |
 
@@ -136,7 +154,7 @@ Fatigue reduces arm drive, rebound, and stride length.
 | External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
 | Source type | load carriage topic, clinical gait reference, HLS gameplay inference |
 | Used from source | Load changes posture and gait; pain-related gait protects the painful limb. |
-| HLS transformation | LocomotionStateResolver can downgrade run to jog, walk, or limp when modifiers exceed thresholds. |
+| HLS transformation | [Locomotion State Resolver](../10-runtime/locomotion-state-resolver.md) can downgrade run to jog, walk, or limp when modifiers exceed thresholds. Load and injury should reduce cadence ceiling, step length, and vertical amplitude before producing extreme poses. |
 | Confidence | medium |
 | Applies to | [Locomotion State Resolver](../10-runtime/locomotion-state-resolver.md), [Modifier Stacking](../10-runtime/modifier-stacking.md) |
 
@@ -147,6 +165,9 @@ Fatigue reduces arm drive, rebound, and stride length.
 | run stance shorter than walk stance | source-backed relationship | lower `RunStanceRatio` |
 | flight phase exists | source-backed relationship | `supportMode = flight` |
 | `RunStanceRatio = 0.30..0.45` | HLS tuning range | first-pass runtime default |
+| `RunCadence = 150..190 spm` | HLS tuning range | first-pass jog/run cadence scale |
+| `RunSpeed = 2.5..6.0 m/s` | HLS tuning range | gameplay locomotion scale |
+| `TorsoLean = 5..15 deg` | HLS tuning range | readable forward commitment |
 | runtime phase bands | HLS tuning ranges | implementation control bands |
 
 ## Open Questions
