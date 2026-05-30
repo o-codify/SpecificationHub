@@ -442,12 +442,11 @@ body{-webkit-user-select:none;user-select:none}
 .doc-body .sug.add{background:color-mix(in oklch,var(--good) 12%,transparent);border:1px solid color-mix(in oklch,var(--good) 45%,var(--border));border-left-width:3px;padding:10px 14px;border-radius:0 6px 6px 0;margin:0 0 18px}
 .doc-body .sug.del{background:color-mix(in oklch,var(--bad-tx) 8%,transparent);border:1px solid color-mix(in oklch,var(--bad-tx) 35%,var(--border));border-left-width:3px;padding:10px 14px;border-radius:0 6px 6px 0;margin:0 0 18px;color:var(--faint);text-decoration:line-through;text-decoration-color:color-mix(in oklch,var(--bad-tx) 50%,transparent)}
 .doc-body .sug.add>*:last-child,.doc-body .sug.del>*:last-child{margin-bottom:0}
-/* per-item / per-row track-changes inside lists & tables */
-.doc-body .sug-block{cursor:pointer}
-.doc-body li.li-add,.doc-body li.li-del{list-style:none;margin-left:-4px}
-.doc-body li.li-del::marker{content:""}
+/* per-row track-changes inside tables (whole added/removed rows are clickable) */
+.doc-body tr.sug{cursor:pointer}
 .doc-body tr.row-add td{background:color-mix(in oklch,var(--good) 13%,transparent);color:var(--good)}
 .doc-body tr.row-del td{background:color-mix(in oklch,var(--bad-tx) 10%,transparent);color:var(--faint);text-decoration:line-through;text-decoration-color:color-mix(in oklch,var(--bad-tx) 50%,transparent)}
+.doc-body tr.sug:hover td{box-shadow:inset 0 0 0 9999px color-mix(in oklch,var(--p2) 12%,transparent)}
 /* suggestion popover */
 .sug-pop{position:fixed;z-index:75;min-width:200px;max-width:320px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);box-shadow:var(--shadow);padding:11px;display:none}
 .sug-pop.open{display:block}

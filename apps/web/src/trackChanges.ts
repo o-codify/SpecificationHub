@@ -79,47 +79,98 @@ const escAttr = (s: string) => s.replace(/"/g, "&quot;");
  * stay as normal prose; the differing middle becomes ONE <del>old clause</del>
  * + ONE <ins>new clause</ins> inside a clickable .sug span (no word-soup).
  */
-function inlineReplace(c: Change): string {
-  const a = c.oldBlocks[0].split(/(\s+)/);
-  const b = c.newBlocks[0].split(/(\s+)/);
+function clauseInner(c: Change, oldText: string, newText: string): string {
+  const isW = (ch: string | undefined) => !!ch && /\w/.test(ch);
+  // Character-level common prefix/suffix (handles attached punctuation like
+  // "speed" → "speed, …"), then snap the boundaries to whole-word edges so we
+  // never cut inside a word.
   let p = 0;
-  while (p < a.length && p < b.length && a[p] === b[p]) p++;
+  while (p < oldText.length && p < newText.length && oldText[p] === newText[p]) p++;
+  while (p > 0 && isW(oldText[p - 1]) && (isW(oldText[p]) || isW(newText[p]))) p--;
   let s = 0;
-  while (s < a.length - p && s < b.length - p && a[a.length - 1 - s] === b[b.length - 1 - s]) s++;
-  const prefix = a.slice(0, p).join("");
-  const oldMid = a.slice(p, a.length - s).join("").trim();
-  const newMid = b.slice(p, b.length - s).join("").trim();
-  const suffix = a.slice(a.length - s).join("");
+  while (
+    s < oldText.length - p &&
+    s < newText.length - p &&
+    oldText[oldText.length - 1 - s] === newText[newText.length - 1 - s]
+  )
+    s++;
+  while (
+    s > 0 &&
+    isW(oldText[oldText.length - s]) &&
+    (isW(oldText[oldText.length - 1 - s]) || isW(newText[newText.length - 1 - s]))
+  )
+    s--;
+  const prefix = oldText.slice(0, p);
+  const oldMid = oldText.slice(p, oldText.length - s);
+  const newMid = newText.slice(p, newText.length - s);
+  const suffix = oldText.slice(oldText.length - s);
   let inner = mdInline(prefix);
   inner += `<span class="sug" data-id="${c.id}" data-branch="${escAttr(c.branch)}">`;
   if (oldMid) inner += `<del>${mdInline(oldMid)}</del>`;
   if (newMid) inner += `<ins>${mdInline(newMid)}</ins>`;
   inner += `</span>`;
   inner += mdInline(suffix);
-  return `<p>${inner}</p>`;
+  return inner;
 }
 
-/** Replace a list block item-by-item: only changed bullets are struck/added. */
+/** Whole-text add/remove wrapped in one clickable .sug span. */
+function wholeSpan(c: Change, html: string, kind: "ins" | "del"): string {
+  return `<span class="sug" data-id="${c.id}" data-branch="${escAttr(c.branch)}"><${kind}>${html}</${kind}></span>`;
+}
+
+function inlineReplace(c: Change): string {
+  return `<p>${clauseInner(c, c.oldBlocks[0], c.newBlocks[0])}</p>`;
+}
+
+/** Pair adjacent removed/added runs so a modified entry is one item (not del+add). */
+function pairDiff(a: string[], b: string[]): { kind: "same" | "add" | "del" | "mod"; old?: string; neu?: string }[] {
+  const out: { kind: "same" | "add" | "del" | "mod"; old?: string; neu?: string }[] = [];
+  const parts = diffArrays(a, b);
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part.removed) {
+      const next = parts[i + 1];
+      if (next && next.added) {
+        const olds = part.value;
+        const news = next.value;
+        const n = Math.max(olds.length, news.length);
+        for (let k = 0; k < n; k++) {
+          if (k < olds.length && k < news.length) out.push({ kind: "mod", old: olds[k], neu: news[k] });
+          else if (k < olds.length) out.push({ kind: "del", old: olds[k] });
+          else out.push({ kind: "add", neu: news[k] });
+        }
+        i++;
+      } else {
+        for (const v of part.value) out.push({ kind: "del", old: v });
+      }
+    } else if (part.added) {
+      for (const v of part.value) out.push({ kind: "add", neu: v });
+    } else {
+      for (const v of part.value) out.push({ kind: "same", old: v });
+    }
+  }
+  return out;
+}
+
+/** Replace a list block item-by-item; only the changed clause/bullet is interactive. */
 function listReplace(c: Change): string {
-  const attrs = `data-id="${c.id}" data-branch="${escAttr(c.branch)}"`;
   const lines = (b: string) => b.trim().split("\n").filter((l) => l.trim());
   const a = lines(c.oldBlocks[0]);
   const b = lines(c.newBlocks[0]);
   const ordered = /^\s*\d+\./.test(a[0] ?? b[0] ?? "");
+  const tag = ordered ? "ol" : "ul";
   const strip = (l: string) => l.replace(/^\s*([-*+]|\d+\.)\s+/, "");
   let inner = "";
-  for (const part of diffArrays(a, b)) {
-    for (const line of part.value) {
-      const html = mdInline(strip(line));
-      if (part.removed) inner += `<li class="li-del"><del>${html}</del></li>`;
-      else if (part.added) inner += `<li class="li-add"><ins>${html}</ins></li>`;
-      else inner += `<li>${html}</li>`;
-    }
+  for (const e of pairDiff(a, b)) {
+    if (e.kind === "same") inner += `<li>${mdInline(strip(e.old!))}</li>`;
+    else if (e.kind === "mod") inner += `<li>${clauseInner(c, strip(e.old!), strip(e.neu!))}</li>`;
+    else if (e.kind === "del") inner += `<li>${wholeSpan(c, mdInline(strip(e.old!)), "del")}</li>`;
+    else inner += `<li>${wholeSpan(c, mdInline(strip(e.neu!)), "ins")}</li>`;
   }
-  return `<${ordered ? "ol" : "ul"} class="sug sug-block" ${attrs}>${inner}</${ordered ? "ol" : "ul"}>`;
+  return `<${tag}>${inner}</${tag}>`;
 }
 
-/** Replace a table block row-by-row: only changed rows are struck/added. */
+/** Replace a table block row-by-row; only changed rows/cells are interactive. */
 function tableReplace(c: Change): string {
   const attrs = `data-id="${c.id}" data-branch="${escAttr(c.branch)}"`;
   const rows = (b: string) => b.trim().split("\n").filter((l) => l.includes("|"));
@@ -129,14 +180,29 @@ function tableReplace(c: Change): string {
   const b = rows(c.newBlocks[0]);
   const header = cells(b[0] ?? a[0] ?? "");
   const head = `<thead><tr>${header.map((h) => `<th>${mdInline(h)}</th>`).join("")}</tr></thead>`;
+  const tds = (cs: string[]) => cs.map((x) => `<td>${mdInline(x)}</td>`).join("");
   let body = "";
-  for (const part of diffArrays(a.slice(2), b.slice(2))) {
-    const cls = part.removed ? "row-del" : part.added ? "row-add" : "";
-    for (const line of part.value) {
-      body += `<tr class="${cls}">${cells(line).map((x) => `<td>${mdInline(x)}</td>`).join("")}</tr>`;
+  for (const e of pairDiff(a.slice(2), b.slice(2))) {
+    if (e.kind === "same") {
+      body += `<tr>${tds(cells(e.old!))}</tr>`;
+    } else if (e.kind === "mod") {
+      const oc = cells(e.old!);
+      const nc = cells(e.neu!);
+      const n = Math.max(oc.length, nc.length);
+      let row = "";
+      for (let k = 0; k < n; k++) {
+        const o = oc[k] ?? "";
+        const nw = nc[k] ?? "";
+        row += o === nw ? `<td>${mdInline(nw)}</td>` : `<td>${clauseInner(c, o, nw)}</td>`;
+      }
+      body += `<tr>${row}</tr>`;
+    } else if (e.kind === "del") {
+      body += `<tr class="sug row-del" ${attrs}>${tds(cells(e.old!))}</tr>`;
+    } else {
+      body += `<tr class="sug row-add" ${attrs}>${tds(cells(e.neu!))}</tr>`;
     }
   }
-  return `<table class="sug sug-block" ${attrs}>${head}<tbody>${body}</tbody></table>`;
+  return `<table>${head}<tbody>${body}</tbody></table>`;
 }
 
 function sugBlock(c: Change): string {
