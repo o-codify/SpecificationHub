@@ -79,7 +79,15 @@ const escAttr = (s: string) => s.replace(/"/g, "&quot;");
  * stay as normal prose; the differing middle becomes ONE <del>old clause</del>
  * + ONE <ins>new clause</ins> inside a clickable .sug span (no word-soup).
  */
-function clauseInner(c: Change, oldText: string, newText: string): string {
+const escHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function clauseInner(
+  c: Change,
+  oldText: string,
+  newText: string,
+  render: (s: string) => string = mdInline,
+): string {
   const isW = (ch: string | undefined) => !!ch && /\w/.test(ch);
   // Character-level common prefix/suffix (handles attached punctuation like
   // "speed" → "speed, …"), then snap the boundaries to whole-word edges so we
@@ -104,12 +112,12 @@ function clauseInner(c: Change, oldText: string, newText: string): string {
   const oldMid = oldText.slice(p, oldText.length - s);
   const newMid = newText.slice(p, newText.length - s);
   const suffix = oldText.slice(oldText.length - s);
-  let inner = mdInline(prefix);
+  let inner = render(prefix);
   inner += `<span class="sug" data-id="${c.id}" data-branch="${escAttr(c.branch)}">`;
-  if (oldMid) inner += `<del>${mdInline(oldMid)}</del>`;
-  if (newMid) inner += `<ins>${mdInline(newMid)}</ins>`;
+  if (oldMid) inner += `<del>${render(oldMid)}</del>`;
+  if (newMid) inner += `<ins>${render(newMid)}</ins>`;
   inner += `</span>`;
-  inner += mdInline(suffix);
+  inner += render(suffix);
   return inner;
 }
 
@@ -118,13 +126,36 @@ function wholeSpan(c: Change, html: string, kind: "ins" | "del"): string {
   return `<span class="sug" data-id="${c.id}" data-branch="${escAttr(c.branch)}"><${kind}>${html}</${kind}></span>`;
 }
 
+const isCode = (b: string) => b.trim().startsWith("```");
+
+/** Replace a fenced code block line-by-line; only changed lines are interactive. */
+function codeReplace(c: Change, oldBlock: string, newBlock: string): string {
+  const inner = (b: string) => {
+    const lines = b.replace(/\r\n/g, "\n").replace(/\n+$/, "").split("\n");
+    if (lines[0]?.startsWith("```")) lines.shift();
+    if (lines[lines.length - 1]?.startsWith("```")) lines.pop();
+    return lines;
+  };
+  const a = inner(oldBlock);
+  const b = inner(newBlock);
+  let out = "";
+  for (const e of alignBy(a, b, similarEntry)) {
+    if (e.kind === "same") out += escHtml(e.old!) + "\n";
+    else if (e.kind === "mod") out += clauseInner(c, e.old!, e.neu!, escHtml) + "\n";
+    else if (e.kind === "del") out += wholeSpan(c, escHtml(e.old!), "del") + "\n";
+    else out += wholeSpan(c, escHtml(e.neu!), "ins") + "\n";
+  }
+  return `<pre><code>${out}</code></pre>`;
+}
+
 /** Render one changed block against its old version, picking the right granularity. */
 function renderReplacePair(c: Change, oldBlock: string, newBlock: string): string {
   const attrs = `data-id="${c.id}" data-branch="${escAttr(c.branch)}"`;
   if (isProse(oldBlock) && isProse(newBlock)) return `<p>${clauseInner(c, oldBlock, newBlock)}</p>`;
   if (isList(oldBlock) && isList(newBlock)) return listReplace(c, oldBlock, newBlock);
   if (isTable(oldBlock) && isTable(newBlock)) return tableReplace(c, oldBlock, newBlock);
-  // Different block kinds (e.g. code) — show as struck old + green new callouts.
+  if (isCode(oldBlock) && isCode(newBlock)) return codeReplace(c, oldBlock, newBlock);
+  // Different block kinds — show as struck old + green new callouts.
   return (
     `<div class="sug del" ${attrs}>${mdToHtmlDoc(oldBlock)}</div>` +
     `<div class="sug add" ${attrs}>${mdToHtmlDoc(newBlock)}</div>`
