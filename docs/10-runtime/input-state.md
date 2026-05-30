@@ -2,12 +2,13 @@
 id: character-input-state
 title: Character Input State
 status: draft
-version: 26.529.2239
+version: 26.530.949
 tags:
   - runtime
   - input
   - state
   - provenance
+  - links
 ---
 
 # Character Input State
@@ -101,14 +102,14 @@ CharacterInputState is the boundary between gameplay and procedural locomotion. 
 
 ## Output Consumers
 
-- LocomotionStateResolver
-- GaitPhaseGenerator
+- [Locomotion State Resolver](./locomotion-state-resolver.md)
+- [Gait Phase Generator](../09-solvers/gait-phase-generator.md)
 - ModifierResolver
-- FootTargetSolver
-- PelvisSolver
-- SpineSolver
-- ArmSwingSolver
-- PoseComposer
+- [Foot Target Solver](../09-solvers/foot-target-solver.md)
+- [Pelvis Solver](../09-solvers/pelvis-solver.md)
+- [Spine Solver](../09-solvers/spine-solver.md)
+- [Arm Swing Solver](../09-solvers/arm-swing-solver.md)
+- [Pose Composer](../09-solvers/pose-composer.md)
 
 ## Rule Provenance
 
@@ -117,52 +118,52 @@ CharacterInputState is the boundary between gameplay and procedural locomotion. 
 | Field | Value |
 |---|---|
 | Rule | Gameplay fills CharacterInputState; HLS solvers produce pose intent. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md`, `docs/research/source-cards/unreal-engine-control-rig.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Unreal Engine Control Rig](../research/source-cards/unreal-engine-control-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
 | Source type | procedural animation / Unreal Engine implementation |
 | Used from source | Runtime can compute controls and animation systems can apply them. |
 | HLS transformation | Defined CharacterInputState as a gameplay-to-locomotion boundary object. |
 | Confidence | high |
-| Applies to | `Solver Interfaces`, `Output Pose`, `Unreal Engine` |
+| Applies to | [Solver Interfaces](./solver-interfaces.md), [Output Pose](./output-pose.md), [Unreal Engine](../11-unreal-engine/index.md) |
 
 ### Movement and trajectory fields
 
 | Field | Value |
 |---|---|
 | Rule | Input state includes velocity, desired direction, desired speed, and facing direction. |
-| Source card | `docs/research/source-cards/motion-matching.md`, `docs/research/source-cards/pose-warping.md` |
+| Source card | [Motion Matching](../research/source-cards/motion-matching.md), [Pose Warping](../research/source-cards/pose-warping.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/motion-matching-in-unreal-engine |
 | Source type | game animation technique / runtime trajectory concept |
 | Used from source | Trajectory and desired movement are useful control signals for animation selection or adaptation. |
 | HLS transformation | Added movement intent fields for procedural solvers without requiring motion matching. |
 | Confidence | high |
-| Applies to | `LocomotionStateResolver`, `GaitPhaseGenerator`, `PoseComposer` |
+| Applies to | [Locomotion State Resolver](./locomotion-state-resolver.md), [Gait Phase Generator](../09-solvers/gait-phase-generator.md), [Pose Composer](../09-solvers/pose-composer.md) |
 
 ### Terrain and modifier fields
 
 | Field | Value |
 |---|---|
 | Rule | Input state includes terrain, load, injury, weapon, carry, and fatigue state. |
-| Source card | `docs/research/source-cards/stairs-and-slopes.md`, `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/antalgic-gait.md` |
+| Source card | [Stairs and Slopes](../research/source-cards/stairs-and-slopes.md), [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Antalgic Gait](../research/source-cards/antalgic-gait.md) |
 | External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
 | Source type | terrain, load, and clinical gait references |
 | Used from source | Terrain, load, and injury alter gait and posture. |
 | HLS transformation | Added modifier fields so state can affect runtime parameters before solving. |
 | Confidence | medium to high |
-| Applies to | `ModifierStacking`, `ParameterSystem`, `FootTargetSolver`, `SpineSolver` |
+| Applies to | [Modifier Stacking](./modifier-stacking.md), [Parameter System](./parameter-system.md), [Foot Target Solver](../09-solvers/foot-target-solver.md), [Spine Solver](../09-solvers/spine-solver.md) |
 
 ### No final bones in input state
 
 | Field | Value |
 |---|---|
 | Rule | CharacterInputState should not contain final bone transforms. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
 | Source type | implementation constraint |
 | Used from source | IK and rig systems apply targets; gameplay state should not directly own final skeleton output. |
 | HLS transformation | Input contains state, while OutputPose contains pose intent. |
 | Confidence | high |
-| Applies to | `Output Pose`, `PoseComposer`, `Unreal Engine` |
+| Applies to | [Output Pose](./output-pose.md), [Pose Composer](../09-solvers/pose-composer.md), [Unreal Engine](../11-unreal-engine/index.md) |
 
 ## Numeric Data Separation
 
