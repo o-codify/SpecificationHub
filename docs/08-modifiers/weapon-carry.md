@@ -1,8 +1,8 @@
 ---
 id: weapon-carry-modifier
 title: Weapon Carry Modifier
-status: draft
-version: 26.530.1238
+status: review
+version: 26.530.1345
 tags:
   - modifier
   - weapon
