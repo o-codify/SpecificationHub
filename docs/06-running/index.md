@@ -1,8 +1,8 @@
 ---
 id: running
 title: Running
-status: draft
-version: 26.530.1029
+status: review
+version: 26.530.1310
 tags:
   - running
   - gait
