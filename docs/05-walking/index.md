@@ -1,8 +1,8 @@
 ---
 id: walking
 title: Walking
-status: draft
-version: 26.530.1028
+status: review
+version: 26.530.1308
 tags:
   - walking
   - gait
