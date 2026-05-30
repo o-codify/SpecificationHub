@@ -2,12 +2,13 @@
 id: source-card-running-biomechanics
 title: "Source Card: Running Biomechanics"
 status: draft
-version: 26.529.2217
+version: 26.530.1004
 tags:
   - research
   - running
   - gait
   - linked-source
+  - links
 ---
 
 # Source Card: Running Biomechanics
@@ -88,7 +89,7 @@ running biomechanics distinction
 
 ## Used By
 
-- `docs/06-running/index.md`
-- `docs/04-gait-cycle/index.md`
-- `docs/09-solvers/gait-phase-generator.md`
-- `docs/09-solvers/arm-swing-solver.md`
+- [Running](../../06-running/index.md)
+- [Gait Cycle](../../04-gait-cycle/index.md)
+- [Gait Phase Generator](../../09-solvers/gait-phase-generator.md)
+- [Arm Swing Solver](../../09-solvers/arm-swing-solver.md)
