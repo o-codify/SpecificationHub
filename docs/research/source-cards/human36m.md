@@ -2,12 +2,13 @@
 id: source-card-human3-6m
 title: "Source Card: Human3.6M"
 status: draft
-version: 26.529.2214
+version: 26.530.1007
 tags:
   - research
   - dataset
   - pose
   - linked-source
+  - links
 ---
 
 # Source Card: Human3.6M
@@ -73,6 +74,6 @@ Human3.6M has dataset access terms. Review the official EULA before using it for
 
 ## Used By
 
-- `docs/research/datasets.md`
-- `docs/03-joints/index.md`
-- `docs/research/validation-methodology.md`
+- [Motion Datasets](../datasets.md)
+- [Joints](../../03-joints/index.md)
+- [Validation Methodology](../validation-methodology.md)
