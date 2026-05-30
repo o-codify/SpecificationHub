@@ -2,7 +2,7 @@
 id: research-provenance-methodology
 title: Research Provenance Methodology
 status: draft
-version: 26.529.2326
+version: 26.530.1017
 tags:
   - research
   - provenance
@@ -51,9 +51,21 @@ Preferred identifiers:
 
 When referencing another HLS document, use clickable relative Markdown links.
 
+Do not use raw repository-root paths, backticked paths, or bare document names when a link is possible.
+
+### Relative path rules
+
+- Same-directory links must use explicit `./file.md`.
+- Child-directory links must use explicit `./folder/file.md`.
+- Parent or sibling directory links must use `../folder/file.md` or `../../folder/file.md` as needed.
+- Source cards live in `docs/research/source-cards/`, so links from a source card to main docs normally use `../../...`.
+- Links from `docs/research/` to source cards normally use `./source-cards/file.md`.
+
 Correct:
 
 ```md
+- [Same Folder Runtime Doc](./input-state.md)
+- [Source Card](./source-cards/normal-gait-overview.md)
 - [Gait Cycle](../../04-gait-cycle/index.md)
 - [Foot Target Solver](../../09-solvers/foot-target-solver.md)
 - [Runtime Update Order](../update-order.md)
@@ -62,6 +74,8 @@ Correct:
 Incorrect:
 
 ```md
+- [Same Folder Runtime Doc](input-state.md)
+- [Source Card](source-cards/normal-gait-overview.md)
 - `docs/04-gait-cycle/index.md`
 - `docs/09-solvers/foot-target-solver.md`
 - docs/10-runtime/update-order.md
@@ -70,11 +84,11 @@ Incorrect:
 Rule provenance tables should also use clickable internal links:
 
 ```md
-| Source card | [Normal Gait Overview](../source-cards/normal-gait-overview.md) |
-| Applies to | [Gait Phase Generator](../../09-solvers/gait-phase-generator.md) |
+| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md) |
+| Applies to | [Gait Phase Generator](../09-solvers/gait-phase-generator.md) |
 ```
 
-Use paths relative to the file that contains the link, matching the style used by the main branch introduction document.
+Use paths relative to the file that contains the link. Prefer explicit `./` for same-directory and child-directory links because the HLS web renderer may resolve bare relative links incorrectly.
 
 ## Markdown Source Card Format
 
