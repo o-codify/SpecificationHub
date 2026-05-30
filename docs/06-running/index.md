@@ -2,12 +2,13 @@
 id: running
 title: Running
 status: draft
-version: 26.529.2223
+version: 26.530.1002
 tags:
   - running
   - gait
   - locomotion
   - provenance
+  - links
 ---
 
 # Running
@@ -92,52 +93,52 @@ Fatigue reduces arm drive, rebound, and stride length.
 | Field | Value |
 |---|---|
 | Rule | Running uses a separate gait profile from walking. |
-| Source card | `docs/research/source-cards/running-biomechanics.md` |
+| Source card | [Running Biomechanics](../research/source-cards/running-biomechanics.md) |
 | External link | https://www.physio-pedia.com/Running_Biomechanics |
 | Source type | biomechanics overview |
 | Used from source | Running differs from walking in support timing and body dynamics. |
 | HLS transformation | Created a separate Running doc and running solver profile instead of scaling walk speed. |
 | Confidence | high for distinction, medium for exact values |
-| Applies to | `GaitPhaseGenerator`, `FootTargetSolver`, `PelvisSolver`, `ArmSwingSolver` |
+| Applies to | [Gait Phase Generator](../09-solvers/gait-phase-generator.md), [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md), [Arm Swing Solver](../09-solvers/arm-swing-solver.md) |
 
 ### Flight phase
 
 | Field | Value |
 |---|---|
 | Rule | Running can enter `supportMode = flight`. |
-| Source card | `docs/research/source-cards/running-biomechanics.md` |
+| Source card | [Running Biomechanics](../research/source-cards/running-biomechanics.md) |
 | External link | https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7575155/ |
 | Source type | biomechanics overview |
 | Used from source | Running includes aerial / flight behavior unlike ordinary walking double support. |
 | HLS transformation | Added flight support mode and run-specific runtime bands. |
 | Confidence | high |
-| Applies to | `docs/04-gait-cycle/index.md`, `docs/06-running/index.md` |
+| Applies to | [Gait Cycle](../04-gait-cycle/index.md), [Running](./index.md) |
 
 ### Stronger arm swing and pelvis bounce
 
 | Field | Value |
 |---|---|
 | Rule | Running uses stronger arm swing and higher pelvis vertical amplitude than walking. |
-| Source card | `docs/research/source-cards/running-biomechanics.md` |
+| Source card | [Running Biomechanics](../research/source-cards/running-biomechanics.md) |
 | External link | https://www.physio-pedia.com/Running_Biomechanics |
 | Source type | biomechanics overview plus HLS visual inference |
 | Used from source | Running has stronger whole-body dynamics than walking. |
 | HLS transformation | Exposed `ArmSwingAmplitude` and `PelvisVerticalAmplitude` as higher run parameters. |
 | Confidence | medium |
-| Applies to | `ArmSwingSolver`, `PelvisSolver` |
+| Applies to | [Arm Swing Solver](../09-solvers/arm-swing-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md) |
 
 ### Load and injury degrade running
 
 | Field | Value |
 |---|---|
 | Rule | Heavy load and injury can downgrade or restrict running. |
-| Source card | `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/antalgic-gait.md` |
+| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Antalgic Gait](../research/source-cards/antalgic-gait.md) |
 | External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
 | Source type | load carriage topic, clinical gait reference, HLS gameplay inference |
 | Used from source | Load changes posture and gait; pain-related gait protects the painful limb. |
 | HLS transformation | LocomotionStateResolver can downgrade run to jog, walk, or limp when modifiers exceed thresholds. |
 | Confidence | medium |
-| Applies to | `docs/10-runtime/locomotion-state-resolver.md`, `docs/10-runtime/modifier-stacking.md` |
+| Applies to | [Locomotion State Resolver](../10-runtime/locomotion-state-resolver.md), [Modifier Stacking](../10-runtime/modifier-stacking.md) |
 
 ## Numeric Data Separation
 
