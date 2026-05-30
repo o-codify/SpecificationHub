@@ -1,8 +1,8 @@
 ---
 id: backpack-load-modifier
 title: Backpack Load Modifier
-status: draft
-version: 26.530.1231
+status: review
+version: 26.530.1337
 tags:
   - modifier
   - load
