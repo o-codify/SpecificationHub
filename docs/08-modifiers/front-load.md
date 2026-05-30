@@ -2,12 +2,13 @@
 id: front-load-modifier
 title: Front Load Modifier
 status: draft
-version: 26.529.2225
+version: 26.530.019
 tags:
   - modifier
   - load
   - front-load
   - provenance
+  - links
 ---
 
 # Front Load Modifier
@@ -50,26 +51,26 @@ A front load should mainly restrict the upper body and shorten steps. The exact 
 | Field | Value |
 |---|---|
 | Rule | Front load strongly reduces normal arm swing. |
-| Source card | `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/kit-whole-body.md` |
+| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [KIT Whole-Body](../research/source-cards/kit-whole-body.md) |
 | External link | https://motion-database.humanoids.kit.edu/ |
 | Source type | load carriage topic / whole-body dataset reference / HLS inference |
 | Used from source | Carrying objects affects whole-body posture and arm availability. |
 | HLS transformation | Added `ArmSwingMultiplier` and carry override priority for front-load states. |
 | Confidence | medium |
-| Applies to | `ArmSwingSolver`, `PoseComposer`, `ModifierStacking` |
+| Applies to | [Arm Swing Solver](../09-solvers/arm-swing-solver.md), [Pose Composer](../09-solvers/pose-composer.md), [Modifier Stacking](../10-runtime/modifier-stacking.md) |
 
 ### Shorter steps and braced torso
 
 | Field | Value |
 |---|---|
 | Rule | Front load shortens step length and increases spine stiffness. |
-| Source card | `docs/research/source-cards/load-carriage-posture.md` |
+| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md) |
 | External link | https://pubmed.ncbi.nlm.nih.gov/?term=load+carriage+posture+gait+trunk+lean |
 | Source type | load carriage research topic plus gameplay readability inference |
 | Used from source | Load carriage changes posture and gait parameters. |
 | HLS transformation | Added `StepLengthMultiplier`, `CadenceMultiplier`, and `SpineStiffness` for front load. |
 | Confidence | medium |
-| Applies to | `Posture`, `ParameterSystem`, `ModifierStacking` |
+| Applies to | [Posture](../07-posture/index.md), [Parameter System](../10-runtime/parameter-system.md), [Modifier Stacking](../10-runtime/modifier-stacking.md) |
 
 ## Numeric Data Separation
 
