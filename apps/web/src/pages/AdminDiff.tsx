@@ -100,15 +100,20 @@ export function AdminDiff() {
     }
   };
 
+  // "Accept all" merges the whole branch into base in a single operation
+  // (one PR merge in GitHub mode, one git merge locally) — far faster than
+  // applying each document on its own.
   const acceptAll = async () => {
     if (!files || files.length === 0) return;
     setBusy("*");
     setErr("");
     try {
-      for (const f of files) await acceptOne(f.path);
+      const r = await api.merge(base, head, `Accept all changes from ${head}`);
+      const pr = r.pullRequest ? ` (PR #${r.pullRequest.number})` : "";
       toast.show(
         <>
-          Accepted {files.length} document{files.length === 1 ? "" : "s"} into <code>{base}</code>
+          Merged <code>{head}</code> into <code>{base}</code>
+          {pr}
         </>,
       );
       await run();
