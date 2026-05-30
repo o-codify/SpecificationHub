@@ -1,12 +1,11 @@
 ---
 id: parameter-system
 title: Parameter System
-status: draft
-version: 26.530.1059
+status: review
+version: 26.530.1545
 tags:
   - runtime
   - parameters
-  - tuning
   - provenance
   - links
   - numeric
@@ -16,167 +15,172 @@ tags:
 
 ## Purpose
 
-Defines how HLS stores, resolves, and tunes locomotion parameters.
+Defines runtime parameters, first-pass numeric ranges, and safety clamps used by HLS solvers.
 
-Parameters are the bridge between research rules and runtime solvers.
+The parameter system converts gameplay input, locomotion state, character scale, and modifiers into resolved values consumed by solvers.
 
-## Parameter Groups
+## Runtime Contract
 
-### Gait Parameters
+```text
+CharacterInputState
+  -> LocomotionStateResolver
+  -> ParameterSystem / ModifierResolver
+  -> ResolvedParameters
+  -> Solvers
+```
 
-- cadence: steps per minute, walk 100..120, run 150..190
-- stance ratio: walk 0.58..0.62, run 0.30..0.45
-- swing ratio: `1 - stanceRatio`
-- step length: meters, walk 0.60..0.80, run 0.90..1.60
-- step width: meters, 0.08..0.22
-- foot lift height: meters, flat walk 0.04..0.10
-- gait phase speed: `CadenceSPM / 120` stride cycles per second
+## Gait Parameters
 
-### Pelvis Parameters
+| Parameter | First-pass range | Usage |
+|---|---:|---|
+| WalkCadence | 100..120 spm | walking timing |
+| RunCadence | 150..190 spm | running timing |
+| WalkStanceRatio | 0.58..0.62 | walking stance |
+| RunStanceRatio | 0.30..0.45 | running stance |
+| WalkStepLength | 0.60..0.80 m | walking speed sanity |
+| RunStepLength | 0.90..1.60 m | running speed sanity |
+| StepWidth | 0.08..0.22 m | support width |
+| FootLift | 0.04..0.10 m | flat-ground clearance |
 
-- pelvis height
-- pelvis vertical amplitude: meters, walk 0.02..0.05, run multiplier 1.25..2.00
-- pelvis yaw amplitude: degrees, 2..6
-- pelvis roll amplitude: degrees, 1..4
-- pelvis pitch bias: degrees, modifier clamp -10..15
-- pelvis smoothing: seconds, 0.08..0.20
+## Solver Parameters
 
-### Spine Parameters
+| Parameter | First-pass range | Usage |
+|---|---:|---|
+| PelvisVerticalAmplitude | 0.02..0.05 m | walking pelvis rhythm |
+| RunPelvisMultiplier | 1.25..2.00 | running pelvis amplification |
+| PelvisYawAmplitude | 2..6 deg | pelvis rhythm |
+| PelvisRollAmplitude | 1..4 deg | weight transfer |
+| PelvisPitchBias | -10..15 deg | slope/load/posture |
+| PelvisSmoothing | 0.08..0.20 s | continuity |
+| TorsoLeanWalk | 0..5 deg | walking posture |
+| TorsoLeanRun | 5..15 deg | running posture |
+| TorsoRollClamp | -10..10 deg | load/injury bias clamp |
+| ShoulderCounterRotation | 0.5..1.0 | opposite pelvis yaw |
+| WalkArmSwing | 10..35 deg | walking arm swing |
+| RunArmMultiplier | 1.20..1.75 | running arm drive |
 
-- torso lean: degrees, walk 0..5, run 5..15 before modifiers
-- torso roll: degrees, first-pass clamp -10..10
-- shoulder counter rotation: degrees, 0.5..1.0 of pelvis yaw in opposite direction
-- spine stiffness: normalized 0..1
-- head stabilization: normalized 0..1
+## Modifier Parameters
 
-### Arm Parameters
+| Parameter | First-pass range | Usage |
+|---|---:|---|
+| StepLengthMultiplier | 0.65..1.20 | load/injury/terrain |
+| CadenceMultiplier | 0.70..1.15 | load/injury/fatigue |
+| SpeedMultiplier | 0.50..1.15 | global movement effect |
+| ArmSwingMultiplier | 0.00..1.75 | running/load/weapon |
+| TurnSpeedMultiplier | 0.40..1.10 | turning/load/weapon |
+| FootClearanceBonus | 0.00..0.20 m | slope/stairs |
+| SevereInjuryThreshold | 0.65..0.80 | state downgrade |
+| HeavyLoadThreshold | 0.65..0.80 | state downgrade |
 
-- arm swing amplitude: degrees, walk 10..35, run multiplier 1.20..1.75
-- arm phase offset: default opposite leg phase, 0.5 cycle offset
-- elbow bend amount: degrees, character/style dependent
-- arm freedom: normalized 0..1
-- weapon stabilization: normalized 0..1
+## Terrain Parameters
 
-### Terrain Parameters
+| Parameter | First-pass range | Usage |
+|---|---:|---|
+| SlopeActivationAngle | 3..5 deg | slope modifier activation |
+| ExtremeSlopeAngle | 25..35 deg | steep slope response |
+| SlopeFootLiftBonus | 0.002..0.006 m/deg | uphill clearance |
+| StepHeight | 0.10..0.25 m | stair traversal |
+| StepDepth | 0.22..0.35 m | stair traversal |
+| StairFootClearanceBonus | 0.03..0.08 m | stair clearance |
+| TreadConfidence | 0.60..0.80 | stair override confidence |
 
-- slope torso pitch: degrees, tuning scale 0.2..0.6 per uphill degree before clamp
-- slope foot lift multiplier
-- stair foot clearance: meters, base foot lift plus 0.03..0.08
-- stair pelvis smoothing: seconds, 0.10..0.25
-- terrain confidence: normalized 0..1
+## Network / Continuity Parameters
 
-### Modifier Parameters
-
-- load weight normalized: 0..1
-- injury severity: 0..1
-- fatigue: 0..1
-- carry restriction: 0..1
-- weapon readiness: 0..1
-
-## Rules
-
-- Parameters should be tunable in data assets or equivalent config.
-- Parameters should be normalized where possible.
-- Character scale converts normalized parameters into world units.
-- Modifiers should change parameters before solvers run.
-- Solvers should not hard-code gameplay state.
-- Default parameters should produce acceptable walking without modifiers.
-- All dimensional parameters must declare units.
-- All resolver outputs must pass safety clamps before solver use.
-
-## Resolution Order
-
-1. load base profile for current gait
-2. apply character scale
-3. apply locomotion state adjustments
-4. apply terrain modifiers
-5. apply load and carry modifiers
-6. apply injury and fatigue modifiers
-7. clamp to safe limits
-8. send resolved parameters to solvers
+| Parameter | First-pass range | Usage |
+|---|---:|---|
+| PoseSmoothing | 0.08..0.20 s | pose continuity |
+| PhaseCorrectionTime | 0.10..0.30 s | network phase correction |
+| MinimumStateTime | 0.15..0.35 s | anti-flicker |
+| StateConfidenceSmoothing | 0.08..0.20 s | state smoothing |
+| TeleportPhaseSnapThreshold | 0.35..0.50 cycle | hard phase reset |
 
 ## Safety Clamps
 
-- minimum step length: 0.20 m or character-scale equivalent
-- maximum step length: `0.80..1.10 * LegLength`
-- minimum stance ratio: 0.30
-- maximum stance ratio: 0.75
-- maximum torso lean: 20 degrees first-pass gameplay clamp
-- maximum pelvis offset: `0.10..0.18 * LegLength`
-- maximum foot lift: 0.30 m before stair-specific override
-- maximum IK reach: `0.85..0.95 * LegLength`
+```text
+MinimumStepLength = 0.20 m
+MaximumStepLength = 0.80..1.10 * LegLength
+StanceRatioClamp = 0.30..0.75
+MaxTorsoLean = 20 deg
+MaxPelvisOffset = 0.10..0.18 * LegLength
+MaxFootLift = 0.30 m before stair override
+IKReach = 0.85..0.95 * LegLength
+FootOrientationClamp = 25 deg pitch/roll
+```
+
+## Rules
+
+- Source-backed relationships, HLS tuning ranges, and runtime clamps must remain distinguishable.
+- Modifiers resolve to parameters before solver execution.
+- Solvers should consume ResolvedParameters rather than raw gameplay state when possible.
+- Safety clamps must run before OutputPose.
+- Clamped values must emit debug warnings.
 
 ## Rule Provenance
 
-### Parameters bridge research and solvers
+### Gait parameter ranges
 
 | Field | Value |
 |---|---|
-| Rule | Research-backed concepts must become tunable runtime parameters before solvers use them. |
-| Source card | [Research Provenance Methodology](../research/provenance-methodology.md), [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
-| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
-| Source type | HLS methodology / procedural implementation constraint |
-| Used from source | Procedural systems need explicit controls and targets rather than vague descriptions. |
-| HLS transformation | Created grouped parameter system for gait, pelvis, spine, arms, terrain, and modifiers with explicit units and first-pass ranges. |
-| Confidence | high |
-| Applies to | all solvers and modifiers |
-
-### Source numeric data must be separated from tuning values
-
-| Field | Value |
-|---|---|
-| Rule | Scientific numeric data, HLS defaults, and tuning ranges must be separated. |
-| Source card | [Research Provenance Methodology](../research/provenance-methodology.md), [Normal Gait Overview](../research/source-cards/normal-gait-overview.md) |
+| Rule | Walking and running use distinct cadence, stance ratio, and step length ranges. |
+| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md), [Running Biomechanics](../research/source-cards/running-biomechanics.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
-| Source type | provenance methodology / gait overview |
-| Used from source | Some values, such as walking stance/swing ratio, are source-backed defaults; many other values are gameplay tuning. |
-| HLS transformation | Parameter docs mark tuning ranges separately from source-backed facts. Walk stance 0.60 is source-backed; clamps like pelvis offset, foot lift, and torso lean are HLS tuning or implementation safety values. |
-| Confidence | high |
-| Applies to | [Gait Phase Generator](../09-solvers/gait-phase-generator.md), [Modifier Stacking](./modifier-stacking.md), [Validation Methodology](../research/validation-methodology.md) |
+| Source type | gait overview / running biomechanics overview |
+| Used from source | Walking and running have different timing and support structure. |
+| HLS transformation | First-pass HLS ranges define cadence, stance ratio, and step length for procedural runtime. |
+| Confidence | medium-high |
+| Applies to | [Gait Cycle](../04-gait-cycle/index.md), [Walking](../05-walking/index.md), [Running](../06-running/index.md) |
 
-### Modifiers change parameters before solvers
+### Parameters before solvers
 
 | Field | Value |
 |---|---|
-| Rule | Modifiers should change parameters before solvers run. |
+| Rule | Runtime resolves parameters before solver execution. |
 | Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Antalgic Gait](../research/source-cards/antalgic-gait.md) |
-| External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
-| Source type | procedural architecture plus gait/load evidence |
-| Used from source | Gameplay state such as injury, terrain, and load changes locomotion quality and posture. |
-| HLS transformation | ModifierResolver resolves gait/load/injury/terrain parameters before FootTarget, Pelvis, Spine, and Arm solvers. First-pass severe modifiers may reduce step length or cadence by 10..35 percent before state downgrade. |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
+| Source type | procedural animation architecture / modifier references |
+| Used from source | Procedural animation can solve from runtime controls; load and injury alter gait and posture. |
+| HLS transformation | ParameterSystem / ModifierResolver produces ResolvedParameters for phase, foot, pelvis, spine, arm, and pose composition solvers. |
 | Confidence | high as architecture rule |
-| Applies to | [Modifier Stacking](./modifier-stacking.md), [Solver Interfaces](./solver-interfaces.md), [Pose Composer](../09-solvers/pose-composer.md) |
+| Applies to | [Runtime Update Order](./update-order.md), [Solver Interfaces](./solver-interfaces.md), [Modifier Stacking](./modifier-stacking.md) |
 
-### Safety clamps
+### Safety clamps before output
 
 | Field | Value |
 |---|---|
-| Rule | Resolved parameters must be clamped before solver use. |
-| Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md), [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md) |
+| Rule | Runtime values must be clamped before final OutputPose. |
+| Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md), [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
-| Source type | IK / implementation constraint |
-| Used from source | IK and skeletal solving require reachable targets and stable constraints. |
-| HLS transformation | Added safety clamps for step length, stance ratio, torso lean, pelvis offset, foot lift, and IK reach. IK reach uses 0.85..0.95 of leg length as a first-pass safe range. |
+| Source type | IK implementation constraint / procedural architecture |
+| Used from source | Procedural targets and IK goals must remain reachable and stable before rig application. |
+| HLS transformation | Added step, stance, torso, pelvis, foot lift, and IK reach clamps. Clamp changes emit debug warnings. |
 | Confidence | high |
-| Applies to | [Runtime Constraints](./constraints.md), [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md) |
+| Applies to | [Runtime Constraints](./constraints.md), [Output Pose](./output-pose.md), [Debug Visualization](./debug-visualization.md) |
+
+### Numeric data separation
+
+| Field | Value |
+|---|---|
+| Rule | Source-backed facts, HLS tuning ranges, and clamps must stay separated. |
+| Source card | [Research Provenance Methodology](../research/provenance-methodology.md) |
+| External link | [Research Provenance Methodology](../research/provenance-methodology.md) |
+| Source type | HLS methodology |
+| Used from source | Runtime docs should identify where values come from and how they are transformed. |
+| HLS transformation | Parameter tables identify first-pass ranges and usage; provenance tables explain source versus HLS transformation. |
+| Confidence | high |
+| Applies to | all numeric runtime docs |
 
 ## Numeric Data Separation
 
 | Value | Category | Usage |
 |---|---|---|
-| walking stance/swing ratio | source-backed default | gait phase defaults |
-| `WalkStanceRatio = 0.58..0.62` | HLS tuning range around source default | ordinary walking |
-| `RunStanceRatio = 0.30..0.45` | HLS tuning value | run profile |
-| `StepWidth = 0.08..0.22 m` | HLS tuning value | foot placement |
-| `FootLift = 0.04..0.10 m` | HLS tuning value | flat terrain clearance |
-| `PelvisVerticalAmplitude = 0.02..0.05 m` | HLS tuning value | walking pelvis motion |
-| `PelvisSmoothing = 0.08..0.20 s` | HLS tuning value | smoothing |
-| `IKReach = 0.85..0.95 * LegLength` | implementation constraint / skeleton profile | safety clamp |
-| pelvis/spine/arm amplitudes | HLS tuning values | visual tuning |
-| IK reach limits | implementation constraint / skeleton profile | safety clamp |
+| walking stance longer than swing | source-backed relationship | gait timing |
+| running shorter stance / possible flight | source-backed relationship | gait timing |
+| gait and solver ranges | HLS tuning ranges | runtime control |
+| safety clamps | HLS implementation rules | prevent invalid output |
+| debug warnings | HLS tooling requirement | validation and tuning |
 
 ## Open Questions
 
-- Exact data asset schema for Unreal Engine.
-- Whether profiles should be per character, per skeleton, or per movement style.
-- How much parameter blending is required during transitions.
+- Exact per-character scaling policy for very short/tall characters.
+- Whether sprinting should have separate cadence, stance, and lean ranges.
+- Which parameter groups should become Unreal data assets first.
