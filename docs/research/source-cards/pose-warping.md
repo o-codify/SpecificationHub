@@ -2,12 +2,13 @@
 id: source-card-pose-warping
 title: "Source Card: Pose Warping"
 status: draft
-version: 26.529.2216
+version: 26.530.1014
 tags:
   - research
   - pose-warping
   - animation
   - linked-source
+  - links
 ---
 
 # Source Card: Pose Warping
@@ -83,6 +84,6 @@ pose warping concept
 
 ## Used By
 
-- `docs/09-solvers/pose-composer.md`
-- `docs/10-runtime/update-order.md`
-- `docs/11-unreal-engine/index.md`
+- [Pose Composer](../../09-solvers/pose-composer.md)
+- [Runtime Update Order](../../10-runtime/update-order.md)
+- [Unreal Engine](../../11-unreal-engine/index.md)
