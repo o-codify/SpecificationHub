@@ -101,9 +101,10 @@ export function AdminDiff() {
   };
 
   // "Accept all" applies the whole branch's content into base in ONE commit
-  // (status/tags included, version re-stamped). It does NOT merge the PR —
-  // individual accepts already commit to base, so the PR usually diverged. The
-  // now-consumed branch is then deleted (which closes its PR).
+  // (status/tags included, version re-stamped). It does NOT merge or touch the
+  // branch's PR (individual accepts already commit to base, so the PR usually
+  // diverged) and it leaves the branch in place — delete it from Branches if
+  // you want. After it runs the branch simply shows no remaining changes.
   const acceptAll = async () => {
     if (!files || files.length === 0) return;
     const branch = head;
@@ -111,22 +112,13 @@ export function AdminDiff() {
     setErr("");
     try {
       const r = await api.acceptAll(base, branch, `Accept all changes from ${branch}`);
-      try {
-        await api.deleteBranch(branch);
-      } catch {
-        /* branch cleanup is best-effort */
-      }
       toast.show(
         <>
           Accepted {r.count} document{r.count === 1 ? "" : "s"} from <code>{branch}</code> into{" "}
           <code>{base}</code>
         </>,
       );
-      const br = await api.branches();
-      const names = br.branches.map((b) => b.name);
-      setBranches(names);
-      setFiles(null);
-      setHead(names.find((n) => n !== base) ?? "");
+      await run();
     } catch (e) {
       setErr(String((e as Error).message));
     } finally {
