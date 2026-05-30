@@ -2,12 +2,13 @@
 id: runtime-constraints
 title: Runtime Constraints
 status: draft
-version: 26.529.2305
+version: 26.530.957
 tags:
   - runtime
   - constraints
   - safety
   - provenance
+  - links
 ---
 
 # Runtime Constraints
@@ -70,39 +71,39 @@ Whenever a clamp changes a value, debug output should expose it.
 | Field | Value |
 |---|---|
 | Rule | Foot targets must remain reachable and stance feet should remain stable. |
-| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md), [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
 | Source type | IK implementation constraint |
 | Used from source | Stable contact and reachable targets prevent visible artifacts. |
 | HLS transformation | Added IK reach limits, foot lock constraints, and terrain clearance checks. |
 | Confidence | high |
-| Applies to | `FootTargetSolver`, `PelvisSolver`, `OutputPose` |
+| Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md), [Output Pose](./output-pose.md) |
 
 ### Modifier downgrade instead of pose breakage
 
 | Field | Value |
 |---|---|
 | Rule | Injury and load should downgrade gait before producing extreme poses. |
-| Source card | `docs/research/source-cards/antalgic-gait.md`, `docs/research/source-cards/load-carriage-posture.md` |
+| Source card | [Antalgic Gait](../research/source-cards/antalgic-gait.md), [Load Carriage Posture](../research/source-cards/load-carriage-posture.md) |
 | External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
 | Source type | clinical gait and load carriage references |
 | Used from source | Pain and load alter locomotion behavior rather than creating impossible movement. |
 | HLS transformation | Resolver downgrades locomotion state before extreme parameter values are allowed. |
 | Confidence | medium-high |
-| Applies to | `LocomotionStateResolver`, `ModifierStacking` |
+| Applies to | [Locomotion State Resolver](./locomotion-state-resolver.md), [Modifier Stacking](./modifier-stacking.md) |
 
 ### Networking continuity
 
 | Field | Value |
 |---|---|
 | Rule | Network corrections should preserve continuity whenever possible. |
-| Source card | `docs/research/source-cards/motion-matching.md`, `docs/research/source-cards/lafan1.md` |
+| Source card | [Motion Matching](../research/source-cards/motion-matching.md), [LaFAN1](../research/source-cards/lafan1.md) |
 | External link | https://github.com/ubisoft/ubisoft-laforge-animation-dataset |
 | Source type | transition continuity reference |
 | Used from source | Temporal continuity is critical for believable locomotion. |
 | HLS transformation | Added gradual phase correction and anti-pop smoothing requirements. |
 | Confidence | high |
-| Applies to | `Networking`, `GaitPhaseGenerator`, `PoseComposer` |
+| Applies to | [Networking](./networking.md), [Gait Phase Generator](../09-solvers/gait-phase-generator.md), [Pose Composer](../09-solvers/pose-composer.md) |
 
 ## Numeric Data Separation
 
