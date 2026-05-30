@@ -2,13 +2,14 @@
 id: turning-starting-and-stopping
 title: Turning, Starting, and Stopping
 status: draft
-version: 26.529.2229
+version: 26.530.1003
 tags:
   - modifier
   - turning
   - start
   - stop
   - provenance
+  - links
 ---
 
 # Turning, Starting, and Stopping
@@ -17,7 +18,7 @@ tags:
 
 Defines visual rules for starting, stopping, turning in place, turning while moving, pivot steps, sidestep, and backward walking.
 
-These actions are not full physics. They are visual rules that make momentum and intention readable.
+These actions are visual rules that make momentum and intention readable.
 
 ## Starting Rules
 
@@ -80,39 +81,39 @@ These actions are not full physics. They are visual rules that make momentum and
 | Field | Value |
 |---|---|
 | Rule | Start and stop should be explicit states, not only speed changes. |
-| Source card | `docs/research/source-cards/gait-transitions-turning.md` |
+| Source card | [Gait Transitions and Turning](../research/source-cards/gait-transitions-turning.md) |
 | External link | https://pubmed.ncbi.nlm.nih.gov/?term=gait+initiation+turning+walking+biomechanics |
 | Source type | gait transition research topic plus HLS gameplay readability |
 | Used from source | Gait initiation and stopping are transition behaviors with body preparation and support changes. |
-| HLS transformation | Added Start and Stop states in `LocomotionStateResolver` with lean and step adjustments. |
+| HLS transformation | Added Start and Stop states in [Locomotion State Resolver](../10-runtime/locomotion-state-resolver.md) with lean and step adjustments. |
 | Confidence | medium |
-| Applies to | `LocomotionStateResolver`, `SpineSolver`, `FootTargetSolver` |
+| Applies to | [Locomotion State Resolver](../10-runtime/locomotion-state-resolver.md), [Spine Solver](../09-solvers/spine-solver.md), [Foot Target Solver](../09-solvers/foot-target-solver.md) |
 
 ### Turning should use foot targets and torso lag
 
 | Field | Value |
 |---|---|
 | Rule | Turning should not rotate the body as one rigid block. |
-| Source card | `docs/research/source-cards/gait-transitions-turning.md`, `docs/research/source-cards/pose-warping.md` |
+| Source card | [Gait Transitions and Turning](../research/source-cards/gait-transitions-turning.md), [Pose Warping](../research/source-cards/pose-warping.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/pose-warping-in-unreal-engine |
 | Source type | locomotion topic / game animation implementation |
 | Used from source | Direction changes need trajectory adaptation and pose continuity. |
 | HLS transformation | Added foot target redirection, pelvis turn, chest lag, and optional head lead. |
 | Confidence | medium |
-| Applies to | `FootTargetSolver`, `SpineSolver`, `PoseComposer` |
+| Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Spine Solver](../09-solvers/spine-solver.md), [Pose Composer](../09-solvers/pose-composer.md) |
 
 ### Pivot steps instead of sliding
 
 | Field | Value |
 |---|---|
 | Rule | Turn-in-place should use visible pivot steps instead of sliding feet. |
-| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/gait-transitions-turning.md` |
+| Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md), [Gait Transitions and Turning](../research/source-cards/gait-transitions-turning.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
 | Source type | implementation constraint / game animation readability |
 | Used from source | Foot contact stability is critical for believable ground interaction. |
 | HLS transformation | Added `PivotStepThreshold` and turn-in-place foot target rules. |
 | Confidence | high for visual rule, medium for thresholds |
-| Applies to | `FootTargetSolver`, `PoseComposer`, `Runtime Constraints` |
+| Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pose Composer](../09-solvers/pose-composer.md), [Runtime Constraints](../10-runtime/constraints.md) |
 
 ## Numeric Data Separation
 
