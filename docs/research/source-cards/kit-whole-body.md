@@ -2,12 +2,13 @@
 id: source-card-kit-whole-body-human-motion-database
 title: "Source Card: KIT Whole-Body Human Motion Database"
 status: draft
-version: 26.529.2215
+version: 26.530.1009
 tags:
   - research
   - dataset
   - whole-body
   - linked-source
+  - links
 ---
 
 # Source Card: KIT Whole-Body Human Motion Database
@@ -77,8 +78,8 @@ Check official database access terms before training, redistribution, or commerc
 
 ## Used By
 
-- `docs/research/datasets.md`
-- `docs/07-posture/index.md`
-- `docs/08-modifiers/front-load.md`
-- `docs/08-modifiers/asymmetric-load.md`
-- `docs/research/validation-methodology.md`
+- [Motion Datasets](../datasets.md)
+- [Posture](../../07-posture/index.md)
+- [Front Load Modifier](../../08-modifiers/front-load.md)
+- [Asymmetric Load Modifier](../../08-modifiers/asymmetric-load.md)
+- [Validation Methodology](../validation-methodology.md)
