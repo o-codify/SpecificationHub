@@ -2,12 +2,13 @@
 id: source-card-joint-kinematics-overview
 title: "Source Card: Joint Kinematics Overview"
 status: draft
-version: 26.529.2218
+version: 26.530.1008
 tags:
   - research
   - joints
   - kinematics
   - linked-source
+  - links
 ---
 
 # Source Card: Joint Kinematics Overview
@@ -90,8 +91,8 @@ joint kinematics overview
 
 ## Used By
 
-- `docs/03-joints/index.md`
-- `docs/05-walking/index.md`
-- `docs/09-solvers/pelvis-solver.md`
-- `docs/09-solvers/spine-solver.md`
-- `docs/09-solvers/arm-swing-solver.md`
+- [Joints](../../03-joints/index.md)
+- [Walking](../../05-walking/index.md)
+- [Pelvis Solver](../../09-solvers/pelvis-solver.md)
+- [Spine Solver](../../09-solvers/spine-solver.md)
+- [Arm Swing Solver](../../09-solvers/arm-swing-solver.md)
