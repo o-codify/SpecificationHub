@@ -1,14 +1,15 @@
 ---
 id: unreal-engine
 title: Unreal Engine
-status: draft
-version: 26.530.1059
+status: review
+version: 26.530.1549
 tags:
   - unreal-engine
   - control-rig
   - ik
   - provenance
   - links
+  - numeric
 ---
 
 # Unreal Engine
@@ -17,7 +18,7 @@ tags:
 
 Defines how HLS maps to Unreal Engine implementation.
 
-HLS should be implementable with C++, Animation Blueprint, Control Rig, IK, and debug visualization.
+HLS should be implementable with C++, Animation Blueprint, Control Rig, IK, networking, and debug visualization.
 
 ## Core Rule
 
@@ -39,7 +40,7 @@ UHLSLocomotionComponent
 | `UHLSAnimInstance` | exposes HLS output to AnimBP and Control Rig |
 | HLS Control Rig | applies foot, pelvis, spine, arm, and hand intent to the skeleton |
 | IK Rig / Full Body IK | solves skeletal constraints toward HLS targets |
-| HLS debug draw component | visualizes phase, targets, locks, modifiers, and warnings |
+| HLS debug draw component | visualizes phase, targets, locks, modifiers, warnings, and validation metrics |
 | data assets | store gait profiles, modifier curves, solver tuning, and skeleton profiles |
 
 ## C++ Runtime
@@ -48,13 +49,15 @@ C++ should own deterministic state and solver logic:
 
 - input state collection
 - locomotion state resolution
+- parameter and modifier resolution
 - gait phase
-- modifiers
 - foot targets
 - pelvis intent
 - spine intent
 - arm intent
-- network-friendly state
+- pose composition
+- runtime constraints and clamp warnings
+- network-friendly compact state
 
 ## Animation Blueprint
 
@@ -98,6 +101,14 @@ Server owns gameplay state. Clients can solve pose locally from replicated movem
 
 Do not replicate full bone poses for normal locomotion.
 
+```text
+ReplicatedCompactState
+  -> LocalParameterResolution
+  -> LocalSolvers
+  -> PoseComposer
+  -> OutputPose
+```
+
 ## Debug Visualization
 
 Required debug views:
@@ -106,10 +117,32 @@ Required debug views:
 - left and right foot phase
 - foot targets
 - foot lock state
-- pelvis offset
+- pelvis offset and clamp state
 - slope and ground normal
 - active modifiers
 - final IK target positions
+- phase correction value
+- foot slide metric
+- clamp warnings
+- network role and correction state
+
+## Key Runtime Contracts
+
+```text
+CharacterInputState
+  -> LocomotionStateResolver
+  -> ParameterSystem / ModifierResolver
+  -> Solvers
+  -> PoseComposer
+  -> RuntimeConstraints
+  -> OutputPose
+  -> AnimBP / ControlRig / IK
+```
+
+```text
+FootLockPriority > PoseWarpPriority > CosmeticSecondaryMotion
+SafetyClamps run before OutputPose
+```
 
 ## Related HLS Docs
 
@@ -117,6 +150,8 @@ Required debug views:
 - [Runtime Update Order](../10-runtime/update-order.md)
 - [Output Pose](../10-runtime/output-pose.md)
 - [Solver Interfaces](../10-runtime/solver-interfaces.md)
+- [Networking Model](../10-runtime/networking.md)
+- [Debug Visualization](../10-runtime/debug-visualization.md)
 - [Foot Target Solver](../09-solvers/foot-target-solver.md)
 - [Pelvis Solver](../09-solvers/pelvis-solver.md)
 - [Pose Composer](../09-solvers/pose-composer.md)
@@ -158,7 +193,7 @@ Required debug views:
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
 | Source type | Unreal Engine IK documentation |
 | Used from source | IK Rig and Full Body IK solve skeletons toward targets and constraints. |
-| HLS transformation | FootTargetSolver and PelvisSolver output IK-ready target data. |
+| HLS transformation | FootTargetSolver and PelvisSolver output IK-ready target data; RuntimeConstraints clamp unreachable targets before OutputPose. |
 | Confidence | high |
 | Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md), [Runtime Constraints](../10-runtime/constraints.md) |
 
@@ -167,13 +202,23 @@ Required debug views:
 | Field | Value |
 |---|---|
 | Rule | UE implementation should replicate compact HLS state, not full bone poses. |
-| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Networking Model](../10-runtime/networking.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/networking-and-multiplayer-in-unreal-engine |
 | Source type | Unreal Engine networking / HLS architecture |
 | Used from source | Gameplay state and visual reconstruction can be separated in networked animation. |
 | HLS transformation | Replicate movement, locomotion state, modifiers, optional compressed phase; solve pose locally. |
 | Confidence | high |
 | Applies to | [Networking](../10-runtime/networking.md), Network Notes |
+
+## Numeric Data Separation
+
+| Value | Category | Usage |
+|---|---|---|
+| runtime owns intent | HLS architecture rule | UE implementation split |
+| compact replicated state | HLS networking contract | multiplayer implementation |
+| foot lock priority | HLS implementation rule | IK / Control Rig ordering |
+| safety clamps before output | HLS implementation rule | prevent invalid targets |
+| debug metrics | HLS tooling requirement | editor and PIE validation |
 
 ## Open Questions
 
