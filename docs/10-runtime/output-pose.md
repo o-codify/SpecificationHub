@@ -1,14 +1,15 @@
 ---
 id: output-pose
 title: Output Pose
-status: draft
-version: 26.530.1000
+status: review
+version: 26.530.1414
 tags:
   - runtime
   - output
   - pose
   - provenance
   - links
+  - numeric
 ---
 
 # Output Pose
@@ -30,6 +31,7 @@ OutputPose is not the final skeletal pose. It is pose intent for IK, FK, Control
 - left foot lock state
 - right foot lock state
 - foot surface normals
+- foot reach warning state
 
 ### Pelvis Outputs
 
@@ -37,6 +39,7 @@ OutputPose is not the final skeletal pose. It is pose intent for IK, FK, Control
 - pelvis rotation offset
 - pelvis smoothing value
 - balance or support side
+- pelvis reach warning state
 
 ### Spine Outputs
 
@@ -63,6 +66,8 @@ OutputPose is not the final skeletal pose. It is pose intent for IK, FK, Control
 - active modifiers
 - clamp warnings
 - solver warnings
+- pose smoothing value
+- phase correction value
 
 ## Rules
 
@@ -70,6 +75,20 @@ OutputPose is not the final skeletal pose. It is pose intent for IK, FK, Control
 - OutputPose should be convertible to Control Rig controls.
 - OutputPose should be serializable for debugging.
 - OutputPose should separate intent from final bone transforms.
+- OutputPose must expose clamp/debug state when runtime constraints modify a value.
+- OutputPose must preserve foot contact and lock state so animation application does not erase solver intent.
+
+## Runtime Contract
+
+```text
+PoseComposer -> RuntimeConstraints -> OutputPose -> AnimBP / ControlRig / IK
+```
+
+```text
+OutputPose contains intent, targets, priorities, clamps, and debug channels.
+OutputPose does not contain authoritative final bone transforms for normal locomotion.
+FootLockPriority > PoseWarpPriority > CosmeticSecondaryMotion
+```
 
 ## Rule Provenance
 
@@ -95,7 +114,7 @@ OutputPose is not the final skeletal pose. It is pose intent for IK, FK, Control
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
 | Source type | IK implementation constraint |
 | Used from source | IK systems need targets and constraints to solve skeletal feet and body position. |
-| HLS transformation | OutputPose exposes contact and target data instead of hidden solver state. |
+| HLS transformation | OutputPose exposes contact and target data instead of hidden solver state. Foot and pelvis reach warnings are exposed before skeletal application. |
 | Confidence | high |
 | Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md), [Runtime Constraints](./constraints.md) |
 
@@ -108,9 +127,22 @@ OutputPose is not the final skeletal pose. It is pose intent for IK, FK, Control
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
 | Source type | implementation/debugging constraint |
 | Used from source | Procedural systems require inspectable controls and solver outputs for tuning. |
-| HLS transformation | OutputPose carries gait phase, active state, modifiers, clamp warnings, and solver warnings. |
+| HLS transformation | OutputPose carries gait phase, active state, modifiers, clamp warnings, solver warnings, smoothing values, and phase correction values. |
 | Confidence | high |
 | Applies to | [Debug Visualization](./debug-visualization.md), [Validation Methodology](../research/validation-methodology.md) |
+
+### Output preserves composition priority
+
+| Field | Value |
+|---|---|
+| Rule | OutputPose must preserve contact and priority decisions made by PoseComposer. |
+| Source card | [Pose Warping](../research/source-cards/pose-warping.md), [IK Foot Placement](../research/source-cards/ik-foot-placement.md), [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
+| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/pose-warping-in-unreal-engine |
+| Source type | pose adaptation / IK implementation constraint |
+| Used from source | Pose adaptation is useful only if contact timing and foot locks remain stable. |
+| HLS transformation | OutputPose carries foot lock state, priority flags, and clamp warnings so downstream animation cannot silently override contact constraints. |
+| Confidence | high as implementation rule |
+| Applies to | [Pose Composer](../09-solvers/pose-composer.md), [Runtime Update Order](./update-order.md), [Runtime Constraints](./constraints.md) |
 
 ## Numeric Data Separation
 
@@ -119,9 +151,13 @@ OutputPose is not the final skeletal pose. It is pose intent for IK, FK, Control
 | output groups | HLS architecture contract | UE implementation |
 | IK targets | implementation output | Control Rig / IK Rig input |
 | debug warnings | HLS tooling requirement | validation and tuning |
+| `FootLockPriority > PoseWarpPriority` | HLS implementation rule | contact preservation |
+| `PoseSmoothing = 0.08..0.20 s` | HLS tuning range | debug/output channel |
+| `PhaseCorrectionTime = 0.10..0.30 s` | HLS tuning range | debug/output channel |
 
 ## Open Questions
 
 - Exact data structure for first C++ implementation.
 - Whether hand IK should be part of OutputPose or weapon system output.
 - Whether OutputPose should support LOD-reduced variants.
+- Whether remote proxies need a reduced OutputPose schema.
