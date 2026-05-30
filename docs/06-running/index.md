@@ -2,7 +2,7 @@
 id: running
 title: Running
 status: review
-version: 26.530.1542
+version: 26.530.1548
 tags:
   - running
   - gait
@@ -60,7 +60,7 @@ SwingAndFlightDuration = StrideDuration * (1 - RunStanceRatio)
 | Field | Value |
 |---|---|
 | Rule | Running uses shorter stance than walking and may include flight. |
-| Source card | [Running Biomechanics](../research/source-cards/running-biomechanics.md) |
+| Source card | [Running Biomechanics](../../research/source-cards/running-biomechanics.md) |
 | External link | https://www.physio-pedia.com/Running_Biomechanics |
 | Source type | running biomechanics overview |
 | Used from source | Running differs from walking through shorter stance and possible flight phase. |
@@ -73,7 +73,7 @@ SwingAndFlightDuration = StrideDuration * (1 - RunStanceRatio)
 | Field | Value |
 |---|---|
 | Rule | Running speed follows step length times step frequency. |
-| Source card | [Running Biomechanics](../research/source-cards/running-biomechanics.md), [Normal Gait Overview](../research/source-cards/normal-gait-overview.md) |
+| Source card | [Running Biomechanics](../../research/source-cards/running-biomechanics.md), [Normal Gait Overview](../../research/source-cards/normal-gait-overview.md) |
 | External link | https://www.physio-pedia.com/Running_Biomechanics |
 | Source type | gait timing relationship |
 | Used from source | Cadence and step length describe locomotion timing and displacement. |
@@ -86,7 +86,7 @@ SwingAndFlightDuration = StrideDuration * (1 - RunStanceRatio)
 | Field | Value |
 |---|---|
 | Rule | Running has stronger whole-body dynamics than walking. |
-| Source card | [Running Biomechanics](../research/source-cards/running-biomechanics.md), [Joint Kinematics Overview](../research/source-cards/joint-kinematics-overview.md) |
+| Source card | [Running Biomechanics](../../research/source-cards/running-biomechanics.md), [Joint Kinematics Overview](../../research/source-cards/joint-kinematics-overview.md) |
 | External link | https://www.physio-pedia.com/Running_Biomechanics |
 | Source type | running biomechanics overview / gait kinematics overview |
 | Used from source | Running increases movement intensity and whole-body coordination demands. |
