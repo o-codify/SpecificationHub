@@ -1,8 +1,8 @@
 ---
 id: asymmetric-load-modifier
 title: Asymmetric Load Modifier
-status: draft
-version: 26.530.1237
+status: review
+version: 26.530.1343
 tags:
   - modifier
   - load
