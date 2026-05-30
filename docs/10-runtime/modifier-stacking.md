@@ -1,8 +1,8 @@
 ---
 id: modifier-stacking
 title: Modifier Stacking
-status: draft
-version: 26.530.1105
+status: review
+version: 26.530.1317
 tags:
   - runtime
   - modifiers
