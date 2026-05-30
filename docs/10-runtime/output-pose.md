@@ -2,12 +2,13 @@
 id: output-pose
 title: Output Pose
 status: draft
-version: 26.529.2305
+version: 26.530.1000
 tags:
   - runtime
   - output
   - pose
   - provenance
+  - links
 ---
 
 # Output Pose
@@ -77,39 +78,39 @@ OutputPose is not the final skeletal pose. It is pose intent for IK, FK, Control
 | Field | Value |
 |---|---|
 | Rule | OutputPose separates runtime intent from final skeletal transforms. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md`, `docs/research/source-cards/unreal-engine-control-rig.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Unreal Engine Control Rig](../research/source-cards/unreal-engine-control-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
 | Source type | procedural animation / Unreal Engine documentation |
 | Used from source | Runtime can compute controls and rig systems can apply them to skeletons. |
 | HLS transformation | OutputPose groups foot, pelvis, spine, arm, and debug intent before AnimBP / Control Rig. |
 | Confidence | high |
-| Applies to | `PoseComposer`, `Unreal Engine`, `Solver Interfaces` |
+| Applies to | [Pose Composer](../09-solvers/pose-composer.md), [Unreal Engine](../11-unreal-engine/index.md), [Solver Interfaces](./solver-interfaces.md) |
 
 ### Foot and pelvis outputs support IK
 
 | Field | Value |
 |---|---|
 | Rule | OutputPose includes foot targets, lock states, surface normals, and pelvis offsets. |
-| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md), [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
 | Source type | IK implementation constraint |
 | Used from source | IK systems need targets and constraints to solve skeletal feet and body position. |
 | HLS transformation | OutputPose exposes contact and target data instead of hidden solver state. |
 | Confidence | high |
-| Applies to | `FootTargetSolver`, `PelvisSolver`, `Runtime Constraints` |
+| Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md), [Runtime Constraints](./constraints.md) |
 
 ### Debug data is part of output contract
 
 | Field | Value |
 |---|---|
 | Rule | OutputPose includes debug channels and warnings. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
 | Source type | implementation/debugging constraint |
 | Used from source | Procedural systems require inspectable controls and solver outputs for tuning. |
 | HLS transformation | OutputPose carries gait phase, active state, modifiers, clamp warnings, and solver warnings. |
 | Confidence | high |
-| Applies to | `Debug Visualization`, `Validation Methodology` |
+| Applies to | [Debug Visualization](./debug-visualization.md), [Validation Methodology](../research/validation-methodology.md) |
 
 ## Numeric Data Separation
 
