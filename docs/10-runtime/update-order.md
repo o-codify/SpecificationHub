@@ -2,12 +2,13 @@
 id: runtime-update-order
 title: Runtime Update Order
 status: draft
-version: 26.529.2307
+version: 26.530.1001
 tags:
   - runtime
   - architecture
   - update-order
   - provenance
+  - links
 ---
 
 # Runtime Update Order
@@ -82,7 +83,7 @@ Runtime owns intent. Animation system applies bones.
 | Field | Value |
 |---|---|
 | Rule | Runtime computes locomotion intent and animation systems apply bones. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md`, `docs/research/source-cards/unreal-engine-control-rig.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Unreal Engine Control Rig](../research/source-cards/unreal-engine-control-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
 | Source type | procedural animation architecture |
 | Used from source | Procedural systems generate controls and targets; animation systems apply skeletal output. |
@@ -95,39 +96,39 @@ Runtime owns intent. Animation system applies bones.
 | Field | Value |
 |---|---|
 | Rule | Modifiers resolve parameters before solver execution. |
-| Source card | `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/antalgic-gait.md`, `docs/research/source-cards/stairs-and-slopes.md` |
+| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Antalgic Gait](../research/source-cards/antalgic-gait.md), [Stairs and Slopes](../research/source-cards/stairs-and-slopes.md) |
 | External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
 | Source type | load, injury, and terrain locomotion references |
 | Used from source | Modifiers affect posture, timing, and gait quality. |
 | HLS transformation | ModifierResolver executes before FootTarget, Pelvis, Spine, and Arm solvers. |
 | Confidence | high as architecture rule |
-| Applies to | `ParameterSystem`, `ModifierStacking` |
+| Applies to | [Parameter System](./parameter-system.md), [Modifier Stacking](./modifier-stacking.md) |
 
 ### Foot before pelvis before spine
 
 | Field | Value |
 |---|---|
 | Rule | Feet define support, pelvis follows support, spine compensates pelvis. |
-| Source card | `docs/research/source-cards/joint-kinematics-overview.md`, `docs/research/source-cards/ik-foot-placement.md` |
+| Source card | [Joint Kinematics Overview](../research/source-cards/joint-kinematics-overview.md), [IK Foot Placement](../research/source-cards/ik-foot-placement.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
 | Source type | gait kinematics and IK implementation |
 | Used from source | Support contacts influence body balance and posture. |
 | HLS transformation | Ordered FootTargetSolver -> PelvisSolver -> SpineSolver. |
 | Confidence | medium-high |
-| Applies to | `PoseComposer`, `Runtime Constraints` |
+| Applies to | [Pose Composer](../09-solvers/pose-composer.md), [Runtime Constraints](./constraints.md) |
 
 ### Pose composition before IK
 
 | Field | Value |
 |---|---|
 | Rule | Pose intent is composed before skeletal IK/FK application. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
 | Source type | procedural architecture / engine implementation |
 | Used from source | IK solves targets; it should not own locomotion logic. |
 | HLS transformation | PoseComposer outputs final intent and IK/FK applies the skeleton. |
 | Confidence | high |
-| Applies to | `OutputPose`, `Unreal Engine` |
+| Applies to | [Output Pose](./output-pose.md), [Unreal Engine](../11-unreal-engine/index.md) |
 
 ## Numeric Data Separation
 
