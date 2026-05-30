@@ -1,8 +1,8 @@
 ---
 id: foot-target-solver
 title: Foot Target Solver
-status: draft
-version: 26.530.1058
+status: review
+version: 26.530.1543
 tags:
   - solver
   - feet
@@ -16,43 +16,36 @@ tags:
 
 ## Purpose
 
-Computes procedural foot targets for stance, swing, terrain adaptation, stairs, and modifiers.
+Computes procedural foot targets from gait phase, movement intent, terrain, stairs, slope, and runtime modifiers.
 
-The solver outputs intent. IK or Control Rig applies the final bones.
+The foot target solver is responsible for believable foot placement before IK applies the final skeletal result.
 
 ## Inputs
 
-- gait cycle output
-- velocity, meters per second
-- desired direction
+- gait phase output
+- resolved step length
+- resolved step width
+- resolved foot lift
+- movement direction
+- facing direction
+- speed
 - ground trace data
-- slope or stairs data
-- step length, meters
-- step width, meters
-- foot lift height, meters
-- injury and load modifiers
+- slope data
+- stair data
+- load, injury, weapon, and turning modifiers
 
 ## Outputs
 
-- left foot target transform
-- right foot target transform
-- contact state for each foot
-- foot lock state for each foot
+- left foot target
+- right foot target
+- contact state
+- stance or swing state
+- foot lock state
+- surface normal
+- target reach warning
+- debug trace information
 
-## Rules
-
-- During stance, the foot target should remain locked unless terrain correction is required.
-- During swing, the foot follows a lifted arc toward the next target.
-- Step length scales with speed and modifiers.
-- Step width should stay stable enough to avoid crossing feet.
-- Slope increases foot clearance uphill.
-- Stairs use discrete tread targets instead of continuous projection.
-- Injury can reduce confidence and shorten step length.
-- Foot target reach must be clamped before IK to avoid overextension.
-
-## Runtime Notes
-
-Foot locking is more important than exact anatomical motion. Visible foot sliding breaks believability faster than small phase errors.
+## Runtime Formula
 
 ```text
 StepFrequencyHz = CadenceSPM / 60
@@ -65,74 +58,83 @@ SlopeFootLiftBonus = max(0, SlopeDegrees) * 0.002..0.006 meters/degree
 MaxTargetReach = LegLength * 0.85..0.95
 ```
 
+## Rules
+
+- Foot targets should be generated from phase and movement intent, then corrected by terrain traces.
+- Locked stance feet should not slide unless correction is safer than popping.
+- Step width should remain wide enough for readable support.
+- Step length should clamp by character scale and leg reach.
+- Flat-ground foot lift should remain low; slope and stairs may add clearance.
+- Injury, load, weapon, and turning modifiers may shorten steps or reduce confidence.
+- Foot target output must expose warnings when reach or trace data is invalid.
+
 ## Rule Provenance
 
-### Stance foot locking
+### IK target reach and foot locking
 
 | Field | Value |
 |---|---|
-| Rule | During stance, foot target remains locked unless correction is required. |
-| Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md) |
+| Rule | Foot targets must remain reachable and contact-stable. |
+| Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md), [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
-| Source type | IK / game animation implementation constraint |
-| Used from source | IK can apply procedural foot targets; stable contact prevents sliding. |
-| HLS transformation | FootTargetSolver emits foot lock state for stance feet before IK. First-pass stance correction should stay under 0.02..0.05 m per frame-equivalent correction unless the terrain changed sharply. |
+| Source type | IK implementation constraint |
+| Used from source | IK systems need reachable targets and stable contact constraints. |
+| HLS transformation | First-pass MaxTargetReach is 0.85..0.95 * LegLength. Foot lock state is preserved through OutputPose and Debug Visualization. |
 | Confidence | high |
-| Applies to | [Output Pose](../10-runtime/output-pose.md), [Runtime Constraints](../10-runtime/constraints.md), [Debug Visualization](../10-runtime/debug-visualization.md) |
+| Applies to | [Runtime Constraints](../10-runtime/constraints.md), [Output Pose](../10-runtime/output-pose.md) |
 
-### Swing foot arc
+### Step length from speed and cadence
 
 | Field | Value |
 |---|---|
-| Rule | Swing foot follows a lifted arc toward next target. |
-| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md), [IK Foot Placement](../research/source-cards/ik-foot-placement.md) |
+| Rule | Step length should stay consistent with speed and cadence. |
+| Source card | [Normal Gait Overview](../research/source-cards/normal-gait-overview.md), [Running Biomechanics](../research/source-cards/running-biomechanics.md) |
 | External link | https://www.physio-pedia.com/The_Gait_Cycle |
-| Source type | gait overview plus procedural implementation |
-| Used from source | Swing is the recovery phase; procedural IK needs clearance over terrain. |
-| HLS transformation | Foot lift height and swing interpolation are solver parameters. First-pass flat-ground lift is 0.04..0.10 m; running and stairs may multiply it by 1.25..2.00. |
-| Confidence | high for concept, medium for exact arc |
-| Applies to | [Walking](../05-walking/index.md), [Running](../06-running/index.md), [Slope Modifier](../08-modifiers/slope.md), [Stairs Modifier](../08-modifiers/stairs.md) |
-
-### Terrain target selection
-
-| Field | Value |
-|---|---|
-| Rule | Slope and stairs modify foot target selection before IK. |
-| Source card | [Stairs and Slopes](../research/source-cards/stairs-and-slopes.md), [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md) |
-| External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/full-body-ik-in-unreal-engine |
-| Source type | terrain locomotion plus engine docs |
-| Used from source | Terrain-specific locomotion needs adjusted foot placement; IK applies targets. |
-| HLS transformation | FootTargetSolver consumes terrain traces and outputs slope/stair-aware targets. Slope bonus starts at 0.002..0.006 m per uphill degree; stairs should snap to tread targets when reliable tread data exists. |
+| Source type | gait timing relationship |
+| Used from source | Cadence and step length describe locomotion timing and displacement. |
+| HLS transformation | Runtime derives `StepLengthMeters = SpeedMetersPerSecond / StepFrequencyHz` and clamps to character-specific limits. |
 | Confidence | high |
-| Applies to | [Slope Modifier](../08-modifiers/slope.md), [Stairs Modifier](../08-modifiers/stairs.md), [Unreal Engine](../11-unreal-engine/index.md) |
+| Applies to | [Gait Cycle](../04-gait-cycle/index.md), [Parameter System](../10-runtime/parameter-system.md) |
 
-### Step parameters from modifiers
+### Terrain and stair clearance
 
 | Field | Value |
 |---|---|
-| Rule | Load and injury can alter step length, width, and confidence. |
-| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Pathological Gait Asymmetry](../research/source-cards/pathological-gait-asymmetry.md) |
-| External link | https://pubmed.ncbi.nlm.nih.gov/?term=pathological+gait+asymmetry+stance+time+step+length |
-| Source type | load carriage / pathological gait topics |
-| Used from source | Load and injury affect posture, symmetry, and gait parameters. |
-| HLS transformation | ModifierResolver changes step length, step width, and side-specific confidence before foot target solving. First-pass heavy load or injury can reduce step length by 10..35 percent depending on severity. |
+| Rule | Terrain and stairs can increase foot clearance and alter targets. |
+| Source card | [Stairs and Slopes](../research/source-cards/stairs-and-slopes.md), [IK Foot Placement](../research/source-cards/ik-foot-placement.md) |
+| External link | https://www.physio-pedia.com/Stair_Gait |
+| Source type | terrain gait / IK implementation constraint |
+| Used from source | Stairs and slopes require adjusted foot placement and clearance. |
+| HLS transformation | Flat foot lift is 0.04..0.10 m; slope bonus is 0.002..0.006 m per uphill degree; stairs may add StepHeight-based clearance. |
+| Confidence | medium-high |
+| Applies to | [Slope Modifier](../08-modifiers/slope.md), [Stairs Modifier](../08-modifiers/stairs.md), [Runtime Constraints](../10-runtime/constraints.md) |
+
+### Modifiers alter step placement
+
+| Field | Value |
+|---|---|
+| Rule | Load, injury, weapon, and turning states can shorten or redirect steps. |
+| Source card | [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Antalgic Gait](../research/source-cards/antalgic-gait.md), [Gait Transitions and Turning](../research/source-cards/gait-transitions-turning.md) |
+| External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
+| Source type | modifier-related locomotion references |
+| Used from source | Load, pain, and transitions alter gait and posture. |
+| HLS transformation | Step length reductions from load/injury use first-pass 10..35 percent before global clamps. Turning may widen step width up to 1.25 multiplier. |
 | Confidence | medium |
-| Applies to | [Modifier Stacking](../10-runtime/modifier-stacking.md), [Backpack Load Modifier](../08-modifiers/backpack-load.md), [Injury and Limping Modifier](../08-modifiers/injury-limping.md), [Asymmetric Load Modifier](../08-modifiers/asymmetric-load.md) |
+| Applies to | [Modifier Stacking](../10-runtime/modifier-stacking.md), [Turning, Starting, and Stopping](../08-modifiers/turning-start-stop.md) |
 
 ## Numeric Data Separation
 
 | Value | Category | Usage |
 |---|---|---|
-| stance foot should remain stable | implementation rule | foot lock |
-| swing foot needs clearance | source-backed relationship plus implementation rule | foot lift arc |
-| `StepWidth = 0.08..0.22 m` | HLS tuning range | avoid foot crossing and unstable stance |
-| `FlatFootLift = 0.04..0.10 m` | HLS tuning range | terrain clearance |
-| `RunFootLiftMultiplier = 1.25..2.00` | HLS tuning range | running readability |
+| reachable IK targets | implementation constraint | foot target safety |
+| stable stance foot contact | implementation constraint | foot lock |
+| `StepWidth = 0.08..0.22 m` | HLS tuning range | support width |
+| `FlatFootLift = 0.04..0.10 m` | HLS tuning range | flat clearance |
+| `MaxTargetReach = 0.85..0.95 * LegLength` | HLS safety clamp | IK reach |
 | `SlopeFootLiftBonus = 0.002..0.006 m/deg` | HLS tuning range | uphill clearance |
-| `MaxTargetReach = 0.85..0.95 * LegLength` | implementation safety range | IK reach clamp |
-| foot correction threshold | HLS tuning value | clamp stance correction |
+| `Step length reduction = 10..35%` | HLS tuning range | load/injury |
 
 ## Open Questions
 
-- How much stance correction is allowed before it looks like sliding.
-- Whether foot roll should be solved here or in a separate foot-contact solver.
+- How much foot sliding is acceptable on simulated proxies.
+- Whether foot lock should be replicated for high-fidelity multiplayer.
