@@ -2,12 +2,13 @@
 id: source-card-backpack-load-gait
 title: "Source Card: Backpack Load Gait"
 status: draft
-version: 26.529.2218
+version: 26.530.1006
 tags:
   - research
   - load
   - backpack
   - linked-source
+  - links
 ---
 
 # Source Card: Backpack Load Gait
@@ -64,7 +65,7 @@ if LoadPosition == Back:
 
 No fixed numeric runtime values are extracted in this first pass.
 
-HLS tuning values are stored in `docs/08-modifiers/backpack-load.md` and must be treated as gameplay defaults.
+HLS tuning values are stored in [Backpack Load Modifier](../../08-modifiers/backpack-load.md) and must be treated as gameplay defaults.
 
 ## HLS Transformation
 
@@ -83,6 +84,6 @@ load carriage posture change
 
 ## Used By
 
-- `docs/07-posture/index.md`
-- `docs/08-modifiers/backpack-load.md`
-- `docs/10-runtime/modifier-stacking.md`
+- [Posture](../../07-posture/index.md)
+- [Backpack Load Modifier](../../08-modifiers/backpack-load.md)
+- [Modifier Stacking](../../10-runtime/modifier-stacking.md)
