@@ -2,12 +2,13 @@
 id: source-card-lafan1
 title: "Source Card: LaFAN1"
 status: draft
-version: 26.529.2214
+version: 26.530.1009
 tags:
   - research
   - dataset
   - animation
   - linked-source
+  - links
 ---
 
 # Source Card: LaFAN1
@@ -75,7 +76,7 @@ Check the repository license and dataset terms before training, redistribution, 
 
 ## Used By
 
-- `docs/research/datasets.md`
-- `docs/research/validation-methodology.md`
-- `docs/09-solvers/pose-composer.md`
-- `docs/10-runtime/constraints.md`
+- [Motion Datasets](../datasets.md)
+- [Validation Methodology](../validation-methodology.md)
+- [Pose Composer](../../09-solvers/pose-composer.md)
+- [Runtime Constraints](../../10-runtime/constraints.md)
