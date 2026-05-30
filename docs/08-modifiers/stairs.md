@@ -1,14 +1,15 @@
 ---
 id: stairs-modifier
 title: Stairs Modifier
-status: draft
-version: 26.530.1058
+status: review
+version: 26.530.1354
 tags:
   - modifier
   - stairs
   - terrain
   - provenance
   - links
+  - numeric
 ---
 
 # Stairs Modifier
@@ -21,10 +22,10 @@ Stairs are not treated as ordinary slopes. They require discrete foot targets an
 
 ## Inputs
 
-- detected stair step height
-- detected stair step depth
+- detected stair step height, meters
+- detected stair step depth, meters
 - movement direction
-- speed
+- speed, meters per second
 - gait phase
 - load state
 - injury state
@@ -57,17 +58,30 @@ Stairs are not treated as ordinary slopes. They require discrete foot targets an
 
 ## Parameters
 
-- StepHeight
-- StepDepth
-- FootClearance
-- PelvisStepHeightSmoothing
-- StairCadenceMultiplier
-- StairSpeedMultiplier
-- StairTorsoPitch
+- StepHeight: meters, first-pass expected range 0.10..0.25
+- StepDepth: meters, first-pass expected range 0.22..0.35
+- FootClearance: meters, `BaseFootLift + StepHeight * 0.25..0.50 + 0.03..0.08`
+- PelvisStepHeightSmoothing: seconds, 0.10..0.25
+- StairCadenceMultiplier: 1.0 to 0.70
+- StairSpeedMultiplier: 1.0 to 0.60
+- StairTorsoPitch: ascent 0..12 degrees, descent 0..-6 degrees
+- TreadConfidence: normalized 0..1, stair mode reliable above 0.60..0.80
 
 ## Runtime Rule
 
 When stairs are detected, FootTargetSolver should switch from continuous ground projection to discrete tread selection. PelvisSolver should follow stair height with smoothing.
+
+```text
+StairConfidence = clamp(TreadConfidence, 0, 1)
+StairModeActive = StairConfidence >= 0.60..0.80
+Ascent01 = saturate(max(StepHeight, 0) / 0.25)
+FootClearance = BaseFootLift + StepHeight * 0.25..0.50 + 0.03..0.08
+PelvisTargetZ += StepHeight * StepIndex
+PelvisSmoothing = 0.10..0.25 s
+StairCadenceMultiplier = lerp(1.0, 0.70, Ascent01)
+StairSpeedMultiplier = lerp(1.0, 0.60, Ascent01)
+TreadTarget = centerOfDetectedTread
+```
 
 ## Rule Provenance
 
@@ -80,7 +94,7 @@ When stairs are detected, FootTargetSolver should switch from continuous ground 
 | External link | https://www.physio-pedia.com/Stair_Gait |
 | Source type | gait overview / HLS implementation transformation |
 | Used from source | Stair gait is a distinct locomotion context from level walking. |
-| HLS transformation | FootTargetSolver switches to discrete tread selection when stairs are detected. |
+| HLS transformation | FootTargetSolver switches to discrete tread selection when stairs are detected. First-pass stair mode activates when tread confidence exceeds 0.60..0.80. |
 | Confidence | high for distinction, medium for exact implementation |
 | Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Locomotion State Resolver](../10-runtime/locomotion-state-resolver.md) |
 
@@ -93,7 +107,7 @@ When stairs are detected, FootTargetSolver should switch from continuous ground 
 | External link | https://www.physio-pedia.com/Stair_Gait |
 | Source type | gait overview plus procedural implementation constraint |
 | Used from source | Stair ascent and descent involve vertical displacement between steps. |
-| HLS transformation | Added `PelvisStepHeightSmoothing` and stair-specific pelvis height offsets. |
+| HLS transformation | Added `PelvisStepHeightSmoothing` and stair-specific pelvis height offsets. First-pass smoothing is 0.10..0.25 s and target height follows detected step height. |
 | Confidence | medium |
 | Applies to | [Pelvis Solver](../09-solvers/pelvis-solver.md), [Pose Composer](../09-solvers/pose-composer.md) |
 
@@ -106,7 +120,7 @@ When stairs are detected, FootTargetSolver should switch from continuous ground 
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
 | Source type | implementation constraint / engine documentation |
 | Used from source | IK systems solve bones toward targets and constraints. |
-| HLS transformation | Stairs modifier outputs target constraints for FootTargetSolver; IK only applies final foot placement. |
+| HLS transformation | Stairs modifier outputs target constraints for FootTargetSolver; IK only applies final foot placement. Foot clearance is based on base lift plus step-height-dependent bonus. |
 | Confidence | high |
 | Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Unreal Engine](../11-unreal-engine/index.md), [Runtime Update Order](../10-runtime/update-order.md) |
 
@@ -115,9 +129,13 @@ When stairs are detected, FootTargetSolver should switch from continuous ground 
 | Value | Category | Usage |
 |---|---|---|
 | stairs require distinct foot placement | source-backed relationship | stairs modifier and state resolver |
-| `FootClearance` | HLS tuning value | step-height-dependent clearance |
-| `PelvisStepHeightSmoothing` | HLS tuning value | visual smoothing over step height |
-| `StairCadenceMultiplier` | HLS tuning value | cautious ascent/descent control |
+| `StepHeight = 0.10..0.25 m` | HLS expected input range | stair detector sanity check |
+| `StepDepth = 0.22..0.35 m` | HLS expected input range | tread target selection |
+| `FootClearance = Base + StepHeight * 0.25..0.50 + 0.03..0.08 m` | HLS tuning formula | step-height-dependent clearance |
+| `PelvisStepHeightSmoothing = 0.10..0.25 s` | HLS tuning value | visual smoothing over step height |
+| `StairCadenceMultiplier = 1.0..0.70` | HLS tuning value | cautious ascent/descent control |
+| `StairSpeedMultiplier = 1.0..0.60` | HLS tuning value | stair slowdown |
+| `TreadConfidence = 0.60..0.80` | implementation threshold | enter stair mode |
 
 ## Open Questions
 
