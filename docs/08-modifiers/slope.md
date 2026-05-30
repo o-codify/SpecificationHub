@@ -1,8 +1,8 @@
 ---
 id: slope-modifier
 title: Slope Modifier
-status: draft
-version: 26.530.1231
+status: review
+version: 26.530.1339
 tags:
   - modifier
   - slope
