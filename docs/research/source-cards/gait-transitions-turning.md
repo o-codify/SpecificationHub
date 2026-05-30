@@ -2,12 +2,13 @@
 id: source-card-gait-transitions-and-turning
 title: "Source Card: Gait Transitions and Turning"
 status: draft
-version: 26.529.2220
+version: 26.530.1007
 tags:
   - research
   - turning
   - transitions
   - linked-source
+  - links
 ---
 
 # Source Card: Gait Transitions and Turning
@@ -98,8 +99,8 @@ transition locomotion concept
 
 ## Used By
 
-- `docs/08-modifiers/turning-start-stop.md`
-- `docs/09-solvers/foot-target-solver.md`
-- `docs/09-solvers/spine-solver.md`
-- `docs/09-solvers/pose-composer.md`
-- `docs/10-runtime/locomotion-state-resolver.md`
+- [Turning, Starting, and Stopping](../../08-modifiers/turning-start-stop.md)
+- [Foot Target Solver](../../09-solvers/foot-target-solver.md)
+- [Spine Solver](../../09-solvers/spine-solver.md)
+- [Pose Composer](../../09-solvers/pose-composer.md)
+- [Locomotion State Resolver](../../10-runtime/locomotion-state-resolver.md)
