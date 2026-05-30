@@ -2,11 +2,12 @@
 id: source-card-procedural-animation-overview
 title: "Source Card: Procedural Animation Overview"
 status: draft
-version: 26.529.2220
+version: 26.530.1014
 tags:
   - research
   - procedural-animation
   - linked-source
+  - links
 ---
 
 # Source Card: Procedural Animation Overview
@@ -88,8 +89,8 @@ procedural animation implementation pattern
 
 ## Used By
 
-- `docs/01-principles/index.md`
-- `docs/09-solvers/index.md`
-- `docs/10-runtime/index.md`
-- `docs/10-runtime/solver-interfaces.md`
-- `docs/11-unreal-engine/index.md`
+- [Principles](../../01-principles/index.md)
+- [Solvers](../../09-solvers/index.md)
+- [Runtime](../../10-runtime/index.md)
+- [Solver Interfaces](../../10-runtime/solver-interfaces.md)
+- [Unreal Engine](../../11-unreal-engine/index.md)
