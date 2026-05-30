@@ -1,8 +1,8 @@
 ---
 id: arm-swing-solver
 title: Arm Swing Solver
-status: draft
-version: 26.530.1102
+status: review
+version: 26.530.1351
 tags:
   - solver
   - arms
