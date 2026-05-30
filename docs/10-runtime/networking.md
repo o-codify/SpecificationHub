@@ -2,13 +2,14 @@
 id: networking-model
 title: Networking Model
 status: draft
-version: 26.530.1000
+version: 26.530.1226
 tags:
   - runtime
   - networking
   - multiplayer
   - provenance
   - links
+  - numeric
 ---
 
 # Networking Model
@@ -56,6 +57,8 @@ Replicate compact state:
 - compressed gait phase if needed
 - correction timestamps
 
+First-pass compact values should fit gameplay replication rather than animation replication: velocity, facing, state enum, gait enum, normalized load/injury/carry values, optional compressed phase, and timestamp.
+
 ## What Not To Replicate Normally
 
 Do not replicate:
@@ -75,6 +78,15 @@ Options:
 
 Preferred first pass: local phase with occasional correction.
 
+```text
+LocalPhase += deltaTime * CadenceSPM / 120
+PhaseError = shortestCircularDifference(ServerPhase, LocalPhase)
+PhaseCorrectionRate = PhaseError / PhaseCorrectionTime
+LocalPhase = fract(LocalPhase + PhaseCorrectionRate * deltaTime)
+PhaseCorrectionTime = 0.10..0.30 s
+TeleportPhaseSnapThreshold = 0.35..0.50 cycle error
+```
+
 ## Simulated Proxy Rules
 
 - Preserve phase continuity.
@@ -82,6 +94,7 @@ Preferred first pass: local phase with occasional correction.
 - Avoid visible foot teleporting.
 - Prefer small foot sliding over violent pose popping.
 - Disable expensive debug or secondary motion by distance.
+- First-pass remote pose smoothing should use 0.08..0.20 s for pelvis/spine and 0.10..0.30 s for phase correction.
 
 ## Rule Provenance
 
@@ -94,7 +107,7 @@ Preferred first pass: local phase with occasional correction.
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/animation-blueprints-in-unreal-engine |
 | Source type | multiplayer implementation constraint / Unreal animation architecture |
 | Used from source | Animation systems can solve pose locally from runtime data and controls. |
-| HLS transformation | Replicate compact gameplay and locomotion state; solve pose locally on clients. |
+| HLS transformation | Replicate compact gameplay and locomotion state; solve pose locally on clients. First-pass replicated state should include state enum, gait enum, velocity, facing, normalized modifier summaries, optional compressed phase, and correction timestamp. |
 | Confidence | high as architecture rule |
 | Applies to | [Output Pose](./output-pose.md), [Pose Composer](../09-solvers/pose-composer.md), [Unreal Engine](../11-unreal-engine/index.md) |
 
@@ -107,7 +120,7 @@ Preferred first pass: local phase with occasional correction.
 | External link | https://github.com/ubisoft/ubisoft-laforge-animation-dataset |
 | Source type | animation continuity / transition validation reference |
 | Used from source | Temporal continuity is important for believable motion transitions. |
-| HLS transformation | Proxy phase should be locally advanced and corrected gradually instead of hard-reset every frame. |
+| HLS transformation | Proxy phase should be locally advanced and corrected gradually instead of hard-reset every frame. First-pass correction time is 0.10..0.30 s; only teleport or major discontinuity should snap phase. |
 | Confidence | high as visual rule |
 | Applies to | [Gait Phase Generator](../09-solvers/gait-phase-generator.md), [Runtime Constraints](./constraints.md), [Validation Methodology](../research/validation-methodology.md) |
 
@@ -120,7 +133,7 @@ Preferred first pass: local phase with occasional correction.
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/networking-and-multiplayer-in-unreal-engine |
 | Source type | engine/networking architecture constraint |
 | Used from source | Multiplayer systems distinguish authoritative gameplay state from client-side visual presentation. |
-| HLS transformation | Server validates state; clients solve visual pose from replicated state. |
+| HLS transformation | Server validates state; clients solve visual pose from replicated state. Client-side smoothing should preserve pose continuity while respecting server-owned state. |
 | Confidence | high |
 | Applies to | [Locomotion State Resolver](./locomotion-state-resolver.md), [Modifier Stacking](./modifier-stacking.md), [Unreal Engine](../11-unreal-engine/index.md) |
 
@@ -129,6 +142,9 @@ Preferred first pass: local phase with occasional correction.
 | Value | Category | Usage |
 |---|---|---|
 | compact replicated state | HLS networking contract | multiplayer implementation |
+| `PhaseCorrectionTime = 0.10..0.30 s` | HLS tuning range | proxy smoothing |
+| `TeleportPhaseSnapThreshold = 0.35..0.50 cycle` | HLS tuning range | snap instead of blend |
+| `PoseSmoothing = 0.08..0.20 s` | HLS tuning range | pelvis/spine remote smoothing |
 | phase correction alpha | HLS tuning value | proxy smoothing |
 | LOD cutoff distance | HLS tuning value | disable expensive visual work |
 
