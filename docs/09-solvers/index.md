@@ -1,13 +1,14 @@
 ---
 id: solvers
 title: Solvers
-status: draft
-version: 26.529.2339
+status: review
+version: 26.530.1509
 tags:
   - solvers
   - runtime
   - provenance
   - links
+  - numeric
 ---
 
 # Solvers
@@ -21,25 +22,29 @@ Solvers convert resolved locomotion state and parameters into pose intent.
 ## Solver Pipeline
 
 ```text
-GaitPhaseGenerator
+CharacterInputState
+  -> LocomotionStateResolver
+  -> ParameterSystem / ModifierResolver
+  -> GaitPhaseGenerator
   -> FootTargetSolver
   -> PelvisSolver
   -> SpineSolver
   -> ArmSwingSolver
   -> PoseComposer
-  -> IK/FK Output
+  -> RuntimeConstraints
+  -> OutputPose
 ```
 
 ## Solver Documents
 
-| Solver | Document | Main responsibility | Provenance status |
+| Solver | Document | Main responsibility | Status |
 |---|---|---|---|
-| GaitPhaseGenerator | [Gait Phase Generator](./gait-phase-generator.md) | cadence, phase, stance/swing timing | upgraded |
-| FootTargetSolver | [Foot Target Solver](./foot-target-solver.md) | foot targets, contact, lock state | upgraded |
-| PelvisSolver | [Pelvis Solver](./pelvis-solver.md) | pelvis rhythm, weight carrier, IK reach | upgraded |
-| SpineSolver | [Spine Solver](./spine-solver.md) | torso compensation, posture, stiffness | upgraded |
-| ArmSwingSolver | [Arm Swing Solver](./arm-swing-solver.md) | arm swing, carry/weapon restrictions | upgraded |
-| PoseComposer | [Pose Composer](./pose-composer.md) | priority, conflict resolution, final pose intent | upgraded |
+| GaitPhaseGenerator | [Gait Phase Generator](./gait-phase-generator.md) | cadence, phase, stance/swing timing | review |
+| FootTargetSolver | [Foot Target Solver](./foot-target-solver.md) | foot targets, contact, lock state | review |
+| PelvisSolver | [Pelvis Solver](./pelvis-solver.md) | pelvis rhythm, weight carrier, IK reach | review |
+| SpineSolver | [Spine Solver](./spine-solver.md) | torso compensation, posture, stiffness | review |
+| ArmSwingSolver | [Arm Swing Solver](./arm-swing-solver.md) | arm swing, carry/weapon restrictions | review |
+| PoseComposer | [Pose Composer](./pose-composer.md) | priority, conflict resolution, final pose intent | review |
 
 ## Shared Solver Principles
 
@@ -48,7 +53,21 @@ GaitPhaseGenerator
 - Solvers output intent, not final bones.
 - ModifierResolver changes parameters before solvers where possible.
 - PoseComposer resolves conflicts.
+- RuntimeConstraints clamp invalid output before OutputPose.
 - IK/FK applies final skeletal result.
+
+## Runtime Interface Contract
+
+```text
+CharacterInputState + ResolvedParameters + PreviousSolverState
+  -> Solver
+  -> PoseIntent + DebugValues + WarningFlags
+```
+
+```text
+FootLockPriority > PoseWarpPriority > CosmeticSecondaryMotion
+SafetyClamps run before OutputPose
+```
 
 ## Evidence Map
 
@@ -64,6 +83,20 @@ GaitPhaseGenerator
 | phase continuity | [Motion Matching](../research/source-cards/motion-matching.md), [LaFAN1](../research/source-cards/lafan1.md) |
 | pose composition | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Unreal Engine Control Rig](../research/source-cards/unreal-engine-control-rig.md), [Pose Warping](../research/source-cards/pose-warping.md) |
 
+## Key Numeric References
+
+| Value | First-pass range | Used by |
+|---|---:|---|
+| WalkStanceRatio | 0.58..0.62 | GaitPhaseGenerator |
+| RunStanceRatio | 0.30..0.45 | GaitPhaseGenerator |
+| WalkCadence | 100..120 spm | GaitPhaseGenerator |
+| RunCadence | 150..190 spm | GaitPhaseGenerator |
+| FlatFootLift | 0.04..0.10 m | FootTargetSolver |
+| IKReach | 0.85..0.95 * LegLength | FootTargetSolver / RuntimeConstraints |
+| PelvisVerticalAmplitude | 0.02..0.05 m | PelvisSolver |
+| PoseSmoothing | 0.08..0.20 s | PoseComposer |
+| PhaseCorrectionTime | 0.10..0.30 s | GaitPhaseGenerator / Networking |
+
 ## Runtime Contract
 
 Each solver should expose:
@@ -77,4 +110,4 @@ Each solver should expose:
 
 ## Current Status
 
-All primary solver documents now include Markdown `Rule Provenance` tables that link solver rules to source cards and external links.
+All primary solver documents include `Rule Provenance` tables that link solver rules to source cards and external links.
