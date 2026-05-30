@@ -2,12 +2,13 @@
 id: networking-model
 title: Networking Model
 status: draft
-version: 26.529.2307
+version: 26.530.1000
 tags:
   - runtime
   - networking
   - multiplayer
   - provenance
+  - links
 ---
 
 # Networking Model
@@ -89,39 +90,39 @@ Preferred first pass: local phase with occasional correction.
 | Field | Value |
 |---|---|
 | Rule | Do not replicate every bone for normal locomotion. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md`, `docs/research/source-cards/unreal-engine-control-rig.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Unreal Engine Control Rig](../research/source-cards/unreal-engine-control-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/animation-blueprints-in-unreal-engine |
 | Source type | multiplayer implementation constraint / Unreal animation architecture |
 | Used from source | Animation systems can solve pose locally from runtime data and controls. |
 | HLS transformation | Replicate compact gameplay and locomotion state; solve pose locally on clients. |
 | Confidence | high as architecture rule |
-| Applies to | `OutputPose`, `PoseComposer`, `Unreal Engine Network Notes` |
+| Applies to | [Output Pose](./output-pose.md), [Pose Composer](../09-solvers/pose-composer.md), [Unreal Engine](../11-unreal-engine/index.md) |
 
 ### Phase continuity on proxies
 
 | Field | Value |
 |---|---|
 | Rule | Simulated proxies should preserve gait phase continuity during corrections. |
-| Source card | `docs/research/source-cards/lafan1.md`, `docs/research/source-cards/motion-matching.md` |
+| Source card | [LaFAN1](../research/source-cards/lafan1.md), [Motion Matching](../research/source-cards/motion-matching.md) |
 | External link | https://github.com/ubisoft/ubisoft-laforge-animation-dataset |
 | Source type | animation continuity / transition validation reference |
 | Used from source | Temporal continuity is important for believable motion transitions. |
 | HLS transformation | Proxy phase should be locally advanced and corrected gradually instead of hard-reset every frame. |
 | Confidence | high as visual rule |
-| Applies to | `GaitPhaseGenerator`, `Runtime Constraints`, `Validation Methodology` |
+| Applies to | [Gait Phase Generator](../09-solvers/gait-phase-generator.md), [Runtime Constraints](./constraints.md), [Validation Methodology](../research/validation-methodology.md) |
 
 ### Server owns gameplay state
 
 | Field | Value |
 |---|---|
 | Rule | Server owns gameplay-relevant movement and modifier state. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/networking-and-multiplayer-in-unreal-engine |
 | Source type | engine/networking architecture constraint |
 | Used from source | Multiplayer systems distinguish authoritative gameplay state from client-side visual presentation. |
 | HLS transformation | Server validates state; clients solve visual pose from replicated state. |
 | Confidence | high |
-| Applies to | `LocomotionStateResolver`, `ModifierStacking`, `Unreal Engine Network Notes` |
+| Applies to | [Locomotion State Resolver](./locomotion-state-resolver.md), [Modifier Stacking](./modifier-stacking.md), [Unreal Engine](../11-unreal-engine/index.md) |
 
 ## Numeric Data Separation
 
