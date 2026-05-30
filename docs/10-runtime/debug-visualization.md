@@ -2,12 +2,13 @@
 id: debug-visualization
 title: Debug Visualization
 status: draft
-version: 26.529.2309
+version: 26.530.959
 tags:
   - runtime
   - debug
   - visualization
   - provenance
+  - links
 ---
 
 # Debug Visualization
@@ -113,7 +114,7 @@ Show:
 | Field | Value |
 |---|---|
 | Rule | HLS solvers must expose debug values for tuning and validation. |
-| Source card | `docs/research/source-cards/procedural-animation-overview.md`, `docs/research/source-cards/unreal-engine-control-rig.md` |
+| Source card | [Procedural Animation Overview](../research/source-cards/procedural-animation-overview.md), [Unreal Engine Control Rig](../research/source-cards/unreal-engine-control-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/control-rig-in-unreal-engine |
 | Source type | procedural animation / implementation workflow |
 | Used from source | Procedural animation systems rely on visible controls, targets, and constraints for iteration. |
@@ -126,39 +127,39 @@ Show:
 | Field | Value |
 |---|---|
 | Rule | Foot targets, foot lock state, ground traces, and IK warnings must be visible. |
-| Source card | `docs/research/source-cards/ik-foot-placement.md`, `docs/research/source-cards/unreal-engine-ik-rig.md` |
+| Source card | [IK Foot Placement](../research/source-cards/ik-foot-placement.md), [Unreal Engine IK Rig](../research/source-cards/unreal-engine-ik-rig.md) |
 | External link | https://dev.epicgames.com/documentation/en-us/unreal-engine/ik-rig-in-unreal-engine |
 | Source type | IK implementation constraint |
 | Used from source | IK target solving requires inspectable targets, constraints, and reach limits. |
 | HLS transformation | Foot Debug shows target positions, stance/swing state, foot lock, trace hit, normal, and reach warnings. |
 | Confidence | high |
-| Applies to | `FootTargetSolver`, `PelvisSolver`, `Runtime Constraints` |
+| Applies to | [Foot Target Solver](../09-solvers/foot-target-solver.md), [Pelvis Solver](../09-solvers/pelvis-solver.md), [Runtime Constraints](./constraints.md) |
 
 ### Modifier and clamp debug
 
 | Field | Value |
 |---|---|
 | Rule | Active modifiers and clamped values must be visible. |
-| Source card | `docs/research/provenance-methodology.md`, `docs/research/source-cards/load-carriage-posture.md`, `docs/research/source-cards/antalgic-gait.md` |
+| Source card | [Research Provenance Methodology](../research/provenance-methodology.md), [Load Carriage Posture](../research/source-cards/load-carriage-posture.md), [Antalgic Gait](../research/source-cards/antalgic-gait.md) |
 | External link | https://www.ncbi.nlm.nih.gov/books/NBK559243/ |
 | Source type | provenance methodology / modifier validation |
 | Used from source | HLS must distinguish source-backed facts, tuning values, and runtime clamps. |
 | HLS transformation | Modifier Debug shows raw value, final contribution, and clamp warnings. |
 | Confidence | high |
-| Applies to | `ParameterSystem`, `ModifierStacking`, `Validation Methodology` |
+| Applies to | [Parameter System](./parameter-system.md), [Modifier Stacking](./modifier-stacking.md), [Validation Methodology](../research/validation-methodology.md) |
 
 ### Network debug
 
 | Field | Value |
 |---|---|
 | Rule | Network role, phase source, correction time, and smoothing alpha must be visible for multiplayer debugging. |
-| Source card | `docs/research/source-cards/lafan1.md`, `docs/research/source-cards/motion-matching.md` |
+| Source card | [LaFAN1](../research/source-cards/lafan1.md), [Motion Matching](../research/source-cards/motion-matching.md) |
 | External link | https://github.com/ubisoft/ubisoft-laforge-animation-dataset |
 | Source type | animation continuity / networking implementation constraint |
 | Used from source | Temporal continuity and transition quality are critical for believable animation. |
 | HLS transformation | Network Debug exposes phase source, correction timestamps, and smoothing alpha. |
 | Confidence | medium-high |
-| Applies to | `Networking`, `GaitPhaseGenerator`, `Runtime Constraints` |
+| Applies to | [Networking](./networking.md), [Gait Phase Generator](../09-solvers/gait-phase-generator.md), [Runtime Constraints](./constraints.md) |
 
 ## Numeric Data Separation
 
