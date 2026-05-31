@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { serializeDoc, type Doc, type SearchHit, type TreeItem } from "@spec/core";
 import { api, type FileSuggestion, type NewDoc } from "../api";
@@ -40,6 +40,77 @@ export function DocsReader() {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [searchedFor, setSearchedFor] = useState("");
+
+  // Scroll-direction-aware sticky sidebar (the GitHub/Stripe behaviour). The
+  // sidebar rides with the page, but its visible top is clamped between two
+  // bounds: it can't drop below the topbar (top >= 60) and its bottom can't
+  // rise above the bottom of the screen (bottom <= viewport height). So when
+  // the menu is taller than the screen: scrolling down moves it up until its
+  // bottom pins to the screen bottom; the moment you scroll back up it rides
+  // down with the content until its top pins under the topbar. A single CSS
+  // `position: sticky` can only pin one edge, so this is done with `transform`.
+  const sidebarRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = sidebarRef.current;
+    if (!el) return;
+    const TOP = 60; // topbar height
+    const desktop = window.matchMedia("(min-width: 761px)");
+    let baseTop = 0; // sidebar's offset from the top of the document (no transform)
+    let vt = TOP; // current visible top of the sidebar, in viewport coords
+    let prevY = window.scrollY;
+    let raf = 0;
+
+    const measure = () => {
+      const prev = el.style.transform;
+      el.style.transform = "none";
+      baseTop = el.getBoundingClientRect().top + window.scrollY;
+      el.style.transform = prev;
+    };
+    const render = () => {
+      el.style.transform = `translateY(${vt - baseTop + window.scrollY}px)`;
+    };
+    const onScroll = () => {
+      if (!desktop.matches) return;
+      const y = window.scrollY;
+      const dy = y - prevY;
+      prevY = y;
+      const lower = window.innerHeight - el.offsetHeight; // bottom pinned (<= TOP)
+      vt = Math.max(lower, Math.min(TOP, vt - dy));
+      render();
+    };
+    const onScrollRaf = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        onScroll();
+      });
+    };
+    const reset = () => {
+      if (!desktop.matches) {
+        el.style.transform = "";
+        return;
+      }
+      measure();
+      prevY = window.scrollY;
+      const lower = window.innerHeight - el.offsetHeight;
+      vt = Math.max(lower, Math.min(TOP, vt));
+      render();
+    };
+
+    reset();
+    window.addEventListener("scroll", onScrollRaf, { passive: true });
+    window.addEventListener("resize", reset);
+    desktop.addEventListener("change", reset);
+    const ro = new ResizeObserver(reset);
+    ro.observe(el);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScrollRaf);
+      window.removeEventListener("resize", reset);
+      desktop.removeEventListener("change", reset);
+      ro.disconnect();
+    };
+  }, []);
 
   const [doc, setDoc] = useState<Doc | null>(null);
   const [loading, setLoading] = useState(true);
@@ -271,7 +342,7 @@ export function DocsReader() {
 
   return (
     <div className="docs-shell">
-      <aside className={`sidebar${sidebarOpen ? " open" : ""}`}>
+      <aside ref={sidebarRef} className={`sidebar${sidebarOpen ? " open" : ""}`}>
         <div className="sb-head">
           <span className="t">Documentation</span>
           <button className="sb-close" aria-label="Close" onClick={() => setSidebarOpen(false)}>

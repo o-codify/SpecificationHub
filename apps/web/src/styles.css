@@ -243,6 +243,27 @@ tbody tr:hover{background:var(--surface-2)}
   background:var(--bg-2);border-right:1px solid var(--border);
   padding:24px 20px;display:flex;flex-direction:column;gap:14px;
 }
+/* Desktop: the sidebar tracks the viewport, not the document. It keeps its
+   natural height (align-self:start, so it never stretches to the taller doc —
+   that was what made it jump between docs of different lengths). The sticky
+   `top` is set by JS to `min(60, viewportH - sidebarH)`:
+     • menu shorter than the screen → top:60 (pinned under the topbar, fully
+       visible at all times, no inner scroll);
+     • menu taller than the screen → a negative top, so as you scroll down the
+       menu rides up and its bottom sticks to the bottom of the screen while the
+       page keeps scrolling (and scrolling back up returns it to the top).
+   No inner scrollbar, no empty space below it. */
+@media (min-width: 761px) {
+  .sidebar {
+    align-self: start; /* keep natural height, don't stretch to the doc */
+    /* Always fill at least the screen so the panel's background reaches the
+       bottom — no page-coloured gap under a short menu. */
+    min-height: calc(100vh - 60px);
+    /* Positioned via transform by JS (scroll-direction-aware sticky); see the
+       sidebar effect in DocsReader.tsx. */
+    will-change: transform;
+  }
+}
 .sb-head{display:flex;align-items:baseline;justify-content:space-between}
 .sb-head .t{font-weight:700;font-size:17px;color:var(--text-strong)}
 .r-actions{display:flex;align-items:center;gap:8px}
