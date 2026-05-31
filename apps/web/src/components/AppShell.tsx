@@ -57,9 +57,6 @@ export function AppShell() {
           <NavLink to="/review" onClick={(e) => goAdmin(e, "/review")}>
             Review
           </NavLink>
-          <NavLink to="/tokens" onClick={(e) => goAdmin(e, "/tokens")}>
-            Tokens
-          </NavLink>
         </nav>
         <div className="spacer" />
         <button

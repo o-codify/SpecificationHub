@@ -3,16 +3,6 @@ import { pgTable, text } from "drizzle-orm/pg-core";
 // Timestamps are stored as ISO-8601 strings (text) to match the rest of the
 // app, which already formats/compares dates as ISO strings.
 
-export const tokens = pgTable("tokens", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  role: text("role").notNull(),
-  allowedBranchPrefixes: text("allowed_branch_prefixes").notNull().default("[]"),
-  tokenHash: text("token_hash").notNull().unique(),
-  createdAt: text("created_at").notNull(),
-  lastUsedAt: text("last_used_at"),
-});
-
 export const sessions = pgTable("sessions", {
   tokenHash: text("token_hash").primaryKey(),
   username: text("username").notNull(),

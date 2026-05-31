@@ -2,7 +2,6 @@ import { Router, type Request, type Response } from "express";
 import {
   DOC_STATUSES,
   FrontmatterError,
-  isValidRole,
   parseFrontmatter,
   serializeDoc,
   stampVersion,
@@ -371,43 +370,6 @@ export function createRouter(): Router {
     }),
   );
 
-  // ---- Tokens (admin) ----
-  router.get(
-    "/tokens",
-    requireRole("admin"),
-    h(async (_req, res) => {
-      res.json({ tokens: await store.listTokens() });
-    }),
-  );
-
-  router.post(
-    "/tokens",
-    requireRole("admin"),
-    h(async (req, res) => {
-      const name = (req.body?.name as string)?.trim();
-      const role = req.body?.role as string;
-      if (!name) throw new HttpError(400, "`name` is required");
-      if (!isValidRole(role)) throw new HttpError(400, "invalid role");
-      let prefixes: string[] = Array.isArray(req.body?.allowed_branch_prefixes)
-        ? req.body.allowed_branch_prefixes.map((p: unknown) => String(p))
-        : [];
-      if (role === "ai-agent" && prefixes.length === 0) {
-        prefixes = ["ai/"];
-      }
-      const created = await store.createToken(name, role, prefixes);
-      res.status(201).json({ token: created.token, info: created.info });
-    }),
-  );
-
-  router.delete(
-    "/tokens/:id",
-    requireRole("admin"),
-    h(async (req, res) => {
-      const ok = await store.deleteToken(req.params.id);
-      if (!ok) throw new HttpError(404, "Token not found");
-      res.json({ deleted: true });
-    }),
-  );
 
   // Expose allowed status values for the editor UI.
   router.get("/meta", (_req, res) => {

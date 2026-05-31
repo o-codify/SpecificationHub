@@ -23,14 +23,12 @@ export const config = {
   // Drizzle migrations live next to the package (apps/api/drizzle), resolved the
   // same way from src (tsx) and dist (bundled) since both are one level under it.
   migrationsDir: path.join(here, "../drizzle"),
-  adminTokenFile: path.join(dataDir, "admin-token.txt"),
   docsSeedDir: envPath("DOCS_SEED", path.join(repoRoot, "docs")),
   webDist: envPath("WEB_DIST", path.join(repoRoot, "apps/web/dist")),
   defaultBranch: process.env.DEFAULT_BRANCH ?? "main",
   // Site brand/title shown in the UI. Configurable per deployment (the same
   // image powers multiple prods with different names), read at runtime.
   brandName: process.env.BRAND_NAME ?? "HLS Hub",
-  adminTokenEnv: process.env.ADMIN_TOKEN ?? "",
   adminUsername: process.env.ADMIN_USERNAME ?? "admin",
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
   sessionTtlHours: Number(process.env.SESSION_TTL_HOURS ?? 168),

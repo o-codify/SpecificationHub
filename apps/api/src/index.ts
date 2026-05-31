@@ -3,7 +3,7 @@ import path from "node:path";
 import express from "express";
 import { config } from "./config.js";
 import { ensureRepo, currentDefaultBranch } from "./git.js";
-import { ensureBootstrapAdmin, initDb, pruneExpiredSessions, pruneExpiredOAuth } from "./db.js";
+import { initDb, pruneExpiredSessions, pruneExpiredOAuth } from "./db.js";
 import { initCredentials, getAdminUsername } from "./credentials.js";
 import { createRouter } from "./routes.js";
 import { registerMcp } from "./mcp.js";
@@ -37,13 +37,6 @@ async function bootstrap(): Promise<void> {
     console.log(`  password: (from ADMIN_PASSWORD or ${config.adminPasswordFile})`);
   }
   console.log("========================================================\n");
-
-  const adminToken = await ensureBootstrapAdmin();
-  if (adminToken) {
-    console.log("  Bootstrap API admin TOKEN (programmatic/AI access, shown once):");
-    console.log(`  ${adminToken}`);
-    console.log(`  (also written to ${config.adminTokenFile})\n`);
-  }
 }
 
 function createApp(): express.Express {

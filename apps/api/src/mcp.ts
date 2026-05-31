@@ -15,7 +15,7 @@ import {
 import * as gitlib from "./git.js";
 import * as github from "./github.js";
 import { canWriteBranch } from "./auth.js";
-import { resolveSession, resolveToken, resolveOAuthToken, type Principal } from "./db.js";
+import { resolveSession, resolveOAuthToken, type Principal } from "./db.js";
 import { config } from "./config.js";
 import { baseUrl } from "./oauth.js";
 
@@ -25,7 +25,7 @@ async function resolvePrincipal(req: Request): Promise<Principal | null> {
   const h = req.headers.authorization;
   if (h && h.startsWith("Bearer ")) {
     const t = h.slice("Bearer ".length).trim();
-    return (await resolveOAuthToken(t)) ?? (await resolveSession(t)) ?? (await resolveToken(t));
+    return (await resolveOAuthToken(t)) ?? (await resolveSession(t));
   }
   return null;
 }
@@ -188,7 +188,7 @@ function buildServer(principal: Principal | null): McpServer {
     },
   );
 
-  // ---- write tools (require a principal: request Bearer or MCP_TOKEN) ----
+  // ---- write tools (require an authenticated principal via OAuth/session) ----
   if (principal) {
     server.registerTool(
       "create_branch",

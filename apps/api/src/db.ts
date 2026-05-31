@@ -4,7 +4,7 @@ import pg from "pg";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { and, eq, lt } from "drizzle-orm";
-import type { Role, TokenInfo } from "@hls/core";
+import type { Role } from "@hls/core";
 import { config } from "./config.js";
 import * as schema from "./schema.js";
 
@@ -38,82 +38,6 @@ export async function closeDb(): Promise<void> {
 
 function hashToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
-}
-
-interface TokenRow {
-  id: string;
-  name: string;
-  role: string;
-  allowedBranchPrefixes: string;
-  tokenHash: string;
-  createdAt: string;
-  lastUsedAt: string | null;
-}
-
-function rowToInfo(row: TokenRow): TokenInfo {
-  return {
-    id: row.id,
-    name: row.name,
-    role: row.role as Role,
-    allowed_branch_prefixes: JSON.parse(row.allowedBranchPrefixes),
-    created_at: row.createdAt,
-    last_used_at: row.lastUsedAt,
-  };
-}
-
-export interface CreatedToken {
-  token: string;
-  info: TokenInfo;
-}
-
-export async function createToken(name: string, role: Role, prefixes: string[]): Promise<CreatedToken> {
-  const id = crypto.randomBytes(8).toString("hex");
-  const token = `hls_${crypto.randomBytes(24).toString("hex")}`;
-  const created_at = new Date().toISOString();
-  await db.insert(schema.tokens).values({
-    id,
-    name,
-    role,
-    allowedBranchPrefixes: JSON.stringify(prefixes),
-    tokenHash: hashToken(token),
-    createdAt: created_at,
-    lastUsedAt: null,
-  });
-  return {
-    token,
-    info: { id, name, role, allowed_branch_prefixes: prefixes, created_at, last_used_at: null },
-  };
-}
-
-export async function listTokens(): Promise<TokenInfo[]> {
-  const rows = await db.select().from(schema.tokens).orderBy(schema.tokens.createdAt);
-  return rows.map(rowToInfo);
-}
-
-export async function deleteToken(id: string): Promise<boolean> {
-  const res = await db.delete(schema.tokens).where(eq(schema.tokens.id, id)).returning({ id: schema.tokens.id });
-  return res.length > 0;
-}
-
-export async function countByRole(role: Role): Promise<number> {
-  const rows = await db.select({ id: schema.tokens.id }).from(schema.tokens).where(eq(schema.tokens.role, role));
-  return rows.length;
-}
-
-export async function resolveToken(token: string): Promise<Principal | null> {
-  const rows = await db.select().from(schema.tokens).where(eq(schema.tokens.tokenHash, hashToken(token)));
-  const row = rows[0];
-  if (!row) return null;
-  await db
-    .update(schema.tokens)
-    .set({ lastUsedAt: new Date().toISOString() })
-    .where(eq(schema.tokens.id, row.id));
-  return {
-    id: row.id,
-    name: row.name,
-    role: row.role as Role,
-    allowedBranchPrefixes: JSON.parse(row.allowedBranchPrefixes),
-  };
 }
 
 // ---- Sessions (admin login/password) ----
@@ -325,33 +249,4 @@ export async function pruneExpiredOAuth(): Promise<void> {
   await db
     .delete(schema.oauthTokens)
     .where(and(eq(schema.oauthTokens.kind, "access"), lt(schema.oauthTokens.expiresAt, now)));
-}
-
-/** Create an admin token on first boot if none exists. Returns the plaintext if created. */
-export async function ensureBootstrapAdmin(): Promise<string | null> {
-  if ((await countByRole("admin")) > 0) {
-    return null;
-  }
-  let plaintext: string;
-  if (config.adminTokenEnv) {
-    const id = crypto.randomBytes(8).toString("hex");
-    await db.insert(schema.tokens).values({
-      id,
-      name: "bootstrap-admin",
-      role: "admin",
-      allowedBranchPrefixes: "[]",
-      tokenHash: hashToken(config.adminTokenEnv),
-      createdAt: new Date().toISOString(),
-      lastUsedAt: null,
-    });
-    plaintext = config.adminTokenEnv;
-  } else {
-    plaintext = (await createToken("bootstrap-admin", "admin", [])).token;
-  }
-  try {
-    fs.writeFileSync(config.adminTokenFile, plaintext + "\n", "utf8");
-  } catch {
-    /* best effort */
-  }
-  return plaintext;
 }

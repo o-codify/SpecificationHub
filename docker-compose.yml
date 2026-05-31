@@ -12,9 +12,6 @@ services:
       # generated on first boot and printed to the logs (and /data/admin-password.txt).
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
-      # Optional: pin the programmatic API admin token (for scripts / AI agents).
-      # If unset, one is generated on first boot and printed to the logs.
-      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
       # Public base URL for OAuth metadata (behind a proxy). Optional — derived
       # from X-Forwarded-* headers if unset.
       - PUBLIC_URL=${PUBLIC_URL:-}

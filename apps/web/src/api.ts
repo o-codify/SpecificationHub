@@ -4,7 +4,6 @@ import type {
   FrontMatter,
   Role,
   SearchHit,
-  TokenInfo,
   TreeResponse,
 } from "@hls/core";
 
@@ -195,15 +194,4 @@ export const api = {
       "GET",
       `/api/search?branch=${encodeURIComponent(branch)}&q=${encodeURIComponent(q)}`,
     ),
-
-  tokens: () => request<{ tokens: TokenInfo[] }>("GET", "/api/tokens", undefined, true),
-  createToken: (name: string, role: Role, allowed_branch_prefixes: string[]) =>
-    request<{ token: string; info: TokenInfo }>(
-      "POST",
-      "/api/tokens",
-      { name, role, allowed_branch_prefixes },
-      true,
-    ),
-  deleteToken: (id: string) =>
-    request<{ deleted: boolean }>("DELETE", `/api/tokens/${encodeURIComponent(id)}`, undefined, true),
 };

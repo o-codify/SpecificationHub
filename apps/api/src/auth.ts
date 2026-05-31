@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type { Role } from "@hls/core";
-import { resolveSession, resolveToken, type Principal } from "./db.js";
+import { resolveSession, type Principal } from "./db.js";
 import { config } from "./config.js";
 
 declare global {
@@ -17,10 +17,10 @@ export function attachPrincipal(req: Request, _res: Response, next: NextFunction
   const header = req.headers.authorization;
   if (header && header.startsWith("Bearer ")) {
     const token = header.slice("Bearer ".length).trim();
-    // A login session (admin) or a programmatic API token.
+    // A login session (admin); OAuth access tokens are handled on the MCP path.
     void (async () => {
       try {
-        req.principal = (await resolveSession(token)) ?? (await resolveToken(token));
+        req.principal = await resolveSession(token);
       } catch {
         req.principal = null;
       }

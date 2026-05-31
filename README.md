@@ -61,9 +61,9 @@ If `ADMIN_PASSWORD` is not set, a random password is generated on first
 boot, printed to the container logs, and saved to `/data/admin-password.txt`.
 Login creates a server-side session (default 7 days, `SESSION_TTL_HOURS`).
 
-For **programmatic / AI access** there are still Bearer API tokens (managed in
-**Admin → Tokens**). A bootstrap admin token is generated on first boot (logs /
-`/data/admin-token.txt`), or pin it with `ADMIN_TOKEN`.
+**AI / MCP clients** (ChatGPT, Claude Desktop) authenticate via the built-in
+**OAuth** flow (see below) — they sign in with the same admin credentials and
+get an admin-scoped access token. There are no manually-managed API tokens.
 
 Tokens, sessions, and OAuth clients/tokens live in **Postgres** (`DATABASE_URL`),
 so they survive redeploys. The `/data` volume holds the Git working data; in
@@ -187,9 +187,7 @@ For a manually-created OAuth client, `token_endpoint_auth_method` is `none`
 > the metadata URLs are derived from `X-Forwarded-Proto`/`X-Forwarded-Host`; set
 > `PUBLIC_URL` to force the exact base (e.g. `https://hls.example.com`).
 
-Programmatic (non-ChatGPT) clients may instead send an app token directly as
-`Authorization: Bearer <token>` (create one in **Admin → Tokens**). Set
-`MCP_ENABLED=false` to disable both the MCP endpoint and OAuth server.
+Set `MCP_ENABLED=false` to disable both the MCP endpoint and the OAuth server.
 
 ## Markdown format
 
@@ -210,27 +208,20 @@ tags: [gait, walking, locomotion]
 Required fields: `id`, `title`, `status`, `version`, `tags`. The API validates
 these on write (HTTP 422 on failure).
 
-## Authentication & roles
+## Authentication
 
-Send a Bearer token:
+Reads are **public**. Writes require an authenticated principal:
 
-```http
-Authorization: Bearer <token>
-```
+- **Website** — admin **login/password** (`ADMIN_USERNAME`/`ADMIN_PASSWORD`),
+  which creates a server-side session.
+- **AI / MCP clients** — the built-in **OAuth** flow (sign in with the same
+  admin credentials).
 
-| Role       | Capabilities                                            |
-| ---------- | ------------------------------------------------------- |
-| `viewer`   | read (reads are public/anonymous too)                   |
-| `editor`   | create branches, edit docs on allowed branches          |
-| `reviewer` | view diffs, merge                                       |
-| `admin`    | everything: merge, tokens, users                        |
-| `ai-agent` | write **only** to `ai/*` branches                       |
+Both grant an **admin** principal; the request carries `Authorization: Bearer
+<session-or-oauth-token>`. Constraints enforced by the API:
 
-Constraints enforced by the API:
-
-- **No direct writes to `main`** — all edits go to a branch, then merge.
-- **`ai-agent` tokens can only write to `ai/*` branches.**
-- **Merge** requires `reviewer` or `admin`.
+- **No direct writes to `main`** — all edits go to a branch, then merge/accept.
+- **Merge / accept** requires admin (reviewer).
 
 ## API
 
@@ -248,46 +239,33 @@ Constraints enforced by the API:
 | `GET /api/diff?base=&head=`| public              | per-file diff                        |
 | `POST /api/merge`          | reviewer/admin      | merge `{base, head, message}`        |
 | `GET /api/search?q=&branch=` | public            | full-text search                     |
-| `GET /api/tokens`          | admin               | list tokens                          |
-| `POST /api/tokens`         | admin               | create token                         |
-| `DELETE /api/tokens/:id`   | admin               | revoke token                         |
 
-"write" = `editor`/`admin`/`ai-agent`, subject to branch rules above.
+"write" = an authenticated (admin) principal; direct writes to `main` are never
+allowed (edit on a branch, then merge/accept).
 
-### Example: AI edit flow
+### Example: AI / scripted edit flow
+
+AI assistants edit through the **MCP tools** (`create_branch`, `save_doc`,
+`append_section`, …) over the OAuth-authenticated `/mcp` connection. For a plain
+script, authenticate once with the admin login to get a session token, then use
+the REST API with `Authorization: Bearer <session-token>`:
 
 ```bash
-ADMIN=hls_...                       # bootstrap admin token from the logs
 B=http://localhost:8080
+T=$(curl -s -X POST $B/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"<admin-password>"}' | jq -r .token)
 
-# 1. create an ai-agent token (admin)
-AI=$(curl -s -X POST $B/api/tokens -H "Authorization: Bearer $ADMIN" \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"ci-bot","role":"ai-agent","allowed_branch_prefixes":["ai/"]}' | jq -r .token)
-
-# 2. create a branch
-curl -X POST $B/api/branches -H "Authorization: Bearer $AI" \
+# create a branch, edit a doc, commit
+curl -X POST $B/api/branches -H "Authorization: Bearer $T" \
   -H 'Content-Type: application/json' -d '{"name":"ai/gait-update","from":"main"}'
-
-# 3. edit a doc (staged in the branch worktree)
-curl -X PUT $B/api/docs -H "Authorization: Bearer $AI" \
-  -H 'Content-Type: application/json' \
+curl -X PUT $B/api/docs -H "Authorization: Bearer $T" -H 'Content-Type: application/json' \
   -d '{"branch":"ai/gait-update","path":"docs/04-gait-cycle/index.md",
-       "frontmatter":{"id":"gait-cycle","title":"Gait Cycle","status":"review","version":"0.1.1","tags":["gait"]},
+       "frontmatter":{"id":"gait-cycle","title":"Gait Cycle","status":"review","tags":["gait"]},
        "content":"# Gait Cycle\n\nUpdated."}'
+curl -X POST $B/api/commits -H "Authorization: Bearer $T" \
+  -H 'Content-Type: application/json' -d '{"branch":"ai/gait-update","message":"Update gait cycle"}'
 
-# 4. commit
-curl -X POST $B/api/commits -H "Authorization: Bearer $AI" \
-  -H 'Content-Type: application/json' \
-  -d '{"branch":"ai/gait-update","message":"Update gait cycle","author":"ai-agent"}'
-
-# 5. diff
-curl "$B/api/diff?base=main&head=ai/gait-update"
-
-# 6. merge (admin/reviewer only)
-curl -X POST $B/api/merge -H "Authorization: Bearer $ADMIN" \
-  -H 'Content-Type: application/json' \
-  -d '{"base":"main","head":"ai/gait-update","message":"Merge gait update"}'
+# review & accept in the Review page (or via the API)
 ```
 
 ## Environment variables
@@ -300,7 +278,6 @@ curl -X POST $B/api/merge -H "Authorization: Bearer $ADMIN" \
 | `ADMIN_USERNAME` | `admin`              | admin UI login username              |
 | `ADMIN_PASSWORD` | _(generated)_        | admin UI login password              |
 | `SESSION_TTL_HOURS` | `168`             | login session lifetime (hours)       |
-| `ADMIN_TOKEN`  | _(generated)_          | pin the programmatic API admin token |
 | `BRAND_NAME`   | `HLS Hub`              | site brand/title shown in the UI (per deployment) |
 | `GITHUB_TOKEN`     | _(unset)_              | PAT — enables GitHub PR mode (with repo) |
 | `GITHUB_REPO`      | _(unset)_              | docs repo `owner/name` — enables GitHub PR mode |
