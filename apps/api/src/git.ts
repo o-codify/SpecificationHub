@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { config } from "./config.js";
-import { parseFrontmatter, serializeDoc, stampVersion, type DiffFile, type SearchHit } from "@hls/core";
+import { parseFrontmatter, serializeDoc, stampVersion, type DiffFile, type SearchHit } from "@spec/core";
 
 export class GitError extends Error {
   detail: string;
@@ -63,7 +63,7 @@ function githubRemoteUrl(): string {
 
 /** Build the initial commit (from seed docs) into the local bare repo's default branch. */
 function seedInitialCommit(): void {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "hls-seed-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "seed-"));
   try {
     git(["init", "-b", config.defaultBranch, tmp]);
     const destDocs = path.join(tmp, "docs");
@@ -324,7 +324,7 @@ export function commit(branch: string, message: string, author: string): CommitR
   inDir(dir, ["add", "-A"]);
   const name = author || config.gitAuthorName;
   const safe = name.replace(/[^a-zA-Z0-9._-]+/g, "-").toLowerCase() || "author";
-  const email = `${safe}@hls.local`;
+  const email = `${safe}@specification-hub.local`;
   inDir(dir, [...identityArgs(name, email), "commit", "-m", message]);
   pushBranch(branch);
   return { sha: headSha(branch), branch };
@@ -600,7 +600,7 @@ export function applyContentToBase(
   }
   const name = author || config.gitAuthorName;
   const safe = name.replace(/[^a-zA-Z0-9._-]+/g, "-").toLowerCase() || "author";
-  inDir(dir, [...identityArgs(name, `${safe}@hls.local`), "commit", "-m", message]);
+  inDir(dir, [...identityArgs(name, `${safe}@specification-hub.local`), "commit", "-m", message]);
   pushBranch(base);
   return { sha: headSha(base), branch: base };
 }
@@ -628,7 +628,7 @@ export function applyContentsToBase(
   }
   const name = author || config.gitAuthorName;
   const safe = name.replace(/[^a-zA-Z0-9._-]+/g, "-").toLowerCase() || "author";
-  inDir(dir, [...identityArgs(name, `${safe}@hls.local`), "commit", "-m", message]);
+  inDir(dir, [...identityArgs(name, `${safe}@specification-hub.local`), "commit", "-m", message]);
   pushBranch(base);
   return { sha: headSha(base), branch: base };
 }

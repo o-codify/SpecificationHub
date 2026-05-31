@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import type { FrontMatter } from "@hls/core";
+import type { FrontMatter } from "@spec/core";
 import { api, ApiError, type PullRequestInfo } from "../api";
 import { htmlToMd } from "../markdownConvert";
 import { statusColor } from "../status";

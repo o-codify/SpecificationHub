@@ -1,14 +1,15 @@
-# HLS Hub
+# Specification Hub
 
-A Git-backed Markdown documentation platform for the **Human Locomotion
-Specification (HLS)** — a spec describing procedural human animation.
+A Git-backed Markdown documentation platform. The docs content lives in its own
+repository; this app serves, edits, and reviews it. Brand and docs repo are
+configurable per deployment, so one image can power several independent sites.
 
 Markdown files are the **source of truth**: they live in Git, read cleanly on
-GitHub, render as a website, and are editable through a tokenized API with a
+GitHub, render as a website, and are editable through the UI / MCP with a
 branch → diff → review → merge workflow.
 
 ```
-Markdown in Git → API → Website → Admin editor → AI edits via token → branch/diff/review/merge
+Markdown in Git → API → Website → editor → AI edits via MCP → branch/diff/review/merge
 ```
 
 ## Stack
@@ -18,20 +19,20 @@ Markdown in Git → API → Website → Admin editor → AI edits via token → 
 - **Storage:** a **bare Git repository** is the source of truth. Reads use
   `git show <branch>:<path>`; writes use per-branch worktrees. `main` is only
   written by the merge endpoint.
-- **DB:** Postgres (via Drizzle ORM + SQL migrations) for tokens, sessions, and
-  OAuth clients/tokens (not for Markdown). Set `DATABASE_URL`.
+- **DB:** Postgres (via Drizzle ORM + SQL migrations) for sessions and OAuth
+  clients/tokens (not for Markdown). Set `DATABASE_URL`.
 - **Deploy:** a single Docker container on port `8080`.
 
 ## Monorepo layout
 
 ```
-hls-hub/
-├── docs/              # Markdown source of truth (seeded into Git on first boot)
+specification-hub/
+├── docs/              # local docs clone for dev (git-ignored; real docs are a separate repo)
 ├── apps/
 │   ├── api/           # Express + TS backend
 │   └── web/           # React + TS frontend
 ├── packages/
-│   └── hls-core/      # shared types + frontmatter parse/validate
+│   └── core/          # shared types + frontmatter parse/validate (@spec/core)
 ├── Dockerfile
 ├── docker-compose.yml
 └── README.md
@@ -65,8 +66,8 @@ Login creates a server-side session (default 7 days, `SESSION_TTL_HOURS`).
 **OAuth** flow (see below) — they sign in with the same admin credentials and
 get an admin-scoped access token. There are no manually-managed API tokens.
 
-Tokens, sessions, and OAuth clients/tokens live in **Postgres** (`DATABASE_URL`),
-so they survive redeploys. The `/data` volume holds the Git working data; in
+Sessions and OAuth clients/tokens live in **Postgres** (`DATABASE_URL`), so they
+survive redeploys. The `/data` volume holds the Git working data; in
 GitHub mode it is re-cloned from the remote on boot, so a wiped volume self-heals.
 Schema is created/updated by Drizzle migrations run automatically at startup.
 
@@ -75,12 +76,12 @@ Schema is created/updated by Drizzle migrations run automatically at startup.
 A Postgres instance is required (`DATABASE_URL`). For example:
 
 ```bash
-docker run -d --name hls-pg -e POSTGRES_PASSWORD=hls -e POSTGRES_USER=hls -e POSTGRES_DB=hls -p 5432:5432 postgres:16-alpine
-export DATABASE_URL=postgres://hls:hls@localhost:5432/hls
+docker run -d --name spec-pg -e POSTGRES_PASSWORD=spec -e POSTGRES_USER=spec -e POSTGRES_DB=spec -p 5432:5432 postgres:16-alpine
+export DATABASE_URL=postgres://spec:spec@localhost:5432/spec
 ```
 
 Migrations run automatically on startup. To (re)generate a migration after
-editing `apps/api/src/schema.ts`: `npm -w @hls/api run db:generate`.
+editing `apps/api/src/schema.ts`: `npm -w @spec/api run db:generate`.
 
 ```bash
 npm install
@@ -185,7 +186,7 @@ For a manually-created OAuth client, `token_endpoint_auth_method` is `none`
 
 > The server must be reachable at a public **HTTPS** URL. Behind a reverse proxy
 > the metadata URLs are derived from `X-Forwarded-Proto`/`X-Forwarded-Host`; set
-> `PUBLIC_URL` to force the exact base (e.g. `https://hls.example.com`).
+> `PUBLIC_URL` to force the exact base (e.g. `https://docs.example.com`).
 
 Set `MCP_ENABLED=false` to disable both the MCP endpoint and the OAuth server.
 
@@ -278,11 +279,11 @@ curl -X POST $B/api/commits -H "Authorization: Bearer $T" \
 | `ADMIN_USERNAME` | `admin`              | admin UI login username              |
 | `ADMIN_PASSWORD` | _(generated)_        | admin UI login password              |
 | `SESSION_TTL_HOURS` | `168`             | login session lifetime (hours)       |
-| `BRAND_NAME`   | `HLS Hub`              | site brand/title shown in the UI (per deployment) |
+| `BRAND_NAME`   | `Specification Hub`    | site brand/title shown in the UI (per deployment) |
 | `GITHUB_TOKEN`     | _(unset)_              | PAT — enables GitHub PR mode (with repo) |
 | `GITHUB_REPO`      | _(unset)_              | docs repo `owner/name` — enables GitHub PR mode |
 | `MCP_ENABLED`  | `true`                 | set `false` to disable the `/mcp` endpoint + OAuth server |
-| `PUBLIC_URL`   | _(from request)_       | force OAuth metadata base URL, e.g. `https://hls.example.com` |
+| `PUBLIC_URL`   | _(from request)_       | force OAuth metadata base URL, e.g. `https://docs.example.com` |
 | `OAUTH_TOKEN_TTL_SEC` | `3600`          | MCP OAuth access-token lifetime (seconds) |
 | `SYNC_INTERVAL_MS` | `10000`            | min gap between background `git fetch` syncs |
 | `DOCS_SEED`    | `./docs`               | seed content for first boot          |

@@ -16,7 +16,7 @@ export const DOC_STATUSES: DocStatus[] = [
   "experimental",
 ];
 
-/** Required frontmatter for every HLS document. */
+/** Required frontmatter for every document. */
 export interface FrontMatter {
   id: string;
   title: string;

@@ -42,7 +42,7 @@ function loginPage(params: Record<string, string>, error?: string): string {
     .join("");
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Authorize · HLS Hub</title>
+<title>Authorize · ${esc(config.brandName)}</title>
 <style>
   :root{color-scheme:dark}
   body{margin:0;min-height:100vh;display:grid;place-items:center;background:#16140f;color:#efe9df;
@@ -61,7 +61,7 @@ function loginPage(params: Record<string, string>, error?: string): string {
 </style></head>
 <body><form class="card" method="post" action="/oauth/authorize">
   <h1>Authorize access</h1>
-  <p><span class="who">${esc(params.client_name || "An application")}</span> wants to access HLS Hub.</p>
+  <p><span class="who">${esc(params.client_name || "An application")}</span> wants to access ${esc(config.brandName)}.</p>
   ${error ? `<div class="err">${esc(error)}</div>` : ""}
   <label>Username</label>
   <input class="f" name="username" autocomplete="username" autofocus>

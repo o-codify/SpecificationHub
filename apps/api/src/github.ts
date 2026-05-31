@@ -75,7 +75,7 @@ export async function ensurePullRequest(
         title: title || `Update ${head}`,
         head,
         base,
-        body: body || `Automated PR from HLS Hub for branch \`${head}\`.`,
+        body: body || `Automated PR from Specification Hub for branch \`${head}\`.`,
       }),
     },
   );

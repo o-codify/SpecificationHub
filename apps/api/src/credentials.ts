@@ -27,7 +27,7 @@ export function initCredentials(): { generated: string | null } {
     return { generated: null };
   }
 
-  const generated = `hls-${crypto.randomBytes(9).toString("base64url")}`;
+  const generated = `sh-${crypto.randomBytes(9).toString("base64url")}`;
   adminPassword = generated;
   try {
     fs.writeFileSync(config.adminPasswordFile, generated + "\n", "utf8");

@@ -1,5 +1,5 @@
 {
-  "name": "@hls/api",
+  "name": "@spec/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@hls/core": "*",
+    "@spec/core": "*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "drizzle-orm": "^0.45.2",
     "express": "^4.21.1",

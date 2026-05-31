@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { parseFrontmatter, serializeDoc, type FrontMatter } from "@hls/core";
+import { parseFrontmatter, serializeDoc, type FrontMatter } from "@spec/core";
 import type { FileSuggestion } from "../api";
 import { api } from "../api";
 import { useToast } from "../toast";

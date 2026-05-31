@@ -85,7 +85,7 @@ function createApp(): express.Express {
         .status(200)
         .type("text/plain")
         .send(
-          "HLS Hub API is running. Frontend build not found.\n" +
+          "Specification Hub API is running. Frontend build not found.\n" +
             "Run the web dev server (npm run dev:web) or build it (npm run build:web).\n" +
             "API health: /api/health",
         );
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
   await bootstrap();
   const app = createApp();
   app.listen(config.port, () => {
-    console.log(`HLS Hub listening on http://localhost:${config.port}`);
+    console.log(`Specification Hub listening on http://localhost:${config.port}`);
     console.log(`  Docs:   http://localhost:${config.port}/docs`);
     console.log(`  Admin:  http://localhost:${config.port}/admin`);
     console.log(`  Health: http://localhost:${config.port}/api/health`);

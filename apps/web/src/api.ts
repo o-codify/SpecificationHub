@@ -5,9 +5,9 @@ import type {
   Role,
   SearchHit,
   TreeResponse,
-} from "@hls/core";
+} from "@spec/core";
 
-const TOKEN_KEY = "hls_token";
+const TOKEN_KEY = "auth_token";
 
 export function getToken(): string {
   return localStorage.getItem(TOKEN_KEY) ?? "";

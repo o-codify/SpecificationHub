@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { Role } from "@hls/core";
+import type { Role } from "@spec/core";
 import { resolveSession, type Principal } from "./db.js";
 import { config } from "./config.js";
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 
-const DEFAULT = "HLS Hub";
+const DEFAULT = "Specification Hub";
 let brandPromise: Promise<string> | null = null;
 
 /** Load the configured brand once (per deployment, from /api/meta), cached. */
@@ -33,7 +33,7 @@ export function useBrand(): string {
 
 /**
  * Render the brand with the first word plain and the rest emphasised (matching
- * the original "HLS Hub" look); a single-word brand renders plain.
+ * the original "Specification Hub" look); a single-word brand renders plain.
  */
 export function Brand() {
   const brand = useBrand();

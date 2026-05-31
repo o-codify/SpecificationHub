@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { serializeDoc, type DiffFile } from "@hls/core";
+import { serializeDoc, type DiffFile } from "@spec/core";
 import { api } from "../api";
 import { useToast } from "../toast";
 

@@ -11,7 +11,7 @@ export function ThemeToggle({ small }: { small?: boolean }) {
     const next = theme === "light" ? "dark" : "light";
     document.documentElement.setAttribute("data-theme", next);
     try {
-      localStorage.setItem("hls-theme", next);
+      localStorage.setItem("theme", next);
     } catch {
       /* ignore */
     }

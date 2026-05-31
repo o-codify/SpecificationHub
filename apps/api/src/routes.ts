@@ -7,7 +7,7 @@ import {
   stampVersion,
   validateFrontmatter,
   type TreeItem,
-} from "@hls/core";
+} from "@spec/core";
 import * as gitlib from "./git.js";
 import { GitError, MergeConflictError, NotFoundError } from "./git.js";
 import * as github from "./github.js";

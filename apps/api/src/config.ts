@@ -28,13 +28,13 @@ export const config = {
   defaultBranch: process.env.DEFAULT_BRANCH ?? "main",
   // Site brand/title shown in the UI. Configurable per deployment (the same
   // image powers multiple prods with different names), read at runtime.
-  brandName: process.env.BRAND_NAME ?? "HLS Hub",
+  brandName: process.env.BRAND_NAME ?? "Specification Hub",
   adminUsername: process.env.ADMIN_USERNAME ?? "admin",
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
   sessionTtlHours: Number(process.env.SESSION_TTL_HOURS ?? 168),
   adminPasswordFile: path.join(dataDir, "admin-password.txt"),
-  gitAuthorName: "HLS Hub",
-  gitAuthorEmail: "hub@hls.local",
+  gitAuthorName: "Specification Hub",
+  gitAuthorEmail: "hub@specification-hub.local",
 
   // ---- GitHub integration (optional) ----
   // When both token and repo are set, GitHub becomes the source of truth:

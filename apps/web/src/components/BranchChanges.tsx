@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { FrontMatter } from "@hls/core";
+import type { FrontMatter } from "@spec/core";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { useToast } from "../toast";

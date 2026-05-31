@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { serializeDoc, type Doc, type SearchHit, type TreeItem } from "@hls/core";
+import { serializeDoc, type Doc, type SearchHit, type TreeItem } from "@spec/core";
 import { api, type FileSuggestion, type NewDoc } from "../api";
 import { useAuth } from "../auth";
 import { useLayout } from "../layout";

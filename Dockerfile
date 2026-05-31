@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Install workspace deps using only manifests first for better layer caching.
 COPY package.json package-lock.json tsconfig.base.json ./
-COPY packages/hls-core/package.json packages/hls-core/package.json
+COPY packages/core/package.json packages/core/package.json
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 RUN npm ci
@@ -35,8 +35,8 @@ ENV NODE_ENV=production \
     WEB_DIST=/app/apps/web/dist
 
 # Git identity / safety for commits & worktrees created at runtime.
-RUN git config --global user.email "hub@hls.local" \
-  && git config --global user.name "HLS Hub" \
+RUN git config --global user.email "hub@specification-hub.local" \
+  && git config --global user.name "Specification Hub" \
   && git config --global init.defaultBranch main \
   && git config --global --add safe.directory '*'
 

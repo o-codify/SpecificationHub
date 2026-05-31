@@ -7,7 +7,7 @@ services:
     environment:
       # Postgres connection (tokens, sessions, OAuth clients/tokens). Persists
       # across redeploys — unlike the /data volume.
-      - DATABASE_URL=${DATABASE_URL:-postgres://hls:hls@postgres:5432/hls}
+      - DATABASE_URL=${DATABASE_URL:-postgres://spec:spec@postgres:5432/spec}
       # Admin UI login (used at /admin). If the password is unset, one is
       # generated on first boot and printed to the logs (and /data/admin-password.txt).
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
@@ -16,7 +16,7 @@ services:
       # from X-Forwarded-* headers if unset.
       - PUBLIC_URL=${PUBLIC_URL:-}
       # Site brand / title shown in the UI. Each prod can set its own.
-      - BRAND_NAME=${BRAND_NAME:-HLS Hub}
+      - BRAND_NAME=${BRAND_NAME:-Specification Hub}
       # Docs live in a SEPARATE repository. Point GITHUB_REPO at it (e.g.
       # o-codify/HumanLocomotionSpecificationDocs) with a PAT (Contents + Pull
       # requests write). GitHub becomes the source of truth: the app clones it,
@@ -24,7 +24,7 @@ services:
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
       - GITHUB_REPO=${GITHUB_REPO:-}
     volumes:
-      - hls-data:/data
+      - spec-data:/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,18 +33,18 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-hls}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-hls}
-      - POSTGRES_DB=${POSTGRES_DB:-hls}
+      - POSTGRES_USER=${POSTGRES_USER:-spec}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-spec}
+      - POSTGRES_DB=${POSTGRES_DB:-spec}
     volumes:
-      - hls-pg:/var/lib/postgresql/data
+      - spec-pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hls} -d ${POSTGRES_DB:-hls}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spec} -d ${POSTGRES_DB:-spec}"]
       interval: 5s
       timeout: 5s
       retries: 10
     restart: unless-stopped
 
 volumes:
-  hls-data:
-  hls-pg:
+  spec-data:
+  spec-pg:

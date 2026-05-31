@@ -1,4 +1,4 @@
-import { stampVersion } from "@hls/core";
+import { stampVersion } from "@spec/core";
 
 /**
  * Version is auto-stamped from the clock (`YY.M{DD}.H{MM}`, minute granularity)

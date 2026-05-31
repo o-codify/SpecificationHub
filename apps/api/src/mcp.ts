@@ -11,7 +11,7 @@ import {
   stampVersion,
   validateFrontmatter,
   type DocStatus,
-} from "@hls/core";
+} from "@spec/core";
 import * as gitlib from "./git.js";
 import * as github from "./github.js";
 import { canWriteBranch } from "./auth.js";
@@ -19,8 +19,8 @@ import { resolveSession, resolveOAuthToken, type Principal } from "./db.js";
 import { config } from "./config.js";
 import { baseUrl } from "./oauth.js";
 
-// Auth is via `Authorization: Bearer <token>`: an OAuth access token (ChatGPT
-// connector), a login session, or an app token (Admin → Tokens).
+// Auth is via `Authorization: Bearer <token>`: an OAuth access token (ChatGPT /
+// Claude connector) or a login session.
 async function resolvePrincipal(req: Request): Promise<Principal | null> {
   const h = req.headers.authorization;
   if (h && h.startsWith("Bearer ")) {
@@ -61,7 +61,7 @@ function buildServer(principal: Principal | null): McpServer {
     "search_docs",
     {
       title: "Search documentation",
-      description: "Full-text search the Human Locomotion Specification docs. Returns matching documents with a short snippet.",
+      description: "Full-text search the documentation. Returns matching documents with a short snippet.",
       inputSchema: {
         query: z.string().describe("Text to search for"),
         branch: z.string().optional().describe(`Branch to search (default: ${base})`),

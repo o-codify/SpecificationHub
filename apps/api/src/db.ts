@@ -4,7 +4,7 @@ import pg from "pg";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { and, eq, lt } from "drizzle-orm";
-import type { Role } from "@hls/core";
+import type { Role } from "@spec/core";
 import { config } from "./config.js";
 import * as schema from "./schema.js";
 
@@ -48,7 +48,7 @@ export interface CreatedSession {
 }
 
 export async function createSession(username: string, role: Role, ttlHours: number): Promise<CreatedSession> {
-  const token = `hls_sess_${crypto.randomBytes(24).toString("hex")}`;
+  const token = `sess_${crypto.randomBytes(24).toString("hex")}`;
   const now = Date.now();
   const expiresAt = new Date(now + ttlHours * 3600 * 1000).toISOString();
   await db.insert(schema.sessions).values({
