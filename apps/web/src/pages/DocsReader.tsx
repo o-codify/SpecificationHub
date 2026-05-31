@@ -35,6 +35,7 @@ export function DocsReader() {
   // the default branch), this holds that branch; otherwise null.
   const [newDocBranch, setNewDocBranch] = useState<string | null>(null);
   const [acceptingNew, setAcceptingNew] = useState(false);
+  const [treeLoaded, setTreeLoaded] = useState(false);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
@@ -68,10 +69,12 @@ export function DocsReader() {
   }, []);
 
   const loadTree = useCallback(() => {
+    setTreeLoaded(false);
     api
       .tree(branch)
       .then((r) => setTree(r.items))
-      .catch((e) => setError(String(e.message ?? e)));
+      .catch((e) => setError(String(e.message ?? e)))
+      .finally(() => setTreeLoaded(true));
     if (branch !== defaultBranch) {
       // Branch view: mark docs that differ from the default branch.
       setNewDocs([]);
@@ -100,7 +103,15 @@ export function DocsReader() {
   useEffect(loadTree, [loadTree]);
 
   const loadDoc = useCallback(() => {
-    if (tree.length === 0 && newDocs.length === 0) return;
+    if (tree.length === 0 && newDocs.length === 0) {
+      // No docs to open — clear the loader so the empty state can show.
+      setLoading(false);
+      setDoc(null);
+      setBaseDoc(null);
+      setSuggestions([]);
+      setNewDocBranch(null);
+      return;
+    }
     const bv = branch !== defaultBranch;
     setMode("view");
     setLoading(true);
@@ -351,7 +362,7 @@ export function DocsReader() {
               loadDoc();
             }}
           />
-        ) : loading ? (
+        ) : loading || !treeLoaded ? (
           <div className="muted">Loading…</div>
         ) : error ? (
           <div className="banner bad">{error}</div>
@@ -445,6 +456,10 @@ export function DocsReader() {
               />
             )}
           </>
+        ) : sidebarItems.length === 0 ? (
+          <div className="muted">
+            No documents yet.{authed ? " Create one with “+ New document”." : ""}
+          </div>
         ) : (
           <div className="muted">Select a document.</div>
         )}
