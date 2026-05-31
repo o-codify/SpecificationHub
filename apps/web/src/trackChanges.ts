@@ -4,6 +4,12 @@ import { mdToHtmlDoc, mdInline } from "./markdownConvert";
 /** A "prose" block is a plain paragraph (not heading/list/quote/code/table). */
 const isProse = (b: string) => !/^(#{1,6}\s|>\s|[-*+]\s|\d+\.\s|```|\||\s{4})/.test(b.trim());
 
+/** A single-line ATX heading block (e.g. "## Title"). */
+const isHeading = (b: string) => {
+  const t = b.trim();
+  return /^#{1,6}\s/.test(t) && !t.includes("\n");
+};
+
 /** A bullet/ordered list block (every line is a list item). */
 const isList = (b: string) =>
   b.trim().split("\n").every((l) => /^\s*([-*+]|\d+\.)\s+/.test(l));
@@ -148,9 +154,32 @@ function codeReplace(c: Change, oldBlock: string, newBlock: string): string {
   return `<pre><code>${out}</code></pre>`;
 }
 
+/** Replace a heading inline: keep the <h*> tag (+ H1 accent), diff just the text. */
+function headingReplace(c: Change, oldBlock: string, newBlock: string): string {
+  const parse = (b: string) => {
+    const m = b.trim().match(/^(#{1,6})\s+([\s\S]*)$/);
+    return { level: m ? m[1].length : 2, text: (m ? m[2] : b).trim() };
+  };
+  const o = parse(oldBlock);
+  const n = parse(newBlock);
+  const lvl = n.level;
+  const wrap = (inner: string) => (lvl === 1 ? `<span class="hl">${inner}</span>` : inner);
+  const inner = o.text === n.text ? wrap(mdInline(n.text)) : wrap(clauseInner(c, o.text, n.text));
+  return `<h${lvl}>${inner}</h${lvl}>`;
+}
+
 /** Render one changed block against its old version, picking the right granularity. */
 function renderReplacePair(c: Change, oldBlock: string, newBlock: string): string {
   const attrs = `data-id="${c.id}" data-branch="${escAttr(c.branch)}"`;
+  // A heading glued to its body (no blank line between them) lands in one block;
+  // peel the heading off both sides so the change stays inline instead of being
+  // dumped into a struck/green callout.
+  const peel = (b: string) => b.trim().match(/^(#{1,6}\s[^\n]*)\n([\s\S]+)$/);
+  const op = peel(oldBlock);
+  const np = peel(newBlock);
+  if (op && np)
+    return headingReplace(c, op[1], np[1]) + renderReplacePair(c, op[2].trim(), np[2].trim());
+  if (isHeading(oldBlock) && isHeading(newBlock)) return headingReplace(c, oldBlock, newBlock);
   if (isProse(oldBlock) && isProse(newBlock)) return `<p>${clauseInner(c, oldBlock, newBlock)}</p>`;
   if (isList(oldBlock) && isList(newBlock)) return listReplace(c, oldBlock, newBlock);
   if (isTable(oldBlock) && isTable(newBlock)) return tableReplace(c, oldBlock, newBlock);
