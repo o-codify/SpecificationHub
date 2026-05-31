@@ -54,7 +54,7 @@ function slugify(t: string): string {
 }
 
 function buildServer(principal: Principal | null): McpServer {
-  const server = new McpServer({ name: "hls-hub", version: "0.1.0" });
+  const server = new McpServer({ name: "specification-hub", version: "0.1.0" });
   const base = config.defaultBranch;
 
   server.registerTool(
@@ -188,7 +188,7 @@ function buildServer(principal: Principal | null): McpServer {
     },
   );
 
-  // ---- write tools (require a principal: request Bearer or HLS_MCP_TOKEN) ----
+  // ---- write tools (require a principal: request Bearer or MCP_TOKEN) ----
   if (principal) {
     server.registerTool(
       "create_branch",

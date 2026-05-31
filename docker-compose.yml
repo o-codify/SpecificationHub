@@ -1,26 +1,29 @@
 services:
-  hls-hub:
+  specification-hub:
     build: .
-    image: hls-hub:latest
+    image: specification-hub:latest
     ports:
       - "8080:8080"
     environment:
       # Postgres connection (tokens, sessions, OAuth clients/tokens). Persists
       # across redeploys — unlike the /data volume.
-      - DATABASE_URL=${DATABASE_URL:-}
+      - DATABASE_URL=${DATABASE_URL:-postgres://hls:hls@postgres:5432/hls}
       # Admin UI login (used at /admin). If the password is unset, one is
       # generated on first boot and printed to the logs (and /data/admin-password.txt).
-      - HLS_ADMIN_USERNAME=${HLS_ADMIN_USERNAME:-admin}
-      - HLS_ADMIN_PASSWORD=${HLS_ADMIN_PASSWORD:-}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       # Optional: pin the programmatic API admin token (for scripts / AI agents).
       # If unset, one is generated on first boot and printed to the logs.
-      - HLS_ADMIN_TOKEN=${HLS_ADMIN_TOKEN:-}
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
       # Public base URL for OAuth metadata (behind a proxy). Optional — derived
       # from X-Forwarded-* headers if unset.
-      - HLS_PUBLIC_URL=${HLS_PUBLIC_URL:-}
-      # Optional GitHub integration. When BOTH are set, GitHub becomes the source
-      # of truth: commits are pushed, PRs opened, and merges go through the PR API.
-      # PAT needs Contents + Pull requests write on the repo.
+      - PUBLIC_URL=${PUBLIC_URL:-}
+      # Site brand / title shown in the UI. Each prod can set its own.
+      - BRAND_NAME=${BRAND_NAME:-HLS Hub}
+      # Docs live in a SEPARATE repository. Point GITHUB_REPO at it (e.g.
+      # o-codify/HumanLocomotionSpecificationDocs) with a PAT (Contents + Pull
+      # requests write). GitHub becomes the source of truth: the app clones it,
+      # serves/edits docs, pushes commits and opens PRs there.
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
       - GITHUB_REPO=${GITHUB_REPO:-}
     volumes:

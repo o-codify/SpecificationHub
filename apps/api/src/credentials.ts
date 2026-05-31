@@ -7,8 +7,8 @@ let adminPassword = "";
 
 /**
  * Resolve the admin login credentials at boot.
- * - Username comes from HLS_ADMIN_USERNAME (default "admin").
- * - Password comes from HLS_ADMIN_PASSWORD if set; otherwise a random one is
+ * - Username comes from ADMIN_USERNAME (default "admin").
+ * - Password comes from ADMIN_PASSWORD if set; otherwise a random one is
  *   generated once and persisted to the data dir (so it is stable across
  *   restarts) and returned so it can be logged.
  *

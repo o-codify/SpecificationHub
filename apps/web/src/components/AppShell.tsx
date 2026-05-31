@@ -5,6 +5,7 @@ import { useLayout } from "../layout";
 import { setViewAccent } from "../status";
 import { ThemeToggle } from "./ThemeToggle";
 import { LoginModal } from "./LoginModal";
+import { Brand } from "../brand";
 
 export function AppShell() {
   const { authed, user, openLogin, logout } = useAuth();
@@ -47,7 +48,7 @@ export function AppShell() {
           ☰
         </button>
         <Link to="/docs" className="brand" title="Docs home">
-          HLS <b>Hub</b>
+          <Brand />
         </Link>
         <nav className={`nav${navOpen ? " open" : ""}`}>
           <NavLink to="/branches" onClick={(e) => goAdmin(e, "/branches")}>

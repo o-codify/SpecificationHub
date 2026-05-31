@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth";
+import { Brand } from "../brand";
 
 export function LoginModal() {
   const { loginOpen, closeLogin, login } = useAuth();
@@ -56,7 +57,7 @@ export function LoginModal() {
         </button>
         <div className="auth-head">
           <div className="brand">
-            HLS <b>Hub</b>
+            <Brand />
           </div>
           <p>Sign in to the admin panel</p>
         </div>

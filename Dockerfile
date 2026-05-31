@@ -28,11 +28,11 @@ RUN apt-get update \
 
 # GitHub is the source of truth: the repo is cloned into /data at boot, so no
 # docs seed is baked into the image. (For local mode without GitHub, mount a
-# seed dir and set HLS_DOCS_SEED to it.)
+# seed dir and set DOCS_SEED to it.)
 ENV NODE_ENV=production \
     PORT=8080 \
-    HLS_DATA_DIR=/data \
-    HLS_WEB_DIST=/app/apps/web/dist
+    DATA_DIR=/data \
+    WEB_DIST=/app/apps/web/dist
 
 # Git identity / safety for commits & worktrees created at runtime.
 RUN git config --global user.email "hub@hls.local" \

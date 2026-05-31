@@ -89,7 +89,7 @@ export function createRouter(): Router {
 
   // ---- Health ----
   router.get("/health", (_req, res) => {
-    res.json({ status: "ok", service: "hls-hub", time: new Date().toISOString() });
+    res.json({ status: "ok", service: "specification-hub", time: new Date().toISOString() });
   });
 
   // ---- Auth (admin login/password) ----
@@ -413,6 +413,7 @@ export function createRouter(): Router {
   router.get("/meta", (_req, res) => {
     res.json({
       statuses: DOC_STATUSES,
+      brand: config.brandName,
       defaultBranch: config.defaultBranch,
       github: config.githubEnabled
         ? { repo: config.githubRepo, url: `${config.githubServer}/${config.githubRepo}` }

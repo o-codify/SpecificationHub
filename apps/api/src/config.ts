@@ -10,7 +10,7 @@ function envPath(name: string, fallback: string): string {
   return v ? path.resolve(v) : fallback;
 }
 
-const dataDir = envPath("HLS_DATA_DIR", path.join(repoRoot, "data"));
+const dataDir = envPath("DATA_DIR", path.join(repoRoot, "data"));
 
 export const config = {
   port: Number(process.env.PORT ?? 8080),
@@ -24,13 +24,16 @@ export const config = {
   // same way from src (tsx) and dist (bundled) since both are one level under it.
   migrationsDir: path.join(here, "../drizzle"),
   adminTokenFile: path.join(dataDir, "admin-token.txt"),
-  docsSeedDir: envPath("HLS_DOCS_SEED", path.join(repoRoot, "docs")),
-  webDist: envPath("HLS_WEB_DIST", path.join(repoRoot, "apps/web/dist")),
-  defaultBranch: process.env.HLS_DEFAULT_BRANCH ?? "main",
-  adminTokenEnv: process.env.HLS_ADMIN_TOKEN ?? "",
-  adminUsername: process.env.HLS_ADMIN_USERNAME ?? "admin",
-  adminPassword: process.env.HLS_ADMIN_PASSWORD ?? "",
-  sessionTtlHours: Number(process.env.HLS_SESSION_TTL_HOURS ?? 168),
+  docsSeedDir: envPath("DOCS_SEED", path.join(repoRoot, "docs")),
+  webDist: envPath("WEB_DIST", path.join(repoRoot, "apps/web/dist")),
+  defaultBranch: process.env.DEFAULT_BRANCH ?? "main",
+  // Site brand/title shown in the UI. Configurable per deployment (the same
+  // image powers multiple prods with different names), read at runtime.
+  brandName: process.env.BRAND_NAME ?? "HLS Hub",
+  adminTokenEnv: process.env.ADMIN_TOKEN ?? "",
+  adminUsername: process.env.ADMIN_USERNAME ?? "admin",
+  adminPassword: process.env.ADMIN_PASSWORD ?? "",
+  sessionTtlHours: Number(process.env.SESSION_TTL_HOURS ?? 168),
   adminPasswordFile: path.join(dataDir, "admin-password.txt"),
   gitAuthorName: "HLS Hub",
   gitAuthorEmail: "hub@hls.local",
@@ -43,14 +46,14 @@ export const config = {
   githubApi: (process.env.GITHUB_API ?? "https://api.github.com").replace(/\/$/, ""),
   githubServer: (process.env.GITHUB_SERVER ?? "https://github.com").replace(/\/$/, ""),
   // Minimum gap between background `git fetch` syncs triggered by reads.
-  syncIntervalMs: Number(process.env.HLS_SYNC_INTERVAL_MS ?? 10000),
-  mcpEnabled: (process.env.HLS_MCP_ENABLED ?? "true") !== "false",
+  syncIntervalMs: Number(process.env.SYNC_INTERVAL_MS ?? 10000),
+  mcpEnabled: (process.env.MCP_ENABLED ?? "true") !== "false",
   // Public base URL of this server (scheme + host, no trailing slash). Used to
   // build absolute OAuth metadata URLs. If empty, derived from request headers
   // (honouring X-Forwarded-Proto / X-Forwarded-Host behind a proxy).
-  publicUrl: (process.env.HLS_PUBLIC_URL ?? "").replace(/\/$/, ""),
+  publicUrl: (process.env.PUBLIC_URL ?? "").replace(/\/$/, ""),
   // Access-token lifetime for the MCP OAuth flow (seconds).
-  oauthTokenTtlSec: Number(process.env.HLS_OAUTH_TOKEN_TTL_SEC ?? 3600),
+  oauthTokenTtlSec: Number(process.env.OAUTH_TOKEN_TTL_SEC ?? 3600),
   get githubEnabled(): boolean {
     return Boolean(this.githubToken && this.githubRepo);
   },

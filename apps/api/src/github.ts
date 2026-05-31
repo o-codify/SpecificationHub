@@ -23,7 +23,7 @@ async function gh<T>(path: string, init?: RequestInit): Promise<T> {
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
       "Content-Type": "application/json",
-      "User-Agent": "hls-hub",
+      "User-Agent": "specification-hub",
       ...(init?.headers ?? {}),
     },
   });

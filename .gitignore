@@ -1,6 +1,9 @@
 node_modules/
 dist/
 data/
+# Docs are maintained in a separate repository (point GITHUB_REPO at it). Keep a
+# local clone here for local dev (HLS_DOCS_SEED defaults to ./docs) — untracked.
+/docs/
 *.log
 .DS_Store
 .env

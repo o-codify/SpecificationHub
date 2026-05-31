@@ -76,6 +76,7 @@ export interface PullRequestInfo {
 
 export interface MetaResponse {
   statuses: string[];
+  brand: string;
   defaultBranch: string;
   github: { repo: string; url: string } | null;
 }

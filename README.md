@@ -54,16 +54,16 @@ Then open:
 Open `/admin` and sign in with **username + password** (configured via env):
 
 ```bash
-HLS_ADMIN_USERNAME=admin HLS_ADMIN_PASSWORD=change-me docker compose up --build
+ADMIN_USERNAME=admin ADMIN_PASSWORD=change-me docker compose up --build
 ```
 
-If `HLS_ADMIN_PASSWORD` is not set, a random password is generated on first
+If `ADMIN_PASSWORD` is not set, a random password is generated on first
 boot, printed to the container logs, and saved to `/data/admin-password.txt`.
-Login creates a server-side session (default 7 days, `HLS_SESSION_TTL_HOURS`).
+Login creates a server-side session (default 7 days, `SESSION_TTL_HOURS`).
 
 For **programmatic / AI access** there are still Bearer API tokens (managed in
 **Admin → Tokens**). A bootstrap admin token is generated on first boot (logs /
-`/data/admin-token.txt`), or pin it with `HLS_ADMIN_TOKEN`.
+`/data/admin-token.txt`), or pin it with `ADMIN_TOKEN`.
 
 Tokens, sessions, and OAuth clients/tokens live in **Postgres** (`DATABASE_URL`),
 so they survive redeploys. The `/data` volume holds the Git working data; in
@@ -94,6 +94,24 @@ npm run build
 npm start          # serves built web + api on :8080
 ```
 
+## Docs live in a separate repository
+
+This repo holds **only the app** (backend + frontend). The Markdown docs live in
+their **own repository** (e.g. `o-codify/HumanLocomotionSpecificationDocs`, with
+the files under `docs/`). The app reads/edits them via GitHub-backed mode below;
+`docs/` is git-ignored here (keep a local clone in `./docs` for local dev — it is
+the default `DOCS_SEED`).
+
+### Multiple deployments (two+ prods)
+
+The same image runs as several independent prods, each pointed at its own docs
+repo and given its own brand:
+
+- per deployment set **`GITHUB_REPO`** (its docs repo) and **`BRAND_NAME`**
+  (its title — read at runtime, so one image serves all);
+- the GitHub Action triggers every configured Coolify webhook on an app push —
+  set `COOLIFY_WEBHOOK` and `COOLIFY_WEBHOOK_2` (both optional) as repo secrets.
+
 ## GitHub-backed mode (PR workflow)
 
 By default the local Git repo in `/data` is the source of truth and merges happen
@@ -101,15 +119,15 @@ in-app. If you set **both** `GITHUB_TOKEN` and `GITHUB_REPO`, GitHub becomes the
 source of truth and the flow becomes a real PR workflow:
 
 ```bash
-GITHUB_REPO=o-codify/HumanLocomotionSpecification \
+GITHUB_REPO=o-codify/HumanLocomotionSpecificationDocs \
 GITHUB_TOKEN=github_pat_xxx \
 docker compose up --build
 ```
 
 - On first boot the repo is **cloned** from GitHub into the `/data` volume.
   The Docker image does **not** bundle a docs seed — GitHub is the source of
-  truth, so the repo must already contain `docs/` (push the source `docs/` once
-  for a brand-new repo). Local dev (`npm start`) still seeds from `./docs`.
+  truth, so the docs repo must already contain `docs/`. Local dev (`npm start`)
+  still seeds from `./docs`.
 - In the editor, **Save = commit + push** to the branch in one action — no
   separate "commit" step. A **Pull Request** is opened/updated automatically.
 - **Merge** (admin Diff page, reviewer/admin only) goes through the **GitHub PR
@@ -120,7 +138,7 @@ docker compose up --build
 The PAT (fine-grained recommended) needs **Contents: write** and **Pull
 requests: write** on the repo. The token is passed per-git-command via an auth
 header, so it is **not** persisted into the repo's stored config. Set
-`HLS_DEFAULT_BRANCH` only if your repo's default branch isn't auto-detected
+`DEFAULT_BRANCH` only if your repo's default branch isn't auto-detected
 correctly (it normally is, from the repo HEAD).
 
 Without these vars the app runs in self-contained local mode (no network needed).
@@ -167,11 +185,11 @@ For a manually-created OAuth client, `token_endpoint_auth_method` is `none`
 
 > The server must be reachable at a public **HTTPS** URL. Behind a reverse proxy
 > the metadata URLs are derived from `X-Forwarded-Proto`/`X-Forwarded-Host`; set
-> `HLS_PUBLIC_URL` to force the exact base (e.g. `https://hls.example.com`).
+> `PUBLIC_URL` to force the exact base (e.g. `https://hls.example.com`).
 
 Programmatic (non-ChatGPT) clients may instead send an app token directly as
 `Authorization: Bearer <token>` (create one in **Admin → Tokens**). Set
-`HLS_MCP_ENABLED=false` to disable both the MCP endpoint and OAuth server.
+`MCP_ENABLED=false` to disable both the MCP endpoint and OAuth server.
 
 ## Markdown format
 
@@ -278,17 +296,18 @@ curl -X POST $B/api/merge -H "Authorization: Bearer $ADMIN" \
 | ------------------ | ---------------------- | ------------------------------------ |
 | `PORT`             | `8080`                 | HTTP port                            |
 | `DATABASE_URL`     | _(required)_           | Postgres connection string (tokens/sessions/OAuth) |
-| `HLS_DATA_DIR`     | `./data` (`/data`)     | Git repo + worktrees                 |
-| `HLS_ADMIN_USERNAME` | `admin`              | admin UI login username              |
-| `HLS_ADMIN_PASSWORD` | _(generated)_        | admin UI login password              |
-| `HLS_SESSION_TTL_HOURS` | `168`             | login session lifetime (hours)       |
-| `HLS_ADMIN_TOKEN`  | _(generated)_          | pin the programmatic API admin token |
+| `DATA_DIR`     | `./data` (`/data`)     | Git repo + worktrees                 |
+| `ADMIN_USERNAME` | `admin`              | admin UI login username              |
+| `ADMIN_PASSWORD` | _(generated)_        | admin UI login password              |
+| `SESSION_TTL_HOURS` | `168`             | login session lifetime (hours)       |
+| `ADMIN_TOKEN`  | _(generated)_          | pin the programmatic API admin token |
+| `BRAND_NAME`   | `HLS Hub`              | site brand/title shown in the UI (per deployment) |
 | `GITHUB_TOKEN`     | _(unset)_              | PAT — enables GitHub PR mode (with repo) |
-| `GITHUB_REPO`      | _(unset)_              | `owner/name` — enables GitHub PR mode |
-| `HLS_MCP_ENABLED`  | `true`                 | set `false` to disable the `/mcp` endpoint + OAuth server |
-| `HLS_PUBLIC_URL`   | _(from request)_       | force OAuth metadata base URL, e.g. `https://hls.example.com` |
-| `HLS_OAUTH_TOKEN_TTL_SEC` | `3600`          | MCP OAuth access-token lifetime (seconds) |
-| `HLS_SYNC_INTERVAL_MS` | `10000`            | min gap between background `git fetch` syncs |
-| `HLS_DOCS_SEED`    | `./docs`               | seed content for first boot          |
-| `HLS_WEB_DIST`     | `./apps/web/dist`      | built frontend to serve              |
-| `HLS_DEFAULT_BRANCH` | `main`               | default/protected branch             |
+| `GITHUB_REPO`      | _(unset)_              | docs repo `owner/name` — enables GitHub PR mode |
+| `MCP_ENABLED`  | `true`                 | set `false` to disable the `/mcp` endpoint + OAuth server |
+| `PUBLIC_URL`   | _(from request)_       | force OAuth metadata base URL, e.g. `https://hls.example.com` |
+| `OAUTH_TOKEN_TTL_SEC` | `3600`          | MCP OAuth access-token lifetime (seconds) |
+| `SYNC_INTERVAL_MS` | `10000`            | min gap between background `git fetch` syncs |
+| `DOCS_SEED`    | `./docs`               | seed content for first boot          |
+| `WEB_DIST`     | `./apps/web/dist`      | built frontend to serve              |
+| `DEFAULT_BRANCH` | `main`               | default/protected branch             |

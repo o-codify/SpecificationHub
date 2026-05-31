@@ -31,10 +31,10 @@ async function bootstrap(): Promise<void> {
   console.log("  Admin login (use at /admin):");
   console.log(`  username: ${getAdminUsername()}`);
   if (generated) {
-    console.log(`  password: ${generated}  (generated — set HLS_ADMIN_PASSWORD to override)`);
+    console.log(`  password: ${generated}  (generated — set ADMIN_PASSWORD to override)`);
     console.log(`  (also written to ${config.adminPasswordFile})`);
   } else {
-    console.log(`  password: (from HLS_ADMIN_PASSWORD or ${config.adminPasswordFile})`);
+    console.log(`  password: (from ADMIN_PASSWORD or ${config.adminPasswordFile})`);
   }
   console.log("========================================================\n");
 
