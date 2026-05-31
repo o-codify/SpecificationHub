@@ -95,12 +95,21 @@ function clauseInner(
   render: (s: string) => string = mdInline,
 ): string {
   const isW = (ch: string | undefined) => !!ch && /\w/.test(ch);
+  // Is index `idx` inside an inline `code` span? (odd number of backticks before it)
+  const inCode = (t: string, idx: number) => {
+    let n = 0;
+    for (let i = 0; i < idx; i++) if (t[i] === "`") n++;
+    return n % 2 === 1;
+  };
   // Character-level common prefix/suffix (handles attached punctuation like
   // "speed" → "speed, …"), then snap the boundaries to whole-word edges so we
   // never cut inside a word.
   let p = 0;
   while (p < oldText.length && p < newText.length && oldText[p] === newText[p]) p++;
   while (p > 0 && isW(oldText[p - 1]) && (isW(oldText[p]) || isW(newText[p]))) p--;
+  // …and never cut inside an inline-code span (keep the whole `code`, backticks
+  // and all, on the same side) — otherwise a stray backtick breaks the markdown.
+  while (p > 0 && (inCode(oldText, p) || inCode(newText, p))) p--;
   let s = 0;
   while (
     s < oldText.length - p &&
@@ -112,6 +121,11 @@ function clauseInner(
     s > 0 &&
     isW(oldText[oldText.length - s]) &&
     (isW(oldText[oldText.length - 1 - s]) || isW(newText[newText.length - 1 - s]))
+  )
+    s--;
+  while (
+    s > 0 &&
+    (inCode(oldText, oldText.length - s) || inCode(newText, newText.length - s))
   )
     s--;
   const prefix = oldText.slice(0, p);
