@@ -889,7 +889,11 @@ export function updateBranchFromBase(
 
   const name = author || config.gitAuthorName;
   const safe = name.replace(/[^a-zA-Z0-9._-]+/g, "-").toLowerCase() || "author";
-  const args = [...identityArgs(name, `${safe}@specification-hub.local`), "merge", "--no-edit"];
+  // `no-renames`: never treat a delete + a similar file elsewhere as a rename.
+  // Docs share basenames across folders (docs/00-overview vs docs/agls/00-overview),
+  // so rename detection would otherwise carry one file's edits — or a deleted
+  // stub's body — into an unrelated same-named file. Each path stays itself.
+  const args = [...identityArgs(name, `${safe}@specification-hub.local`), "merge", "--no-edit", "-X", "no-renames"];
   if (strategy === "prefer-main") args.push("-X", "theirs");
   else if (strategy === "prefer-mine") args.push("-X", "ours");
   args.push(base);
