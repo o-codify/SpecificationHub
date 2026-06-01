@@ -501,6 +501,14 @@ export function DocsReader() {
             </div>
             <div className="doc-path">{doc.path}</div>
             <div className="doc-rule" />
+            {/* Title fallback: docs are expected to open with a `# H1` (which the
+                body renders). When a doc has no leading H1, show the frontmatter
+                title so the reader isn't title-less. */}
+            {fm?.title && !/^\s*#\s/.test(doc.content) && (
+              <h1>
+                <span className="hl">{String(fm.title)}</span>
+              </h1>
+            )}
             {delBranch && (
               <div className="newdoc-bar del-bar">
                 <span>
