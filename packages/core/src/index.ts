@@ -6,15 +6,31 @@ export type Role = "viewer" | "editor" | "reviewer" | "admin" | "ai-agent";
 export const ROLES: Role[] = ["viewer", "editor", "reviewer", "admin", "ai-agent"];
 
 /** Allowed values for the frontmatter `status` field. */
-export type DocStatus = "draft" | "review" | "stable" | "deprecated" | "experimental";
+export type DocStatus =
+  | "request"
+  | "draft"
+  | "review"
+  | "stable"
+  | "deprecated"
+  | "experimental";
 
 export const DOC_STATUSES: DocStatus[] = [
-  "draft",
-  "review",
-  "stable",
+  "request", // a documented ask for content — another author/AI fulfils it
+  "draft", // being written, not yet ready for review
+  "review", // written, awaiting human approval (→ stable on accept)
+  "stable", // approved / merged
   "deprecated",
   "experimental",
 ];
+
+/**
+ * Status transition applied when a reviewer accepts changes into the base
+ * branch: a doc that was "awaiting review" is now approved → "stable". Every
+ * other status is left untouched (a "draft" is still WIP, etc.).
+ */
+export function promoteOnAccept(status: unknown): DocStatus | string {
+  return status === "review" ? "stable" : (status as DocStatus | string);
+}
 
 /** Required frontmatter for every document. */
 export interface FrontMatter {

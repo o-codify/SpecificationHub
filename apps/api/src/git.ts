@@ -3,7 +3,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { config } from "./config.js";
-import { parseFrontmatter, serializeDoc, stampVersion, type DiffFile, type SearchHit } from "@spec/core";
+import {
+  parseFrontmatter,
+  promoteOnAccept,
+  serializeDoc,
+  stampVersion,
+  type DiffFile,
+  type SearchHit,
+} from "@spec/core";
 
 export class GitError extends Error {
   detail: string;
@@ -552,9 +559,12 @@ export function newDocsForBase(base: string): NewDoc[] {
  * the title or body) — so "gait cycle stance swing" matches a doc mentioning
  * those words even when they are not a contiguous phrase.
  */
-export function searchDocs(branch: string, query: string): SearchHit[] {
+export function searchDocs(branch: string, query: string, status?: string): SearchHit[] {
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return [];
+  const wantStatus = status?.trim().toLowerCase();
+  // Allow filtering by status alone (no query terms) so callers can list e.g.
+  // every `request` doc.
+  if (terms.length === 0 && !wantStatus) return [];
   const hits: SearchHit[] = [];
   for (const filePath of listMarkdownFiles(branch)) {
     let raw: string;
@@ -564,6 +574,7 @@ export function searchDocs(branch: string, query: string): SearchHit[] {
       continue;
     }
     const { frontmatter, content } = parseFrontmatter(raw);
+    if (wantStatus && String(frontmatter.status ?? "").toLowerCase() !== wantStatus) continue;
     const title = frontmatter.title ? String(frontmatter.title) : filePath;
     const hay = `${title}\n${content}`;
     const lower = hay.toLowerCase();
@@ -652,7 +663,13 @@ export function acceptBranchIntoBase(
   if (paths.length === 0) throw new GitError("No changes to accept");
   const files = paths.map((p) => {
     const { frontmatter, content } = parseFrontmatter(readFile(head, p));
-    return { path: p, content: serializeDoc({ ...frontmatter, version: stampVersion() }, content) };
+    return {
+      path: p,
+      content: serializeDoc(
+        { ...frontmatter, version: stampVersion(), status: promoteOnAccept(frontmatter.status) },
+        content,
+      ),
+    };
   });
   const res = applyContentsToBase(base, files, message, author);
   return { ...res, count: files.length };

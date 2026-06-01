@@ -3,6 +3,7 @@ import {
   DOC_STATUSES,
   FrontmatterError,
   parseFrontmatter,
+  promoteOnAccept,
   serializeDoc,
   stampVersion,
   validateFrontmatter,
@@ -333,11 +334,19 @@ export function createRouter(): Router {
       const base = (req.body?.base as string) || config.defaultBranch;
       const docPath = validateDocPath(req.body?.path);
       const rawContent = typeof req.body?.content === "string" ? req.body.content : "";
-      // Re-stamp the version server-side so accepting into main updates the timestamp.
+      // Re-stamp the version and promote review→stable server-side, so accepting
+      // into main updates the timestamp and marks an approved doc stable.
       const parsed = parseFrontmatter(rawContent);
       const content =
         Object.keys(parsed.frontmatter).length > 0
-          ? serializeDoc({ ...parsed.frontmatter, version: stampVersion() }, parsed.content)
+          ? serializeDoc(
+              {
+                ...parsed.frontmatter,
+                version: stampVersion(),
+                status: promoteOnAccept(parsed.frontmatter.status),
+              },
+              parsed.content,
+            )
           : rawContent;
       const message = (req.body?.message as string) || `Update ${docPath}`;
       const result = gitlib.applyContentToBase(base, docPath, content, message, req.principal!.name);
