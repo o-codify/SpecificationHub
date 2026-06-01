@@ -129,8 +129,18 @@ default branch (\`${base}\`). A human reviews and accepts your changes.
    - \`set_metadata\` — change ONLY status/title/tags, body untouched. Use this
      to flip status (e.g. → \`review\`) or retag — do NOT resend the whole doc
      via \`save_doc\` just to change metadata.
+   - \`delete_doc\` — remove an obsolete doc (a human accepts the removal in
+     Review). Actually delete it — don't just mark it \`deprecated\` and ask for
+     a manual \`git rm\`.
    Prefer several small edits over one huge \`save_doc\`: smaller diffs review
    better and avoid client size limits.
+4. Keep your branch current: \`${base}\` moves on as changes are accepted. Write
+   results warn you when it has advanced; call \`branch_status\` to see what
+   differs (staleFiles = base changed, you didn't — safe to pull; conflictFiles
+   = changed on both). Reconcile with \`sync_branch\` — strategy \`merge\` (keep
+   your edits; conflicts are reported, not forced), \`prefer-main\`,
+   \`prefer-mine\`, or \`reset\` (discard your changes, match base). YOU decide
+   which; do it before building further on a stale branch.
 
 ## Document structure
 - \`path\`: under \`docs/\`, kebab-case, ending in \`.md\`. A section with sub-pages
@@ -203,6 +213,23 @@ function buildServer(principal: Principal | null): McpServer {
     { instructions: authoringGuide() },
   );
   const base = config.defaultBranch;
+
+  // Short branch-state warning appended to write results, so the model notices
+  // when main has advanced and can reconcile (branch_status / sync_branch)
+  // before doing more work on a stale branch.
+  const staleNote = (branch: string): string => {
+    if (branch === base) return "";
+    try {
+      const s = gitlib.branchSyncStatus(branch, base);
+      if (s.upToDate) return "";
+      const bits: string[] = [];
+      if (s.staleFiles.length) bits.push(`${s.staleFiles.length} file(s) updated on ${base}`);
+      if (s.conflictFiles.length) bits.push(`${s.conflictFiles.length} conflicting`);
+      return ` ⚠ ${base} has advanced (${bits.join(", ")}) — check branch_status and sync_branch to reconcile.`;
+    } catch {
+      return "";
+    }
+  };
 
   server.registerTool(
     "authoring_guide",
@@ -374,6 +401,38 @@ function buildServer(principal: Principal | null): McpServer {
     },
   );
 
+  server.registerTool(
+    "branch_status",
+    {
+      title: "Branch status vs main",
+      description:
+        "Report how a branch stands relative to the base branch: whether it's up to date, which " +
+        "docs base changed that the branch hasn't yet (staleFiles — safe to pull) and which were " +
+        "changed on BOTH sides (conflictFiles — need a decision). Check this before editing a " +
+        "long-lived branch; if it's behind, reconcile with sync_branch first.",
+      inputSchema: {
+        branch: z.string().describe("Branch to inspect, e.g. ai/improve-gait"),
+        base: z.string().optional().describe(`Base branch (default: ${base})`),
+      },
+    },
+    async ({ branch, base: baseArg }) => {
+      const b = baseArg || base;
+      try {
+        const s = gitlib.branchSyncStatus(branch, b);
+        const lines = [
+          s.upToDate ? `✓ ${branch} is up to date with ${b}.` : `⚠ ${branch} is behind ${b}.`,
+          `ahead ${s.ahead}, behind ${s.behind}`,
+        ];
+        if (s.staleFiles.length) lines.push(`Updated on ${b} (safe to pull): ${s.staleFiles.join(", ")}`);
+        if (s.conflictFiles.length) lines.push(`Changed on both (decide): ${s.conflictFiles.join(", ")}`);
+        if (!s.upToDate) lines.push("Reconcile with sync_branch (merge | prefer-main | prefer-mine | reset).");
+        return ok(lines.join("\n"), { ...s });
+      } catch (e) {
+        return fail(String((e as Error).message));
+      }
+    },
+  );
+
   // ---- write tools (require an authenticated principal via OAuth/session) ----
   if (principal) {
     server.registerTool(
@@ -392,6 +451,49 @@ function buildServer(principal: Principal | null): McpServer {
         try {
           gitlib.createBranch(name, from || base);
           return ok(`Created branch ${name} from ${from || base}.`, { name });
+        } catch (e) {
+          return fail(String((e as Error).message));
+        }
+      },
+    );
+
+    server.registerTool(
+      "sync_branch",
+      {
+        title: "Update branch from main",
+        description:
+          "Reconcile a branch with the base branch, git-style — YOU choose how:\n" +
+          "• merge (default) — bring base in, keeping your changes; if it conflicts nothing is " +
+          "changed and the conflicting files are returned (read both versions, then save_doc to " +
+          "resolve);\n" +
+          "• prefer-main — merge, base wins conflicts;\n" +
+          "• prefer-mine — merge, your branch wins conflicts;\n" +
+          "• reset — discard the branch's own changes entirely and match base.\n" +
+          "Run branch_status first to see what differs.",
+        inputSchema: {
+          branch: z.string().describe("Branch to update (e.g. ai/improve-gait)"),
+          strategy: z
+            .enum(["merge", "prefer-main", "prefer-mine", "reset"])
+            .optional()
+            .describe("How to reconcile (default: merge)"),
+          base: z.string().optional().describe(`Base branch to pull from (default: ${base})`),
+        },
+      },
+      async ({ branch, strategy, base: baseArg }) => {
+        const b = baseArg || base;
+        const verdict = canWriteBranch(principal, branch);
+        if (!verdict.ok) return fail(verdict.reason ?? "Not allowed");
+        try {
+          const r = gitlib.updateBranchFromBase(branch, b, strategy || "merge", principal.name);
+          if (!r.merged) {
+            return ok(
+              `Merging ${b} into ${branch} hit conflicts in: ${r.conflicts.join(", ")}. Nothing was ` +
+                `changed. Resolve by reading both versions and save_doc, or retry sync_branch with ` +
+                `strategy "prefer-main", "prefer-mine", or "reset".`,
+              { ...r, branch, base: b },
+            );
+          }
+          return ok(`Reconciled ${branch} with ${b} (${r.strategy}).`, { ...r, branch, base: b });
         } catch (e) {
           return fail(String((e as Error).message));
         }
@@ -436,8 +538,48 @@ function buildServer(principal: Principal | null): McpServer {
           }
           return ok(
             `Saved ${path} on ${branch} (commit ${commit.sha.slice(0, 8)}).` +
-              (pr ? ` PR #${pr.number}: ${pr.url}` : ""),
+              (pr ? ` PR #${pr.number}: ${pr.url}` : "") +
+              staleNote(branch),
             { branch, path, sha: commit.sha, pullRequest: pr },
+          );
+        } catch (e) {
+          return fail(String((e as Error).message));
+        }
+      },
+    );
+
+    server.registerTool(
+      "delete_doc",
+      {
+        title: "Delete a document",
+        description:
+          "Remove a document on a branch and commit the deletion (a human accepts it in Review, " +
+          "which removes it from the base branch). Use this to actually delete an obsolete file — " +
+          "don't just mark it `deprecated` and ask for a manual `git rm`.",
+        inputSchema: {
+          branch: z.string().describe("Target branch (e.g. ai/cleanup)"),
+          path: z.string().describe("Doc path to delete, e.g. docs/old/index.md"),
+          message: z.string().optional().describe("Commit message"),
+        },
+      },
+      async ({ branch, path, message }) => {
+        const verdict = canWriteBranch(principal, branch);
+        if (!verdict.ok) return fail(verdict.reason ?? "Not allowed");
+        try {
+          if (!gitlib.branchExists(branch)) gitlib.createBranch(branch, base);
+          if (!gitlib.fileExists(branch, path)) return fail(`Document not found on ${branch}: ${path}`);
+          gitlib.deleteFileFromBranch(branch, path);
+          const commit = gitlib.commit(branch, message || `Delete ${path}`, principal.name);
+          let pr: { number: number; url: string } | null = null;
+          if (config.githubEnabled) {
+            const p = await github.ensurePullRequest(branch, base, `Delete ${path}`);
+            pr = { number: p.number, url: p.url };
+          }
+          return ok(
+            `Deleted ${path} on ${branch} (commit ${commit.sha.slice(0, 8)}).` +
+              (pr ? ` PR #${pr.number}: ${pr.url}` : "") +
+              staleNote(branch),
+            { branch, path, sha: commit.sha, pullRequest: pr, deleted: true },
           );
         } catch (e) {
           return fail(String((e as Error).message));
@@ -481,7 +623,8 @@ function buildServer(principal: Principal | null): McpServer {
         return ok(
           `Updated ${path} on ${branch} (commit ${commit.sha.slice(0, 8)}).` +
             (result.note ? ` ${result.note}` : "") +
-            (pr ? ` PR #${pr.number}: ${pr.url}` : ""),
+            (pr ? ` PR #${pr.number}: ${pr.url}` : "") +
+            staleNote(branch),
           { branch, path, sha: commit.sha, pullRequest: pr, version: fm.version },
         );
       } catch (e) {
