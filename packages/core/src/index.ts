@@ -1,4 +1,4 @@
-import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { parse as parseYaml, Document, visit } from "yaml";
 
 /** Roles recognized by the platform. */
 export type Role = "viewer" | "editor" | "reviewer" | "admin" | "ai-agent";
@@ -120,7 +120,16 @@ export function parseFrontmatter(raw: string): ParsedDoc {
 
 /** Serialize frontmatter + content back into a markdown string. */
 export function serializeDoc(frontmatter: Record<string, unknown>, content: string): string {
-  const yamlText = stringifyYaml(frontmatter).trimEnd();
+  // Keep array fields inline (`tags: [a, b]`) and never wrap lines, so editing a
+  // single scalar field (e.g. status) doesn't reformat unrelated list fields
+  // into block style — that kept review diffs minimal (just the changed line).
+  const doc = new Document(frontmatter);
+  visit(doc, {
+    Seq(_key, node) {
+      (node as { flow?: boolean }).flow = true;
+    },
+  });
+  const yamlText = doc.toString({ lineWidth: 0 }).trimEnd();
   const body = content.startsWith("\n") ? content.slice(1) : content;
   return `---\n${yamlText}\n---\n\n${body.replace(/^\n+/, "")}`;
 }

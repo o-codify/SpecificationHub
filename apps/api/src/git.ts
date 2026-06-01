@@ -356,7 +356,12 @@ export function diff(base: string, head: string): DiffFile[] {
   if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
   if (!branchExists(head)) throw new NotFoundError(`Branch not found: ${head}`);
 
-  const range = `${base}...${head}`;
+  // Two-dot: compare the actual tip trees (current `base` vs `head`), NOT
+  // `base...head` (merge-base→head). With three-dot, a doc that entered `base`
+  // only after this branch forked shows up as a brand-new add (all green, 0
+  // deletions) even though it exists in `base` now. Two-dot diffs against the
+  // real current base, so a status-only change shows as a small modification.
+  const range = `${base}..${head}`;
   const nameStatus = repo(["diff", "--name-status", range]);
   const numstat = parseNumstat(repo(["diff", "--numstat", range]));
 
