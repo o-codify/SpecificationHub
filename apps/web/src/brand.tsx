@@ -1,26 +1,29 @@
 import { useEffect, useState } from "react";
-import { api } from "./api";
+import { api, type MetaResponse } from "./api";
 
 const DEFAULT = "Specification Hub";
-let brandPromise: Promise<string> | null = null;
+const FALLBACK: MetaResponse = {
+  statuses: [],
+  brand: DEFAULT,
+  version: "",
+  defaultBranch: "main",
+  github: null,
+};
+let metaPromise: Promise<MetaResponse> | null = null;
 
-/** Load the configured brand once (per deployment, from /api/meta), cached. */
-function loadBrand(): Promise<string> {
-  if (!brandPromise) {
-    brandPromise = api
-      .meta()
-      .then((m) => m.brand || DEFAULT)
-      .catch(() => DEFAULT);
-  }
-  return brandPromise;
+/** Load /api/meta once (per deployment), cached and shared by the hooks below. */
+function loadMeta(): Promise<MetaResponse> {
+  if (!metaPromise) metaPromise = api.meta().catch(() => FALLBACK);
+  return metaPromise;
 }
 
 export function useBrand(): string {
   const [brand, setBrand] = useState(DEFAULT);
   useEffect(() => {
     let alive = true;
-    loadBrand().then((b) => {
+    loadMeta().then((m) => {
       if (!alive) return;
+      const b = m.brand || DEFAULT;
       setBrand(b);
       document.title = b;
     });
@@ -29,6 +32,21 @@ export function useBrand(): string {
     };
   }, []);
   return brand;
+}
+
+/** The build/deploy version from /api/meta (empty until loaded). */
+export function useBuildVersion(): string {
+  const [version, setVersion] = useState("");
+  useEffect(() => {
+    let alive = true;
+    loadMeta().then((m) => {
+      if (alive) setVersion(m.version || "");
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return version;
 }
 
 /**

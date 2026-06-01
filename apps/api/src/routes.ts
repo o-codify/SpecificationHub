@@ -385,6 +385,7 @@ export function createRouter(): Router {
     res.json({
       statuses: DOC_STATUSES,
       brand: config.brandName,
+      version: config.buildVersion,
       defaultBranch: config.defaultBranch,
       github: config.githubEnabled
         ? { repo: config.githubRepo, url: `${config.githubServer}/${config.githubRepo}` }

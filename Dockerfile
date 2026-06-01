@@ -29,10 +29,14 @@ RUN apt-get update \
 # GitHub is the source of truth: the repo is cloned into /data at boot, so no
 # docs seed is baked into the image. (For local mode without GitHub, mount a
 # seed dir and set DOCS_SEED to it.)
+# Build version (date.run_number from CI) — surfaced in the UI so you can see a
+# deploy actually landed. Defaults to "dev" for local builds.
+ARG BUILD_VERSION=dev
 ENV NODE_ENV=production \
     PORT=8080 \
     DATA_DIR=/data \
-    WEB_DIST=/app/apps/web/dist
+    WEB_DIST=/app/apps/web/dist \
+    BUILD_VERSION=${BUILD_VERSION}
 
 # Git identity / safety for commits & worktrees created at runtime.
 RUN git config --global user.email "hub@specification-hub.local" \

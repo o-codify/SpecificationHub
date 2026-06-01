@@ -6,6 +6,7 @@ import { useAuth } from "../auth";
 import { useLayout } from "../layout";
 import { useToast } from "../toast";
 import { useBranchParam } from "../hooks";
+import { useBuildVersion } from "../brand";
 import { pathToSlug, slugToPath } from "../docpath";
 import { statusColor } from "../status";
 import { mdToHtml, stripLeadingH1 } from "../markdownConvert";
@@ -22,6 +23,7 @@ type Mode = "view" | "edit" | "new";
 
 export function DocsReader() {
   const { authed } = useAuth();
+  const buildVersion = useBuildVersion();
   const toast = useToast();
   const { sidebarOpen, setSidebarOpen } = useLayout();
   const [branch, setBranch] = useBranchParam();
@@ -413,6 +415,11 @@ export function DocsReader() {
           <button className="sb-create" onClick={startNew}>
             + New document
           </button>
+        )}
+        {buildVersion && (
+          <div className="sb-version" title="Deployed build version">
+            build {buildVersion}
+          </div>
         )}
       </aside>
 
