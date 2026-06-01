@@ -916,6 +916,23 @@ export function updateBranchFromBase(
     }
     return { strategy, merged: false, conflicts };
   }
+  // prefer-main is a force-to-main: a 3-way merge can't recover docs the branch
+  // already committed as divergent (its merge-base now contains base, so base
+  // "didn't change" them) — e.g. files a bad earlier merge corrupted. So after
+  // the merge, overwrite any doc that still differs in content from base with
+  // base's version. Branch-only docs and deletions are left as the merge set them.
+  if (strategy === "prefer-main") {
+    const baseDocs = new Set(listMarkdownFiles(base));
+    for (const p of listMarkdownFiles(branch)) {
+      if (!baseDocs.has(p)) continue;
+      const bc = readFile(base, p);
+      if (changeKey(bc) !== changeKey(readFile(branch, p))) writeFileToBranch(branch, p, bc);
+    }
+    if (hasStagedOrPendingChanges(branch)) {
+      commit(branch, `Sync ${base} into ${branch} (prefer-main)`, author);
+      return { strategy, merged: true, conflicts: [] };
+    }
+  }
   pushBranch(branch);
   return { strategy, merged: true, conflicts: [] };
 }
