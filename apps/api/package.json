@@ -11,8 +11,9 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@spec/core": "*",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@spec/core": "*",
+    "diff": "^9.0.0",
     "drizzle-orm": "^0.45.2",
     "express": "^4.21.1",
     "pg": "^8.21.0",

@@ -2,6 +2,7 @@ import { execFile, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createPatch } from "diff";
 import { config } from "./config.js";
 import {
   parseFrontmatter,
@@ -133,11 +134,11 @@ export function currentDefaultBranch(): string {
 }
 
 /** Push a single branch to GitHub (no-op in local mode). */
-export function pushBranch(branch: string): void {
+export function pushBranch(branch: string, force = false): void {
   if (!config.githubEnabled) return;
-  git([...authArgs(), "push", "origin", `refs/heads/${branch}:refs/heads/${branch}`], {
-    cwd: config.repoDir,
-  });
+  const refspec = `refs/heads/${branch}:refs/heads/${branch}`;
+  const flags = force ? ["--force"] : [];
+  git([...authArgs(), "push", "origin", ...flags, refspec], { cwd: config.repoDir });
 }
 
 let lastFetch = 0;
@@ -337,18 +338,22 @@ export function commit(branch: string, message: string, author: string): CommitR
   return { sha: headSha(branch), branch };
 }
 
-function parseNumstat(text: string): Map<string, { additions: number; deletions: number }> {
-  const map = new Map<string, { additions: number; deletions: number }>();
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    const parts = line.split("\t");
-    if (parts.length < 3) continue;
-    const additions = parts[0] === "-" ? 0 : Number(parts[0]);
-    const deletions = parts[1] === "-" ? 0 : Number(parts[1]);
-    const file = parts[parts.length - 1];
-    map.set(file, { additions, deletions });
+/**
+ * Normalise a doc for review diffing: drop the auto-stamped `version` (it is
+ * per-branch and meaningless to compare) and re-serialise the frontmatter so
+ * formatting (e.g. inline vs block `tags`) is identical on both sides. So the
+ * Review diff shows only meaningful changes — body, status, title, tags values.
+ */
+function normalizeForDiff(raw: string): string {
+  if (!raw) return "";
+  try {
+    const { frontmatter, content } = parseFrontmatter(raw);
+    const fm: Record<string, unknown> = { ...frontmatter };
+    delete fm.version;
+    return serializeDoc(fm, content);
+  } catch {
+    return raw;
   }
-  return map;
 }
 
 export function diff(base: string, head: string): DiffFile[] {
@@ -356,28 +361,30 @@ export function diff(base: string, head: string): DiffFile[] {
   if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
   if (!branchExists(head)) throw new NotFoundError(`Branch not found: ${head}`);
 
-  // Two-dot: compare the actual tip trees (current `base` vs `head`), NOT
-  // `base...head` (merge-base→head). With three-dot, a doc that entered `base`
-  // only after this branch forked shows up as a brand-new add (all green, 0
-  // deletions) even though it exists in `base` now. Two-dot diffs against the
-  // real current base, so a status-only change shows as a small modification.
-  const range = `${base}..${head}`;
-  const nameStatus = repo(["diff", "--name-status", range]);
-  const numstat = parseNumstat(repo(["diff", "--numstat", range]));
-
+  // Build the patch from the actual current file contents (normalised), NOT a
+  // git range. This (a) compares against the real current `base` so a doc that
+  // entered base after the branch forked isn't shown as a brand-new add, and
+  // (b) ignores version/formatting noise. The file set comes from
+  // changedDocsBetween, which compares by changeKey (version-insensitive).
   const files: DiffFile[] = [];
-  for (const line of nameStatus.split("\n")) {
-    if (!line.trim()) continue;
-    const parts = line.split("\t");
-    const status = parts[0];
-    const file = parts[parts.length - 1];
-    const counts = numstat.get(file) ?? { additions: 0, deletions: 0 };
-    const patch = repo(["diff", range, "--", file]);
+  for (const file of changedDocsBetween(base, head)) {
+    const baseRaw = fileExists(base, file) ? readFile(base, file) : "";
+    const headRaw = fileExists(head, file) ? readFile(head, file) : "";
+    const a = normalizeForDiff(baseRaw);
+    const b = normalizeForDiff(headRaw);
+    if (a === b) continue; // only version/formatting differed — nothing to show
+    const patch = createPatch(file, a, b, "", "");
+    let additions = 0;
+    let deletions = 0;
+    for (const line of patch.split("\n")) {
+      if (line.startsWith("+") && !line.startsWith("+++")) additions++;
+      else if (line.startsWith("-") && !line.startsWith("---")) deletions++;
+    }
     files.push({
       path: file,
-      status: status[0],
-      additions: counts.additions,
-      deletions: counts.deletions,
+      status: !baseRaw ? "A" : !headRaw ? "D" : "M",
+      additions,
+      deletions,
       patch,
     });
   }
@@ -621,12 +628,13 @@ export function applyContentToBase(
   return { sha: headSha(base), branch: base };
 }
 
-/** Write several files onto `base` in a single commit (+push). */
+/** Write (and optionally delete) several files onto `base` in one commit (+push). */
 export function applyContentsToBase(
   base: string,
   files: { path: string; content: string }[],
   message: string,
   author: string,
+  deletes: string[] = [],
 ): CommitResult {
   if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
   const dir = ensureWorktree(base);
@@ -638,6 +646,11 @@ export function applyContentsToBase(
     fs.mkdirSync(path.dirname(abs), { recursive: true });
     fs.writeFileSync(abs, f.content, "utf8");
     inDir(dir, ["add", "--", f.path]);
+  }
+  for (const d of deletes) {
+    const abs = path.join(dir, d);
+    if (!abs.startsWith(dir)) throw new GitError("Invalid path");
+    if (fs.existsSync(abs)) inDir(dir, ["rm", "-f", "--", d]);
   }
   if (!inDir(dir, ["status", "--porcelain"]).trim()) {
     throw new GitError("No changes to apply — base already has this content");
@@ -666,16 +679,202 @@ export function acceptBranchIntoBase(
   if (!branchExists(head)) throw new NotFoundError(`Branch not found: ${head}`);
   const paths = changedDocsBetween(base, head);
   if (paths.length === 0) throw new GitError("No changes to accept");
-  const files = paths.map((p) => {
+  const preContent: Record<string, string> = {};
+  for (const p of paths) preContent[p] = fileExists(base, p) ? readFile(base, p) : "";
+  const files: { path: string; content: string }[] = [];
+  const deletes: string[] = [];
+  for (const p of paths) {
+    if (!fileExists(head, p)) {
+      deletes.push(p); // removed on the branch → delete from base
+      continue;
+    }
     const { frontmatter, content } = parseFrontmatter(readFile(head, p));
-    return {
+    files.push({
       path: p,
       content: serializeDoc(
         { ...frontmatter, version: stampVersion(), status: promoteOnAccept(frontmatter.status) },
         content,
       ),
-    };
-  });
-  const res = applyContentsToBase(base, files, message, author);
-  return { ...res, count: files.length };
+    });
+  }
+  const res = applyContentsToBase(base, files, message, author, deletes);
+  propagateAcceptToBranches(base, paths, preContent, head, author);
+  return { ...res, count: files.length + deletes.length };
+}
+
+/**
+ * After content is accepted into `base`, bring branches into line with it:
+ *  - the source branch (whose change was just accepted) adopts base's version,
+ *    so it no longer shows a lingering diff (e.g. it stays `review` while base
+ *    became `stable`);
+ *  - any OTHER branch that still carries the pre-accept base copy of a file
+ *    (i.e. it never modified it) is fast-forwarded to the new base content;
+ *  - branches that made their OWN changes to a file are left untouched, so the
+ *    divergence stays visible for separate review.
+ * `preContent` is base's content per path captured BEFORE the accept commit.
+ * Best-effort: a branch that can't be updated cleanly is skipped.
+ */
+export function propagateAcceptToBranches(
+  base: string,
+  paths: string[],
+  preContent: Record<string, string>,
+  sourceBranch: string | null,
+  author: string,
+): string[] {
+  const newContent: Record<string, string> = {};
+  const deletedInBase: Record<string, boolean> = {};
+  for (const p of paths) {
+    const exists = fileExists(base, p);
+    deletedInBase[p] = !exists;
+    newContent[p] = exists ? readFile(base, p) : "";
+  }
+  const updated: string[] = [];
+  for (const b of listBranches()) {
+    if (b === base) continue;
+    let changed = false;
+    for (const p of paths) {
+      if (!fileExists(b, p)) continue; // branch never had this file — nothing to do
+      const bc = readFile(b, p);
+      const tracksOldBase = changeKey(bc) === changeKey(preContent[p] ?? "");
+      const adopt = b === sourceBranch || tracksOldBase;
+      if (!adopt) continue; // branch has its own divergent edit — leave for review
+      if (deletedInBase[p]) {
+        deleteFileFromBranch(b, p); // base removed it → remove here too
+        changed = true;
+      } else if (changeKey(bc) !== changeKey(newContent[p])) {
+        writeFileToBranch(b, p, newContent[p]);
+        changed = true;
+      }
+    }
+    if (changed) {
+      try {
+        commit(b, `Sync ${base} into ${b}`, author);
+        updated.push(b);
+      } catch {
+        /* nothing to commit / conflict — best effort, leave the branch as-is */
+      }
+    }
+  }
+  return updated;
+}
+
+export interface BranchSyncStatus {
+  branch: string;
+  base: string;
+  upToDate: boolean;
+  ahead: number; // commits on the branch not in base
+  behind: number; // commits on base not in the branch
+  staleFiles: string[]; // docs changed on base that this branch hasn't (should pull)
+  conflictFiles: string[]; // docs changed on BOTH base and the branch (need a decision)
+}
+
+/**
+ * How a branch stands relative to `base` (main). `staleFiles` are docs base
+ * advanced that the branch never touched (safe to pull); `conflictFiles` were
+ * changed on both sides and currently differ (a real decision). Both lists are
+ * content-based (changeKey, version-insensitive), so auto-synced files don't
+ * show up as false positives.
+ */
+export function branchSyncStatus(branch: string, base: string): BranchSyncStatus {
+  fetchRemote();
+  if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
+  if (!branchExists(branch)) throw new NotFoundError(`Branch not found: ${branch}`);
+  if (branch === base) {
+    return { branch, base, upToDate: true, ahead: 0, behind: 0, staleFiles: [], conflictFiles: [] };
+  }
+  let mb = "";
+  try {
+    mb = repo(["merge-base", base, branch]).trim();
+  } catch {
+    mb = "";
+  }
+  const count = (range: string) => {
+    try {
+      return Number(repo(["rev-list", "--count", range]).trim()) || 0;
+    } catch {
+      return 0;
+    }
+  };
+  const docs = (out: string) =>
+    out
+      .split("\n")
+      .map((s) => s.trim())
+      .filter((p) => p.startsWith("docs/") && p.toLowerCase().endsWith(".md"));
+  const baseChanged = mb ? docs(repo(["diff", "--name-only", mb, base])) : [];
+  const branchChanged = new Set(mb ? docs(repo(["diff", "--name-only", mb, branch])) : []);
+  const differsNow = (p: string) => {
+    const b = fileExists(base, p) ? readFile(base, p) : "";
+    const h = fileExists(branch, p) ? readFile(branch, p) : "";
+    return changeKey(b) !== changeKey(h);
+  };
+  const staleFiles = baseChanged.filter((p) => !branchChanged.has(p) && differsNow(p));
+  const conflictFiles = baseChanged.filter((p) => branchChanged.has(p) && differsNow(p));
+  return {
+    branch,
+    base,
+    ahead: count(`${base}..${branch}`),
+    behind: count(`${branch}..${base}`),
+    staleFiles,
+    conflictFiles,
+    upToDate: staleFiles.length === 0 && conflictFiles.length === 0,
+  };
+}
+
+export type SyncStrategy = "merge" | "prefer-main" | "prefer-mine" | "reset";
+
+/**
+ * Bring `base` (main) into `branch`, git-style:
+ *  - "merge"        — merge base in; on conflict, abort and report the files;
+ *  - "prefer-main"  — merge, base wins conflicts (-X theirs);
+ *  - "prefer-mine"  — merge, the branch wins conflicts (-X ours);
+ *  - "reset"        — hard-reset the branch to base, discarding its own changes.
+ * Returns whether it merged and any conflicting files (for "merge").
+ */
+export function updateBranchFromBase(
+  branch: string,
+  base: string,
+  strategy: SyncStrategy,
+  author: string,
+): { strategy: SyncStrategy; merged: boolean; conflicts: string[] } {
+  if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
+  if (!branchExists(branch)) throw new NotFoundError(`Branch not found: ${branch}`);
+  if (branch === base) throw new GitError("Cannot sync the base branch into itself");
+  const dir = ensureWorktree(branch);
+  inDir(dir, ["checkout", branch]);
+  inDir(dir, ["reset", "--hard", branch]);
+  inDir(dir, ["clean", "-fd"]);
+
+  if (strategy === "reset") {
+    inDir(dir, ["reset", "--hard", base]);
+    pushBranch(branch, true);
+    return { strategy, merged: true, conflicts: [] };
+  }
+
+  const name = author || config.gitAuthorName;
+  const safe = name.replace(/[^a-zA-Z0-9._-]+/g, "-").toLowerCase() || "author";
+  const args = [...identityArgs(name, `${safe}@specification-hub.local`), "merge", "--no-edit"];
+  if (strategy === "prefer-main") args.push("-X", "theirs");
+  else if (strategy === "prefer-mine") args.push("-X", "ours");
+  args.push(base);
+  try {
+    inDir(dir, args);
+  } catch {
+    let conflicts: string[] = [];
+    try {
+      conflicts = inDir(dir, ["diff", "--name-only", "--diff-filter=U"])
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    } catch {
+      /* ignore */
+    }
+    try {
+      inDir(dir, ["merge", "--abort"]);
+    } catch {
+      /* ignore */
+    }
+    return { strategy, merged: false, conflicts };
+  }
+  pushBranch(branch);
+  return { strategy, merged: true, conflicts: [] };
 }

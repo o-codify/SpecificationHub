@@ -30,7 +30,7 @@ export function Suggestions({ path, base, suggestions, onResolved }: Props) {
         { ...parsed.frontmatter, version: nextVersion(parsed.frontmatter.version) },
         parsed.content,
       );
-      await api.acceptSuggestion(path, base, content, `Accept all changes from ${s.branch}`);
+      await api.acceptSuggestion(path, base, content, `Accept all changes from ${s.branch}`, s.branch);
       toast.show(
         <>
           All changes from <code>{s.branch}</code> applied to <code>{base}</code>

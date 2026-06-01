@@ -77,16 +77,21 @@ export function AdminDiff() {
       return next;
     });
 
-  const acceptOne = async (path: string) => {
+  const acceptOne = async (path: string, status: string) => {
+    if (status === "D") {
+      // Deletion proposed on the branch — remove it from base.
+      await api.acceptSuggestion(path, base, "", `Delete ${path} from ${head}`, head, true);
+      return;
+    }
     const d = await api.getDoc(head, path);
-    await api.acceptSuggestion(path, base, serializeDoc(d.frontmatter, d.content), `Accept ${path} from ${head}`);
+    await api.acceptSuggestion(path, base, serializeDoc(d.frontmatter, d.content), `Accept ${path} from ${head}`, head);
   };
 
-  const accept = async (path: string) => {
+  const accept = async (path: string, status: string) => {
     setBusy(path);
     setErr("");
     try {
-      await acceptOne(path);
+      await acceptOne(path, status);
       toast.show(
         <>
           Accepted <code>{path}</code> into <code>{base}</code>
@@ -184,9 +189,9 @@ export function AdminDiff() {
                     className="btn btn-good sp-btn"
                     style={{ marginLeft: "auto" }}
                     disabled={!!busy}
-                    onClick={() => accept(f.path)}
+                    onClick={() => accept(f.path, f.status)}
                   >
-                    {busy === f.path ? "Accepting…" : "Accept"}
+                    {busy === f.path ? "Accepting…" : f.status === "D" ? "Accept delete" : "Accept"}
                   </button>
                 </div>
                 {expanded && <DiffPatch patch={f.patch} />}

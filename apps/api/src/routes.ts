@@ -333,23 +333,38 @@ export function createRouter(): Router {
     h((req, res) => {
       const base = (req.body?.base as string) || config.defaultBranch;
       const docPath = validateDocPath(req.body?.path);
-      const rawContent = typeof req.body?.content === "string" ? req.body.content : "";
-      // Re-stamp the version and promote review→stable server-side, so accepting
-      // into main updates the timestamp and marks an approved doc stable.
-      const parsed = parseFrontmatter(rawContent);
-      const content =
-        Object.keys(parsed.frontmatter).length > 0
-          ? serializeDoc(
-              {
-                ...parsed.frontmatter,
-                version: stampVersion(),
-                status: promoteOnAccept(parsed.frontmatter.status),
-              },
-              parsed.content,
-            )
-          : rawContent;
-      const message = (req.body?.message as string) || `Update ${docPath}`;
-      const result = gitlib.applyContentToBase(base, docPath, content, message, req.principal!.name);
+      const isDelete = req.body?.delete === true;
+      const fromBranch = typeof req.body?.head === "string" ? (req.body.head as string) : null;
+      // Capture base's pre-accept content so we can fast-forward other branches
+      // that merely tracked it (see propagateAcceptToBranches).
+      const pre = gitlib.fileExists(base, docPath) ? gitlib.readFile(base, docPath) : "";
+
+      let result;
+      if (isDelete) {
+        // Accept a deletion proposed on a branch: remove the file from base.
+        const message = (req.body?.message as string) || `Delete ${docPath}`;
+        result = gitlib.applyContentsToBase(base, [], message, req.principal!.name, [docPath]);
+      } else {
+        const rawContent = typeof req.body?.content === "string" ? req.body.content : "";
+        // Re-stamp the version and promote review→stable server-side, so accepting
+        // into main updates the timestamp and marks an approved doc stable.
+        const parsed = parseFrontmatter(rawContent);
+        const content =
+          Object.keys(parsed.frontmatter).length > 0
+            ? serializeDoc(
+                {
+                  ...parsed.frontmatter,
+                  version: stampVersion(),
+                  status: promoteOnAccept(parsed.frontmatter.status),
+                },
+                parsed.content,
+              )
+            : rawContent;
+        const message = (req.body?.message as string) || `Update ${docPath}`;
+        result = gitlib.applyContentToBase(base, docPath, content, message, req.principal!.name);
+      }
+      // Bring the source branch (and stale unmodified branches) in line with base.
+      gitlib.propagateAcceptToBranches(base, [docPath], { [docPath]: pre }, fromBranch, req.principal!.name);
       res.json(result);
     }),
   );

@@ -85,7 +85,7 @@ export function InlineChanges({ path, base, content, frontmatter, suggestions, r
     try {
       const nextBody = applyChange(content, c, editing ? editText : undefined);
       const full = serializeDoc({ ...frontmatter, version: nextVersion(frontmatter.version) }, nextBody);
-      await api.acceptSuggestion(path, base, full, `Accept change from ${c.branch}`);
+      await api.acceptSuggestion(path, base, full, `Accept change from ${c.branch}`, c.branch);
       toast.show(
         <>
           Change from <code>{c.branch}</code> applied to <code>{base}</code>

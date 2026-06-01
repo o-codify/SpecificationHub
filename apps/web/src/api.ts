@@ -175,11 +175,18 @@ export const api = {
       undefined,
       true,
     ),
-  acceptSuggestion: (path: string, base: string, content: string, message?: string) =>
+  acceptSuggestion: (
+    path: string,
+    base: string,
+    content: string,
+    message?: string,
+    head?: string,
+    del?: boolean,
+  ) =>
     request<{ sha: string; branch: string }>(
       "POST",
       "/api/suggestions/accept",
-      { path, base, content, message },
+      { path, base, content, message, head, delete: del },
       true,
     ),
   acceptAll: (base: string, head: string, message?: string) =>

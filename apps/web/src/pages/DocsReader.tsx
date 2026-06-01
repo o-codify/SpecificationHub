@@ -300,7 +300,7 @@ export function DocsReader() {
     setAcceptingNew(true);
     try {
       const full = serializeDoc(doc.frontmatter, doc.content);
-      await api.acceptSuggestion(doc.path, defaultBranch, full, `Add ${doc.path} from ${newDocBranch}`);
+      await api.acceptSuggestion(doc.path, defaultBranch, full, `Add ${doc.path} from ${newDocBranch}`, newDocBranch);
       toast.show(
         <>
           Added <code>{doc.path}</code> to <code>{defaultBranch}</code>
