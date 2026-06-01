@@ -94,6 +94,12 @@ export interface NewDoc {
   branch: string;
 }
 
+export interface DeletedDoc {
+  path: string;
+  title: string;
+  branch: string;
+}
+
 export const api = {
   health: () => request<{ status: string }>("GET", "/api/health"),
   meta: () => request<MetaResponse>("GET", "/api/meta"),
@@ -169,7 +175,7 @@ export const api = {
       true,
     ),
   suggestionSummary: (base: string) =>
-    request<{ base: string; counts: Record<string, number>; news: NewDoc[] }>(
+    request<{ base: string; counts: Record<string, number>; news: NewDoc[]; deletions: DeletedDoc[] }>(
       "GET",
       `/api/suggestions/summary?base=${encodeURIComponent(base)}`,
       undefined,

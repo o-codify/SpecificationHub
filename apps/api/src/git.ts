@@ -565,6 +565,43 @@ export function newDocsForBase(base: string): NewDoc[] {
   return out;
 }
 
+/** Docs that exist in `base` but a branch proposes deleting (removed since fork). */
+export function deletedDocsForBase(base: string): { path: string; title: string; branch: string }[] {
+  if (!branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
+  const seen = new Set<string>();
+  const out: { path: string; title: string; branch: string }[] = [];
+  for (const b of listBranches()) {
+    if (b === base) continue;
+    let mb = "";
+    try {
+      mb = repo(["merge-base", base, b]).trim();
+    } catch {
+      continue;
+    }
+    if (!mb) continue;
+    let names = "";
+    try {
+      names = repo(["diff", "--diff-filter=D", "--name-only", mb, b]);
+    } catch {
+      continue;
+    }
+    for (const line of names.split("\n")) {
+      const p = line.trim();
+      if (!p.startsWith("docs/") || !p.toLowerCase().endsWith(".md")) continue;
+      if (seen.has(p) || !fileExists(base, p)) continue; // already gone from base — skip
+      seen.add(p);
+      let title = p;
+      try {
+        title = String(parseFrontmatter(readFile(base, p)).frontmatter.title || p);
+      } catch {
+        /* keep default */
+      }
+      out.push({ path: p, title, branch: b });
+    }
+  }
+  return out;
+}
+
 /**
  * Full-text search over docs on a branch. The query is split into words and a
  * document matches when it contains ALL of them (case-insensitive, anywhere in

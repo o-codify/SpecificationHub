@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { serializeDoc, type Doc, type SearchHit, type TreeItem } from "@spec/core";
-import { api, type FileSuggestion, type NewDoc } from "../api";
+import { api, type FileSuggestion, type NewDoc, type DeletedDoc } from "../api";
 import { useAuth } from "../auth";
 import { useLayout } from "../layout";
 import { useToast } from "../toast";
@@ -33,6 +33,9 @@ export function DocsReader() {
   const [tree, setTree] = useState<TreeItem[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [newDocs, setNewDocs] = useState<NewDoc[]>([]);
+  // path → branch for docs in the default branch that a branch proposes deleting.
+  const [delByPath, setDelByPath] = useState<Record<string, string>>({});
+  const [deletingDoc, setDeletingDoc] = useState(false);
   // When the open doc is a brand-new file proposed on another branch (not yet in
   // the default branch), this holds that branch; otherwise null.
   const [newDocBranch, setNewDocBranch] = useState<string | null>(null);
@@ -151,6 +154,7 @@ export function DocsReader() {
     if (branch !== defaultBranch) {
       // Branch view: mark docs that differ from the default branch.
       setNewDocs([]);
+      setDelByPath({});
       api
         .changedDocs(defaultBranch, branch)
         .then((d) => {
@@ -165,10 +169,12 @@ export function DocsReader() {
         .then((r) => {
           setCounts(r.counts);
           setNewDocs(r.news ?? []);
+          setDelByPath(Object.fromEntries((r.deletions ?? []).map((d: DeletedDoc) => [d.path, d.branch])));
         })
         .catch(() => {
           setCounts({});
           setNewDocs([]);
+          setDelByPath({});
         });
     }
   }, [branch, defaultBranch, authed]);
@@ -315,6 +321,29 @@ export function DocsReader() {
     }
   };
 
+  // When viewing the default branch, the branch (if any) proposing to delete the
+  // open doc; lets us show a banner + an "Accept deletion" action.
+  const delBranch = !branchView && doc ? delByPath[doc.path] : undefined;
+
+  const acceptDeletion = async () => {
+    if (!doc || !delBranch) return;
+    setDeletingDoc(true);
+    try {
+      await api.acceptSuggestion(doc.path, defaultBranch, "", `Delete ${doc.path} from ${delBranch}`, delBranch, true);
+      toast.show(
+        <>
+          Deleted <code>{doc.path}</code> from <code>{defaultBranch}</code>
+        </>,
+      );
+      loadTree();
+      navigate(`/docs?branch=${encodeURIComponent(branch)}`);
+    } catch (err) {
+      toast.show(<>Could not delete: {String((err as Error).message)}</>);
+    } finally {
+      setDeletingDoc(false);
+    }
+  };
+
   const fm = doc?.frontmatter;
   const hlStyle = { ["--hl" as string]: statusColor(String(fm?.status ?? "")) } as CSSProperties;
   // Branch view, whole-new doc: it exists on this branch but not on the default
@@ -403,6 +432,7 @@ export function DocsReader() {
               nodes={treeNodes}
               currentPath={doc?.path}
               counts={counts}
+              deletions={delByPath}
               expanded={expandedDirs}
               onOpen={openDoc}
               onToggle={toggleDir}
@@ -471,6 +501,18 @@ export function DocsReader() {
             </div>
             <div className="doc-path">{doc.path}</div>
             <div className="doc-rule" />
+            {delBranch && (
+              <div className="newdoc-bar del-bar">
+                <span>
+                  Proposed for <b>deletion</b> on <b>{delBranch}</b>
+                </span>
+                {authed && (
+                  <button className="btn btn-bad sp-btn" disabled={deletingDoc} onClick={acceptDeletion}>
+                    {deletingDoc ? "Deleting…" : `Accept deletion`}
+                  </button>
+                )}
+              </div>
+            )}
             {newDocBranch ? (
               <>
                 {authed && (

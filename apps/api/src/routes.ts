@@ -321,7 +321,12 @@ export function createRouter(): Router {
     "/suggestions/summary",
     h((req, res) => {
       const base = (req.query.base as string) || config.defaultBranch;
-      res.json({ base, counts: gitlib.suggestionCounts(base), news: gitlib.newDocsForBase(base) });
+      res.json({
+        base,
+        counts: gitlib.suggestionCounts(base),
+        news: gitlib.newDocsForBase(base),
+        deletions: gitlib.deletedDocsForBase(base),
+      });
     }),
   );
 

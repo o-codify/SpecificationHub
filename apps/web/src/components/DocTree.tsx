@@ -114,6 +114,7 @@ function hasNew(node: TreeNode): boolean {
 interface Ctx {
   currentPath?: string;
   counts: Record<string, number>;
+  deletions: Record<string, string>; // path → branch proposing its deletion
   expanded: Set<string>;
   onOpen: (path: string) => void;
   onToggle: (dirPath: string) => void;
@@ -125,6 +126,7 @@ function NodeView({ node, depth, ctx }: { node: TreeNode; depth: number; ctx: Ct
   if (node.kind === "file") {
     const active = ctx.currentPath === node.path;
     const n = ctx.counts[node.path] || 0;
+    const proposedDelete = !!ctx.deletions[node.path];
     return (
       <div
         className={`sb-item${active ? " active" : ""}`}
@@ -135,7 +137,11 @@ function NodeView({ node, depth, ctx }: { node: TreeNode; depth: number; ctx: Ct
           <i className="dot" />
           <b>{node.title}</b>
         </span>
-        {node.isNew ? (
+        {proposedDelete ? (
+          <span className="sb-del" title="Proposed for deletion">
+            del
+          </span>
+        ) : node.isNew ? (
           <span className="sb-new">new</span>
         ) : (
           n > 0 && <span className="sb-change">{n}</span>
@@ -193,6 +199,7 @@ export function DocTree({
   nodes,
   currentPath,
   counts,
+  deletions = {},
   expanded,
   onOpen,
   onToggle,
@@ -200,11 +207,12 @@ export function DocTree({
   nodes: TreeNode[];
   currentPath?: string;
   counts: Record<string, number>;
+  deletions?: Record<string, string>;
   expanded: Set<string>;
   onOpen: (path: string) => void;
   onToggle: (dirPath: string) => void;
 }) {
-  const ctx: Ctx = { currentPath, counts, expanded, onOpen, onToggle };
+  const ctx: Ctx = { currentPath, counts, deletions, expanded, onOpen, onToggle };
   return (
     <>
       {nodes.map((n) => (
