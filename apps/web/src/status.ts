@@ -1,4 +1,5 @@
 export const STATUS_COLORS: Record<string, string> = {
+  request: "var(--s-request)",
   draft: "var(--s-draft)",
   review: "var(--s-review)",
   stable: "var(--s-stable)",

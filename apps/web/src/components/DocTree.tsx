@@ -92,16 +92,23 @@ export function firstDocPath(node: TreeNode): string {
   return "";
 }
 
-function descendantCount(node: TreeNode, counts: Record<string, number>): number {
-  if (node.kind === "file") return counts[node.path] || 0;
-  let n = node.index ? counts[node.index.path] || 0 : 0;
-  for (const c of node.children) n += descendantCount(c, counts);
+/**
+ * Pending change-count across the subtree (its index doc + descendants),
+ * EXCLUDING new docs — a new doc is shown with the "new" badge, not counted as
+ * a change, so it never appears as both.
+ */
+function changeCount(node: TreeNode, counts: Record<string, number>): number {
+  if (node.kind === "file") return node.isNew ? 0 : counts[node.path] || 0;
+  let n = node.index && !node.index.isNew ? counts[node.index.path] || 0 : 0;
+  for (const c of node.children) n += changeCount(c, counts);
   return n;
 }
 
-function hasNewDescendant(node: TreeNode): boolean {
+/** Does this node, its index doc, or any descendant include a new document? */
+function hasNew(node: TreeNode): boolean {
   if (node.kind === "file") return !!node.isNew;
-  return node.children.some(hasNewDescendant);
+  if (node.index?.isNew) return true;
+  return node.children.some(hasNew);
 }
 
 interface Ctx {
@@ -143,7 +150,12 @@ function NodeView({ node, depth, ctx }: { node: TreeNode; depth: number; ctx: Ct
   const expanded = ctx.expanded.has(node.path);
   const title = node.index ? node.index.title : prettyDir(node.name);
   const status = node.index?.status ?? "";
-  const agg = descendantCount(node, ctx.counts);
+  // Collapsed: aggregate the whole subtree. Expanded: the header *is* the index
+  // doc, so show its own badge (children render their own rows below).
+  const idxNew = !!node.index?.isNew;
+  const idxCount = node.index ? ctx.counts[node.index.path] || 0 : 0;
+  const showNew = expanded ? idxNew : hasNew(node);
+  const showCount = expanded ? (idxNew ? 0 : idxCount) : changeCount(node, ctx.counts);
   return (
     <>
       <div
@@ -165,8 +177,8 @@ function NodeView({ node, depth, ctx }: { node: TreeNode; depth: number; ctx: Ct
           {node.index && <i className="dot" />}
           <b>{title}</b>
         </span>
-        {!expanded && hasNewDescendant(node) && <span className="sb-new">new</span>}
-        {!expanded && agg > 0 && <span className="sb-change">{agg}</span>}
+        {showNew && <span className="sb-new">new</span>}
+        {showCount > 0 && <span className="sb-change">{showCount}</span>}
         {node.index && <StatusBadge status={status} />}
       </div>
       {expanded &&

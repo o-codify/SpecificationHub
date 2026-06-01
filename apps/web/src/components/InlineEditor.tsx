@@ -6,7 +6,7 @@ import { statusColor } from "../status";
 import { nextVersion } from "../version";
 import { useToast } from "../toast";
 
-const STATUSES = ["draft", "review", "stable", "deprecated", "experimental"] as const;
+const STATUSES = ["request", "draft", "review", "stable", "deprecated", "experimental"] as const;
 
 const SLASH: { ic: string; k: string; run: () => void }[] = [
   { ic: "H2", k: "Heading", run: () => document.execCommand("formatBlock", false, "h2") },
