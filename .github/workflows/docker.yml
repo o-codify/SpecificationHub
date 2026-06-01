@@ -59,9 +59,10 @@ jobs:
       - name: Trigger Coolify deploys
         env:
           # Each prod is its own Coolify resource (own docs repo + brand), so the
-          # same image is deployed to multiple webhooks. WEBHOOK_2 is optional.
+          # same image is deployed to multiple webhooks. WEBHOOK_2/_3 are optional.
           COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
           COOLIFY_WEBHOOK_2: ${{ secrets.COOLIFY_WEBHOOK_2 }}
+          COOLIFY_WEBHOOK_3: ${{ secrets.COOLIFY_WEBHOOK_3 }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         run: |
           trigger() {
@@ -69,9 +70,10 @@ jobs:
             echo "Deploying → $1"
             curl -f -X POST "$1" -H "Authorization: Bearer $COOLIFY_TOKEN"
           }
-          if [ -z "$COOLIFY_WEBHOOK" ] && [ -z "$COOLIFY_WEBHOOK_2" ]; then
+          if [ -z "$COOLIFY_WEBHOOK" ] && [ -z "$COOLIFY_WEBHOOK_2" ] && [ -z "$COOLIFY_WEBHOOK_3" ]; then
             echo "No COOLIFY_WEBHOOK* secrets set — skipping deploy."
             exit 0
           fi
           trigger "$COOLIFY_WEBHOOK"
           trigger "$COOLIFY_WEBHOOK_2"
+          trigger "$COOLIFY_WEBHOOK_3"
