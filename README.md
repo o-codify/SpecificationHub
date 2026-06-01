@@ -1,16 +1,43 @@
 # Specification Hub
 
-A Git-backed Markdown documentation platform. The docs content lives in its own
-repository; this app serves, edits, and reviews it. Brand and docs repo are
-configurable per deployment, so one image can power several independent sites.
+**A website for writing and reviewing documentation that is stored as plain
+Markdown files in Git — built so that AI assistants can be safe co-authors.**
 
-Markdown files are the **source of truth**: they live in Git, read cleanly on
-GitHub, render as a website, and are editable through the UI / MCP with a
-branch → diff → review → merge workflow.
+Think of it as a lightweight wiki where:
+
+- every page is an ordinary Markdown file (reads cleanly on GitHub, fully
+  portable, no lock-in);
+- people edit pages in the browser with a live what-you-see-is-what-you-get
+  editor;
+- AI assistants (ChatGPT, Claude, …) can read the docs and **propose** edits
+  through a standard connector (MCP);
+- **nothing is changed directly** — every edit lands on a branch, is shown as a
+  visual diff, and a human approves it before it goes live;
+- one running app can host several independent doc sites, each with its own
+  content repository and name.
+
+It suits living specifications, design docs, knowledge bases, and game/system
+design wikis — anywhere you want clean source text in Git, a pleasant
+reading/editing site on top, and AI that helps without ever silently
+overwriting your work.
+
+### How it works, in one line
 
 ```
-Markdown in Git → API → Website → editor → AI edits via MCP → branch/diff/review/merge
+Markdown in Git → served as a website → edited by people & AI on branches
+→ visual diff → a human reviews & accepts → merged into the main docs
 ```
+
+### Key ideas
+
+- **Markdown is the source of truth.** Pages live in a Git repo; this app is a
+  friendly front-end and review workflow on top of them.
+- **Safe by default.** The main branch is never written directly — every change
+  is a proposal you can read, then accept or discard.
+- **AI-native.** A built-in MCP server lets AI clients search, read, and propose
+  edits, and ships an authoring guide so they follow your conventions.
+- **Multi-tenant.** Brand name and content repo are configurable per
+  deployment, so one image can power many sites.
 
 ## Stack
 
@@ -111,7 +138,8 @@ repo and given its own brand:
 - per deployment set **`GITHUB_REPO`** (its docs repo) and **`BRAND_NAME`**
   (its title — read at runtime, so one image serves all);
 - the GitHub Action triggers every configured Coolify webhook on an app push —
-  set `COOLIFY_WEBHOOK` and `COOLIFY_WEBHOOK_2` (both optional) as repo secrets.
+  set `COOLIFY_WEBHOOK`, `COOLIFY_WEBHOOK_2`, and `COOLIFY_WEBHOOK_3` (all
+  optional) as repo secrets.
 
 ## GitHub-backed mode (PR workflow)
 
@@ -151,11 +179,17 @@ HTTP) at `/mcp`, so it can be added as a connector in ChatGPT (Apps SDK) or any
 MCP client.
 
 - **Endpoint:** `POST https://<host>/mcp` (same server/port as the app).
-- **Tools:** `search_docs` (word-tokenised, matches docs containing all terms),
-  `list_docs`, `read_doc` (paginated — `offset`/`limit` lines, returns
-  `hasMore`/`nextOffset`), `list_branches`, `list_suggestions` (read) and
-  `create_branch`, `save_doc`, `append_section`, `replace_section`, `patch_doc`
-  (write — confined to `ai/*` branches, never the default branch). `save_doc`
+- **Tools:** `authoring_guide` (how to write docs here — workflow, fields, what
+  Markdown/Mermaid renders), `search_docs` (word-tokenised; optional `status`
+  filter), `list_docs` (optional `status` filter, e.g. list all `request` docs),
+  `read_doc` (paginated — `offset`/`limit` lines, returns `hasMore`/`nextOffset`),
+  `list_branches`, `list_suggestions` (read) and `create_branch`, `save_doc`
+  (whole doc), `append_section`, `replace_section`, `patch_doc`, `edit_doc`
+  (several appends/replaces/patches in one commit), `set_metadata` (status/
+  title/tags only — body untouched)
+  (write — confined to `ai/*` branches, never the default branch). The same
+  authoring guide is also sent as the MCP server `instructions` on connect.
+  `save_doc`
   creates the branch if needed, commits, and opens/updates a PR in GitHub mode.
   The incremental edit tools (`append_section`/`replace_section`/`patch_doc`)
   build/modify large documents with small payloads, avoiding client-side size
@@ -192,14 +226,14 @@ Set `MCP_ENABLED=false` to disable both the MCP endpoint and the OAuth server.
 
 ## Markdown format
 
-Every document requires frontmatter:
+Every document starts with a small block of metadata ("frontmatter"):
 
 ```md
 ---
 id: gait-cycle
 title: Gait Cycle
-status: draft        # draft | review | stable | deprecated | experimental
-version: 0.1.0
+status: draft        # request | draft | review | stable | deprecated | experimental
+version: 26.601.2124 # set automatically by the server — do not edit
 tags: [gait, walking, locomotion]
 ---
 
@@ -207,7 +241,31 @@ tags: [gait, walking, locomotion]
 ```
 
 Required fields: `id`, `title`, `status`, `version`, `tags`. The API validates
-these on write (HTTP 422 on failure).
+these on write (HTTP 422 on failure). The body supports standard Markdown
+(GitHub-flavoured: headings, lists, tables, code blocks, links) **plus Mermaid
+diagrams** — a ` ```mermaid ` fenced block renders as a real diagram.
+
+> When writing through the UI or MCP, the frontmatter is filled in for you and
+> `version` is stamped by the server — you don't hand-write the `---` block.
+
+### Document statuses
+
+Status is a small workflow signal so people and AI can tell a page's state at a
+glance (and filter by it):
+
+| Status         | Meaning                                                                 |
+| -------------- | ----------------------------------------------------------------------- |
+| `request`      | An **ask for content**: the page describes what should be written, for another author or AI session to fulfil. Great for queueing work. |
+| `draft`        | Being written, not yet ready for review.                                |
+| `review`       | Written and ready; **awaiting a human's approval**. When the change is accepted, the server promotes it to `stable`. |
+| `stable`       | Approved / merged.                                                      |
+| `deprecated`   | Kept for history but no longer current.                                 |
+| `experimental` | Provisional / subject to change.                                        |
+
+The `request` status enables a simple hand-off: one AI session can file
+`request` docs describing what's needed, and another can list them
+(`list_docs status=request`, or `search_docs` with a `status` filter) and fill
+them in. Accepting a `review` doc automatically marks it `stable`.
 
 ## Authentication
 
