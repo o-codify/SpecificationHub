@@ -41,6 +41,11 @@ export function DocsReader() {
   const [newDocBranch, setNewDocBranch] = useState<string | null>(null);
   const [acceptingNew, setAcceptingNew] = useState(false);
   const [treeLoaded, setTreeLoaded] = useState(false);
+  // On the default branch, whether the suggestions summary (which carries
+  // new-doc-on-branch info) has loaded. Until it has, a slug missing from the
+  // tree may still be a pending new doc — so we wait instead of showing "not
+  // found" (avoids a flash before the branch data arrives).
+  const [summaryLoaded, setSummaryLoaded] = useState(false);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
@@ -55,6 +60,7 @@ export function DocsReader() {
   // down with the content until its top pins under the topbar. A single CSS
   // `position: sticky` can only pin one edge, so this is done with `transform`.
   const sidebarRef = useRef<HTMLElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = sidebarRef.current;
     if (!el) return;
@@ -152,9 +158,10 @@ export function DocsReader() {
       .catch((e) => setError(String(e.message ?? e)))
       .finally(() => setTreeLoaded(true));
     if (branch !== defaultBranch) {
-      // Branch view: mark docs that differ from the default branch.
+      // Branch view: the branch's tree is authoritative (no new-doc lookup).
       setNewDocs([]);
       setDelByPath({});
+      setSummaryLoaded(true);
       api
         .changedDocs(defaultBranch, branch)
         .then((d) => {
@@ -164,6 +171,7 @@ export function DocsReader() {
         })
         .catch(() => setCounts({}));
     } else {
+      setSummaryLoaded(false);
       api
         .suggestionSummary(branch)
         .then((r) => {
@@ -175,15 +183,23 @@ export function DocsReader() {
           setCounts({});
           setNewDocs([]);
           setDelByPath({});
-        });
+        })
+        .finally(() => setSummaryLoaded(true));
     }
   }, [branch, defaultBranch, authed]);
 
   useEffect(loadTree, [loadTree]);
 
   const loadDoc = useCallback(() => {
+    const bv = branch !== defaultBranch;
     if (tree.length === 0 && newDocs.length === 0) {
-      // No docs to open — clear the loader so the empty state can show.
+      // Nothing to open yet. On the default branch, the only doc(s) might be
+      // pending new docs on a branch — keep loading until the summary arrives
+      // rather than flashing the empty/not-found state.
+      if (!bv && !summaryLoaded) {
+        setLoading(true);
+        return;
+      }
       setLoading(false);
       setDoc(null);
       setBaseDoc(null);
@@ -191,7 +207,6 @@ export function DocsReader() {
       setNewDocBranch(null);
       return;
     }
-    const bv = branch !== defaultBranch;
     setMode("view");
     setLoading(true);
     setError("");
@@ -204,6 +219,12 @@ export function DocsReader() {
     let path = slug ? slugToPath(slug, known) : null;
     if (!path && !slug) path = treePaths.find((p) => p.includes("00-introduction")) ?? treePaths[0] ?? null;
     if (!path) {
+      // On the default branch the doc may exist only as a pending new doc on a
+      // branch — wait for the summary before declaring it missing (no flash).
+      if (!bv && !summaryLoaded) {
+        setLoading(true);
+        return;
+      }
       setError(`Document not found: ${slug}`);
       setLoading(false);
       return;
@@ -234,9 +255,26 @@ export function DocsReader() {
       })
       .catch((e) => setError(String(e.message ?? e)))
       .finally(() => setLoading(false));
-  }, [slug, branch, defaultBranch, tree, newDocs, authed]);
+  }, [slug, branch, defaultBranch, tree, newDocs, summaryLoaded, authed]);
 
   useEffect(loadDoc, [loadDoc]);
+
+  // When the open doc changes, the page may get shorter. Clamp the scroll to the
+  // new content's real height (the grid's layout height — the sticky sidebar's
+  // transform doesn't expand it) so we don't keep a now-out-of-range scroll
+  // (which the sidebar transform would otherwise inflate the page to preserve).
+  // Position is kept where it was when it still fits; if it was past the new
+  // bottom, it snaps to the new bottom — never jumped to the top.
+  useEffect(() => {
+    const el = shellRef.current;
+    if (!el || !doc) return;
+    const id = requestAnimationFrame(() => {
+      const contentBottom = el.getBoundingClientRect().bottom + window.scrollY;
+      const maxScroll = Math.max(0, Math.ceil(contentBottom - window.innerHeight));
+      if (window.scrollY > maxScroll) window.scrollTo(0, maxScroll);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [doc]);
 
   // Auto-expand the category path leading to the open document.
   useEffect(() => {
@@ -372,7 +410,7 @@ export function DocsReader() {
   );
 
   return (
-    <div className="docs-shell">
+    <div className="docs-shell" ref={shellRef}>
       <aside ref={sidebarRef} className={`sidebar${sidebarOpen ? " open" : ""}`}>
         <div className="sb-head">
           <span className="t">Documentation</span>
