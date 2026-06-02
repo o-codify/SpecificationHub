@@ -382,8 +382,22 @@ tbody tr:hover{background:var(--surface-2)}
 .hljs-attr,.hljs-attribute,.hljs-property,.hljs-params,.hljs-tag{color:var(--hl-attr)}
 .hljs-variable,.hljs-template-variable,.hljs-symbol,.hljs-bullet,.hljs-link,.hljs-deletion{color:var(--hl-var)}
 .hljs-emphasis{font-style:italic}.hljs-strong{font-weight:700}
-.doc-body .mermaid-diagram{display:flex;justify-content:center;margin:0 0 18px}
+.doc-body .mermaid-diagram{display:flex;justify-content:center;margin:0 0 18px;cursor:zoom-in}
 .doc-body .mermaid-diagram svg{max-width:100%;height:auto}
+/* Fullscreen lightbox for a clicked diagram: dim/blur backdrop, diagram fills. */
+.mermaid-modal{
+  position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
+  padding:40px;cursor:zoom-out;
+  background:oklch(0.18 0.02 60/.66);backdrop-filter:blur(3px);
+}
+.mermaid-modal-fig{cursor:default;max-width:96vw;max-height:92vh;overflow:auto;display:flex}
+.mermaid-modal-fig svg{max-width:96vw !important;max-height:92vh !important;width:auto;height:auto}
+.mermaid-modal-close{
+  position:fixed;top:16px;right:18px;width:38px;height:38px;border-radius:50%;
+  display:grid;place-items:center;font-size:16px;cursor:pointer;
+  color:var(--text-strong);background:var(--surface);border:1px solid var(--border);
+}
+.mermaid-modal-close:hover{background:var(--surface-2)}
 .doc-body .mermaid-error{border-color:var(--danger,#d33)}
 /* toast (non-shifting success) */
 .toast{position:fixed;top:74px;right:24px;z-index:80;max-width:400px;opacity:0;transform:translateY(-8px);transition:opacity .25s ease,transform .25s ease;pointer-events:none}
