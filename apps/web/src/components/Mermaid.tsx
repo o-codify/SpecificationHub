@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 
 // Unique id per render target (mermaid.render needs a DOM-safe id).
 let seq = 0;
@@ -51,14 +51,45 @@ export function Mermaid({ chart }: { chart: string }) {
     };
   }, [chart, theme]);
 
-  // Esc closes the fullscreen view.
+  // Pan/zoom state for the fullscreen view (like an image viewer).
+  const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
+  const [grabbing, setGrabbing] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
+
+  // While open: reset the view, lock page scroll, wheel-to-zoom (toward the
+  // cursor), and Esc to close.
   useEffect(() => {
     if (!open) return;
+    setView({ zoom: 1, x: 0, y: 0 });
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const modal = modalRef.current;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const stage = stageRef.current;
+      if (!stage) return;
+      const r = stage.getBoundingClientRect();
+      const ox = e.clientX - (r.left + r.width / 2);
+      const oy = e.clientY - (r.top + r.height / 2);
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      setView((v) => {
+        const zoom = Math.min(12, Math.max(0.4, v.zoom * factor));
+        const k = zoom / v.zoom;
+        return { zoom, x: ox - (ox - v.x) * k, y: oy - (oy - v.y) * k };
+      });
+    };
+    modal?.addEventListener("wheel", onWheel, { passive: false });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      modal?.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
   if (error) {
@@ -68,6 +99,21 @@ export function Mermaid({ chart }: { chart: string }) {
       </pre>
     );
   }
+
+  const startDrag = (e: ReactMouseEvent) => {
+    e.preventDefault();
+    drag.current = { px: e.clientX, py: e.clientY, x: view.x, y: view.y };
+    setGrabbing(true);
+  };
+  const onDrag = (e: ReactMouseEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    setView((v) => ({ ...v, x: d.x + (e.clientX - d.px), y: d.y + (e.clientY - d.py) }));
+  };
+  const endDrag = () => {
+    drag.current = null;
+    setGrabbing(false);
+  };
 
   return (
     <>
@@ -80,15 +126,26 @@ export function Mermaid({ chart }: { chart: string }) {
         dangerouslySetInnerHTML={{ __html: svg }}
       />
       {open && (
-        <div className="mermaid-modal" role="dialog" aria-modal="true" onClick={() => setOpen(false)}>
+        <div className="mermaid-modal" role="dialog" aria-modal="true" ref={modalRef} onClick={() => setOpen(false)}>
           <button className="mermaid-modal-close" aria-label="Close" onClick={() => setOpen(false)}>
             ✕
           </button>
           <div
-            className="mermaid-modal-fig"
+            ref={stageRef}
+            className={`mermaid-modal-fig${grabbing ? " grabbing" : ""}`}
             onClick={(e) => e.stopPropagation()}
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
+            onMouseDown={startDrag}
+            onMouseMove={onDrag}
+            onMouseUp={endDrag}
+            onMouseLeave={endDrag}
+            onDoubleClick={() => setView({ zoom: 1, x: 0, y: 0 })}
+          >
+            <div
+              className="mermaid-modal-zoom"
+              style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
+              dangerouslySetInnerHTML={{ __html: svg }}
+            />
+          </div>
         </div>
       )}
     </>

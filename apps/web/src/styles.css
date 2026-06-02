@@ -387,11 +387,15 @@ tbody tr:hover{background:var(--surface-2)}
 /* Fullscreen lightbox for a clicked diagram: dim/blur backdrop, diagram fills. */
 .mermaid-modal{
   position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
-  padding:40px;cursor:zoom-out;
+  cursor:zoom-out;
   background:oklch(0.18 0.02 60/.66);backdrop-filter:blur(3px);
 }
-.mermaid-modal-fig{cursor:default;max-width:96vw;max-height:92vh;overflow:auto;display:flex}
-.mermaid-modal-fig svg{max-width:96vw !important;max-height:92vh !important;width:auto;height:auto}
+/* Full-bleed stage (no edge gap); the inner zoom layer carries the pan/zoom
+   transform and the diagram fits it (SVG width:100% + viewBox). */
+.mermaid-modal-fig{width:100vw;height:100vh;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:grab}
+.mermaid-modal-fig.grabbing{cursor:grabbing}
+.mermaid-modal-zoom{width:100%;height:100%;display:flex;align-items:center;justify-content:center;transform-origin:center center;will-change:transform}
+.mermaid-modal-zoom svg{width:100% !important;height:100% !important;max-width:none !important;max-height:none !important}
 .mermaid-modal-close{
   position:fixed;top:16px;right:18px;width:38px;height:38px;border-radius:50%;
   display:grid;place-items:center;font-size:16px;cursor:pointer;
