@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth";
 import { useLayout } from "../layout";
 import { setViewAccent } from "../status";
@@ -11,7 +11,6 @@ export function AppShell() {
   const { authed, user, openLogin, logout } = useAuth();
   const { navOpen, setNavOpen, setSidebarOpen } = useLayout();
   const location = useLocation();
-  const navigate = useNavigate();
 
   const onDocs = location.pathname.startsWith("/docs") || location.pathname === "/";
   const section = onDocs
@@ -25,15 +24,10 @@ export function AppShell() {
     document.body.classList.toggle("v-admin", !onDocs);
   }, [section, authed, onDocs]);
 
-  // Admin nav links open the login modal instead of navigating when logged out.
-  const goAdmin = (e: React.MouseEvent, to: string) => {
+  // Branches & Review are viewable by everyone (read-only for guests), so just
+  // navigate — the NavLink handles routing; we only close the mobile nav.
+  const goAdmin = (_e: React.MouseEvent, _to: string) => {
     setNavOpen(false);
-    if (!authed) {
-      e.preventDefault();
-      openLogin();
-    } else {
-      navigate(to);
-    }
   };
 
   const onMenu = () => {

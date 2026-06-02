@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { useAuth } from "../auth";
 
 export function AdminBranches() {
+  const { authed } = useAuth();
   const [branches, setBranches] = useState<string[]>([]);
   const [defaultBranch, setDefaultBranch] = useState("main");
   const [name, setName] = useState("");
@@ -51,30 +53,32 @@ export function AdminBranches() {
   return (
     <section className="card">
       <h2>Branches</h2>
-      <form className="row" onSubmit={create} style={{ marginBottom: 8 }}>
-        <input
-          className="field"
-          style={{ width: 280 }}
-          placeholder="new branch name (e.g. ai/draft-pass)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <select
-          className="field"
-          value={from}
-          style={{ width: 160 }}
-          onChange={(e) => setFrom(e.target.value)}
-        >
-          {branches.map((b) => (
-            <option key={b} value={b}>
-              from {b}
-            </option>
-          ))}
-        </select>
-        <button type="submit" className="btn btn-primary">
-          Create
-        </button>
-      </form>
+      {authed && (
+        <form className="row" onSubmit={create} style={{ marginBottom: 8 }}>
+          <input
+            className="field"
+            style={{ width: 280 }}
+            placeholder="new branch name (e.g. ai/draft-pass)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <select
+            className="field"
+            value={from}
+            style={{ width: 160 }}
+            onChange={(e) => setFrom(e.target.value)}
+          >
+            {branches.map((b) => (
+              <option key={b} value={b}>
+                from {b}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className="btn btn-primary">
+            Create
+          </button>
+        </form>
+      )}
       {msg && <div className="banner good" style={{ margin: "8px 0 14px" }}>{msg}</div>}
       {err && <div className="banner bad" style={{ margin: "8px 0 14px" }}>{err}</div>}
 
@@ -85,9 +89,11 @@ export function AdminBranches() {
             {b === defaultBranch ? (
               <span className="pill">default</span>
             ) : (
-              <button className="del-link" onClick={() => remove(b)}>
-                delete
-              </button>
+              authed && (
+                <button className="del-link" onClick={() => remove(b)}>
+                  delete
+                </button>
+              )
             )}
           </div>
         ))}

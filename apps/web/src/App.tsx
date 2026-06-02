@@ -1,20 +1,8 @@
-import { useEffect, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { DocsReader } from "./pages/DocsReader";
 import { AdminBranches } from "./pages/AdminBranches";
 import { AdminDiff } from "./pages/AdminDiff";
-import { useAuth } from "./auth";
-
-function RequireAuth({ children }: { children: ReactNode }) {
-  const { ready, authed, openLogin } = useAuth();
-  useEffect(() => {
-    if (ready && !authed) openLogin();
-  }, [ready, authed, openLogin]);
-  if (!ready) return null;
-  if (!authed) return <Navigate to="/docs" replace />;
-  return <>{children}</>;
-}
 
 export function App() {
   return (
@@ -22,24 +10,22 @@ export function App() {
       <Route element={<AppShell />}>
         <Route index element={<Navigate to="/docs" replace />} />
         <Route path="/docs/*" element={<DocsReader />} />
+        {/* Branches & Review are readable by everyone; the write actions inside
+            them (create/delete branch, accept) are gated to signed-in admins. */}
         <Route
           path="/branches"
           element={
-            <RequireAuth>
-              <div className="page">
-                <AdminBranches />
-              </div>
-            </RequireAuth>
+            <div className="page">
+              <AdminBranches />
+            </div>
           }
         />
         <Route
           path="/review"
           element={
-            <RequireAuth>
-              <div className="page">
-                <AdminDiff />
-              </div>
-            </RequireAuth>
+            <div className="page">
+              <AdminDiff />
+            </div>
           }
         />
         <Route path="*" element={<Navigate to="/docs" replace />} />

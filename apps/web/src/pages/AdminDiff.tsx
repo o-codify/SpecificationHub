@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { serializeDoc, type DiffFile } from "@spec/core";
 import { api } from "../api";
+import { useAuth } from "../auth";
 import { useToast } from "../toast";
 
 function DiffPatch({ patch }: { patch: string }) {
@@ -26,6 +27,7 @@ function DiffPatch({ patch }: { patch: string }) {
 }
 
 export function AdminDiff() {
+  const { authed } = useAuth();
   const toast = useToast();
   const [branches, setBranches] = useState<string[]>(["main"]);
   const [base, setBase] = useState("main");
@@ -148,14 +150,16 @@ export function AdminDiff() {
         <span className="muted" style={{ fontSize: 13 }}>
           → into <code>{base}</code>
         </span>
-        <button
-          className="btn btn-good"
-          style={{ marginLeft: "auto" }}
-          disabled={!files || files.length === 0 || !!busy}
-          onClick={acceptAll}
-        >
-          {busy === "*" ? "Accepting…" : "Accept all"}
-        </button>
+        {authed && (
+          <button
+            className="btn btn-good"
+            style={{ marginLeft: "auto" }}
+            disabled={!files || files.length === 0 || !!busy}
+            onClick={acceptAll}
+          >
+            {busy === "*" ? "Accepting…" : "Accept all"}
+          </button>
+        )}
       </div>
 
       {err && <div className="banner bad" style={{ marginTop: 16 }}>{err}</div>}
@@ -185,14 +189,16 @@ export function AdminDiff() {
                   </span>
                   <span className="add">+{f.additions}</span>
                   <span className="del">−{f.deletions}</span>
-                  <button
-                    className="btn btn-good sp-btn"
-                    style={{ marginLeft: "auto" }}
-                    disabled={!!busy}
-                    onClick={() => accept(f.path, f.status)}
-                  >
-                    {busy === f.path ? "Accepting…" : f.status === "D" ? "Accept delete" : "Accept"}
-                  </button>
+                  {authed && (
+                    <button
+                      className="btn btn-good sp-btn"
+                      style={{ marginLeft: "auto" }}
+                      disabled={!!busy}
+                      onClick={() => accept(f.path, f.status)}
+                    >
+                      {busy === f.path ? "Accepting…" : f.status === "D" ? "Accept delete" : "Accept"}
+                    </button>
+                  )}
                 </div>
                 {expanded && <DiffPatch patch={f.patch} />}
               </div>

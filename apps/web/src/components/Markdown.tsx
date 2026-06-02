@@ -3,6 +3,7 @@ import remarkGfm from "remark-gfm";
 import { Link } from "react-router-dom";
 import { resolveDocHref } from "../docpath";
 import { Mermaid } from "./Mermaid";
+import { CodeBlock } from "./CodeBlock";
 
 interface Props {
   content: string;
@@ -27,15 +28,18 @@ export function Markdown({ content, currentPath, branch }: Props) {
           );
         },
         pre({ children }) {
-          // A ```mermaid fenced block renders as a diagram instead of code.
           const child = (Array.isArray(children) ? children[0] : children) as
             | { props?: { className?: string; children?: unknown } }
             | undefined;
           const cls = child?.props?.className ?? "";
+          const text = codeText(child?.props?.children).replace(/\n$/, "");
+          // A ```mermaid block renders as a diagram; any other fenced block gets
+          // syntax highlighting + a copy button.
           if (/\blanguage-mermaid\b/.test(cls)) {
-            return <Mermaid chart={codeText(child?.props?.children).replace(/\n$/, "")} />;
+            return <Mermaid chart={text} />;
           }
-          return <pre>{children}</pre>;
+          const lang = /language-([\w-]+)/.exec(cls)?.[1];
+          return <CodeBlock code={text} lang={lang} />;
         },
         a({ href, children }) {
           const internal = href ? resolveDocHref(currentPath, href, branch) : null;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FrontMatter } from "@spec/core";
 import { api } from "../api";
 import { useAuth } from "../auth";
@@ -6,6 +6,7 @@ import { useToast } from "../toast";
 import { Markdown } from "./Markdown";
 import { rewriteDocLinks } from "../docpath";
 import { applyChanges, changesFor, renderTrackedHtml } from "../trackChanges";
+import { enhanceCodeBlocks } from "../codeHighlight";
 import { nextVersion } from "../version";
 
 interface Props {
@@ -42,6 +43,10 @@ export function BranchChanges({ path, base, branch, baseBody, headBody, frontmat
     () => rewriteDocLinks(renderTrackedHtml(baseBody, visible), path, branch),
     [baseBody, visible, path, branch],
   );
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    enhanceCodeBlocks(bodyRef.current);
+  }, [html]);
 
   const current = () => changes.find((c) => c.id === pop?.id);
 
@@ -102,7 +107,7 @@ export function BranchChanges({ path, base, branch, baseBody, headBody, frontmat
   const c = current();
   return (
     <>
-      <div className="doc-body has-change" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />
+      <div ref={bodyRef} className="doc-body has-change" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />
       {authed && pop && c && (
         <div className="sug-pop open" style={{ left: pop.x, top: pop.y }} onClick={(e) => e.stopPropagation()}>
           <div className="sp-acts">

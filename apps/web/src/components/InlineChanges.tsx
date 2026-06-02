@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { parseFrontmatter, serializeDoc, type FrontMatter } from "@spec/core";
 import type { FileSuggestion } from "../api";
 import { api } from "../api";
 import { useToast } from "../toast";
 import { applyChange, changesFor, renderTrackedHtml, type Change } from "../trackChanges";
 import { rewriteDocLinks } from "../docpath";
+import { enhanceCodeBlocks } from "../codeHighlight";
 import { nextVersion } from "../version";
 
 interface Props {
@@ -44,6 +45,10 @@ export function InlineChanges({ path, base, content, frontmatter, suggestions, r
     () => rewriteDocLinks(renderTrackedHtml(content, visible), path, base),
     [content, visible, path, base],
   );
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    enhanceCodeBlocks(bodyRef.current);
+  }, [html]);
 
   const current = (): Change | undefined => changes.find((c) => c.id === pop?.id);
 
@@ -114,7 +119,7 @@ export function InlineChanges({ path, base, content, frontmatter, suggestions, r
   const c = current();
   return (
     <>
-      <div className="doc-body has-change" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />
+      <div ref={bodyRef} className="doc-body has-change" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />
       {pop && c && (
         <div
           className={`sug-pop open${readOnly ? " compact" : ""}`}
