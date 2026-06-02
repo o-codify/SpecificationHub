@@ -251,11 +251,7 @@ export function createRouter(): Router {
       const author = (req.body?.author as string) || req.principal!.name;
       ensureCanWrite(req, branch);
       const result = gitlib.commit(branch, message, author); // commits (+ pushes in GitHub mode)
-      let pullRequest = null;
-      if (config.githubEnabled) {
-        pullRequest = await github.ensurePullRequest(branch, config.defaultBranch, `Update ${branch}`);
-      }
-      res.status(201).json({ ...result, pullRequest });
+      res.status(201).json(result);
     }),
   );
 

@@ -140,12 +140,7 @@ export const api = {
     request<{ deleted: boolean }>("DELETE", "/api/docs", { branch, path }, true),
 
   commit: (branch: string, message: string, author?: string) =>
-    request<{ sha: string; branch: string; pullRequest: PullRequestInfo | null }>(
-      "POST",
-      "/api/commits",
-      { branch, message, author },
-      true,
-    ),
+    request<{ sha: string; branch: string }>("POST", "/api/commits", { branch, message, author }, true),
 
   diff: (base: string, head: string) =>
     request<DiffResponse>(

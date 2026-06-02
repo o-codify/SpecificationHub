@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { FrontMatter } from "@spec/core";
-import { api, ApiError, type PullRequestInfo } from "../api";
+import { api, ApiError } from "../api";
 import { htmlToMd } from "../markdownConvert";
 import { statusColor } from "../status";
 import { nextVersion } from "../version";
@@ -145,22 +145,11 @@ export function InlineEditor({ initial, isNew, branch, onCancel, onSaved }: Prop
     try {
       if (isNew) await api.createDoc(branch, path, frontmatter, content);
       else await api.putDoc(branch, path, frontmatter, content);
-      let pr: PullRequestInfo | null = null;
       try {
         const res = await api.commit(branch, `Update ${path}`);
-        pr = res.pullRequest;
         toast.show(
           <>
-            Saved &amp; pushed — commit <code>{res.sha.slice(0, 7)}</code> on{" "}
-            <code>{res.branch}</code>
-            {pr && (
-              <>
-                {" · "}
-                <a href={pr.url} target="_blank" rel="noreferrer">
-                  View PR #{pr.number} →
-                </a>
-              </>
-            )}
+            Saved — commit <code>{res.sha.slice(0, 7)}</code> on <code>{res.branch}</code>
           </>,
         );
       } catch {

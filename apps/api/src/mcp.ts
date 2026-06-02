@@ -13,7 +13,6 @@ import {
   type DocStatus,
 } from "@spec/core";
 import * as gitlib from "./git.js";
-import * as github from "./github.js";
 import { canWriteBranch } from "./auth.js";
 import { resolveSession, resolveOAuthToken, type Principal } from "./db.js";
 import { config } from "./config.js";
@@ -48,6 +47,16 @@ const ok = (text: string, structuredContent?: Record<string, unknown>) => ({
   ...(structuredContent ? { structuredContent } : {}),
 });
 const fail = (text: string) => ({ content: [{ type: "text" as const, text }], isError: true });
+
+// ---- Output schemas (advertised in tools/list; validate `structuredContent`).
+// Declaring these stops MCP clients (e.g. ChatGPT) warning about missing output
+// schemas. Error results (isError) skip validation, so `fail()` needs none.
+const DOC_WRITE_OUT = {
+  branch: z.string(),
+  path: z.string(),
+  sha: z.string(),
+  version: z.string(),
+};
 
 function slugify(t: string): string {
   return t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "untitled";
@@ -160,9 +169,9 @@ default branch (\`${base}\`). A human reviews and accepts your changes.
     - \`deprecated\`, \`experimental\` — as named.
   - \`version\` is stamped automatically by the server (time-based) — you cannot
     and should not set it.
-- \`content\` is the Markdown BODY only. Start it with a single top-level heading
-  matching the title (e.g. \`# Gait Cycle\`) — that first \`# H1\` is rendered as the
-  styled page title — then use \`##\`/\`###\` for sections.
+- \`content\` is the Markdown BODY only. It must start with exactly ONE top-level
+  heading — \`# Title\` matching the doc's title (rendered as the page title).
+  Everything below uses \`##\`/\`###\`/… ; never add a second \`#\` heading in one doc.
 
 ## Finding work to do
 - To pick up open requests, list/search by status: \`list_docs\` with
@@ -183,8 +192,8 @@ default branch (\`${base}\`). A human reviews and accepts your changes.
   | ------ | ----- |
   | Health | float |
   \`\`\`
-- Blockquotes \`> …\`, horizontal rule \`---\`, links \`[text](./other-doc.md)\`
-  (relative links between docs resolve inside the app), images \`![alt](url)\`.
+- Blockquotes \`> …\`, horizontal rule \`---\`, images \`![alt](url)\`. Links: see
+  "Linking between documents" below.
 - Diagrams: a \`mermaid\` fenced block renders as a real diagram (flowchart,
   sequence, state, etc.). Prefer this over ASCII art. Example:
   \`\`\`
@@ -196,6 +205,65 @@ default branch (\`${base}\`). A human reviews and accepts your changes.
   \`\`\`
   \`\`\`
 
+## Linking between documents
+- When you mention another doc, ALWAYS make it a real Markdown link — never its
+  bare title or path as plain text. Use a readable label (the target's title)
+  and a RELATIVE path to the target \`.md\` file:
+    Good:  See [Gait Cycle](../04-gait-cycle/index.md) for the phases.
+    Bad:   See Gait Cycle.                     (plain text, not a link)
+    Bad:   See docs/04-gait-cycle/index.md.    (bare path shown to readers)
+- Paths are relative to the CURRENT file's folder (\`./sibling.md\`,
+  \`../other/index.md\`); include \`/index.md\` for a section folder. The app
+  resolves these to the right page and keeps navigation working.
+- Don't guess paths/titles — confirm them first with \`list_docs\` or \`search_docs\`.
+
+## Write for a human reader
+Every document is read by people — make it clear, skimmable, and correct. This
+is how docs should always be written, not optional polish.
+- Lead with the point. Open the doc, and each section, with what it is and why it
+  matters, then the detail. Never bury the thesis or start mid-thought.
+- One idea per section, one topic per paragraph. Short sentences. No walls of
+  text — split a long paragraph or turn it into a list/table.
+- Use the structure that fits the content:
+  - sequences, steps, options, enumerations → lists;
+  - field/value, parameters, comparisons → GitHub tables;
+  - commands, code, config, paths, identifiers → fenced code / \`inline code\`;
+  - a key warning or caveat → a one-line \`>\` callout (don't overuse).
+- Be precise and consistent: same term for the same thing throughout; define an
+  acronym/term on first use; avoid vague references ("it", "this", "the above")
+  when the referent isn't obvious — name it.
+- State things plainly and factually. No filler, no hedging, no apologies, no
+  meta narration ("as an AI…", "here is the document"). Write the documentation,
+  not commentary about it.
+- Don't repeat another doc — link to it (see "Linking between documents") and
+  state only what's specific here.
+- Read 1–2 existing docs first and match their tone, depth, and conventions.
+- Each doc stands on its own: a reader opening it cold should understand what it
+  is, why it exists, and how to act on it.
+
+## Writing a \`request\` document
+A \`request\` asks for something to be created (usually a TOOL or capability) for
+another author/AI to fulfil. Write it so they can act without guessing — state
+the essence and the goal; be concrete and minimal. Include exactly:
+- **What** — the specific capability/tool to create, named precisely.
+- **Goal** — the outcome it must enable, in one or two sentences.
+- **Behaviour** — what it does: inputs, outputs, the operations it exposes, key
+  constraints and edge cases.
+- **Acceptance** — observable criteria for "done right", and what would be wrong.
+
+Scope it correctly and keep it tight:
+- Request the ENABLING capability, not a one-off end result. If the spec is about
+  interacting with a system (e.g. a game engine), request the *tool* another AI
+  will use to drive that system — NOT a specific downstream action. Ask for "a
+  tool to set/trigger a Blueprint animation state", NOT "make weapon reload work"
+  (reload is just one use of such a tool).
+- Describe WHAT it must do and how to judge it — never HOW to build it. No
+  implementation options or design variants; the fulfiller decides those.
+- No process narration or status chatter — never write "I couldn't do X because
+  tool Y is missing, verify by creating a reload." State the need directly:
+  which tool, what it does, how it behaves, what's good vs bad.
+- No filler — every line is a requirement or a constraint, or it's cut.
+
 ## Not supported — avoid
 - Raw HTML in Markdown is NOT rendered — never use \`<div>\`, \`<table>\`, \`<br>\`,
   etc. Use Markdown and Mermaid only.
@@ -203,8 +271,7 @@ default branch (\`${base}\`). A human reviews and accepts your changes.
 - Do not write to \`${base}\` — always use an \`ai/*\` branch.
 
 ## Tips
-- One idea per section; cross-link related docs with relative links.
-- Write clear commit \`message\`s — they appear in the review UI.`;
+- Write clear, specific commit \`message\`s — they appear in the review UI.`;
 }
 
 function buildServer(principal: Principal | null): McpServer {
@@ -240,8 +307,12 @@ function buildServer(principal: Principal | null): McpServer {
         "fields, which Markdown/Mermaid renders, and conventions. Read this before creating " +
         "or substantially editing docs — especially when the specification is still empty.",
       inputSchema: {},
+      outputSchema: { guide: z.string() },
     },
-    async () => ok(authoringGuide()),
+    async () => {
+      const guide = authoringGuide();
+      return ok(guide, { guide });
+    },
   );
 
   server.registerTool(
@@ -259,6 +330,14 @@ function buildServer(principal: Principal | null): McpServer {
           .enum(DOC_STATUSES as unknown as [DocStatus, ...DocStatus[]])
           .optional()
           .describe("Only return documents with this status"),
+      },
+      outputSchema: {
+        branch: z.string(),
+        query: z.string(),
+        status: z.string().optional(),
+        hits: z.array(
+          z.object({ path: z.string(), title: z.string(), snippet: z.string() }),
+        ),
       },
     },
     async ({ query, branch, status }) => {
@@ -288,6 +367,13 @@ function buildServer(principal: Principal | null): McpServer {
           .enum(DOC_STATUSES as unknown as [DocStatus, ...DocStatus[]])
           .optional()
           .describe("Only list documents with this status"),
+      },
+      outputSchema: {
+        branch: z.string(),
+        status: z.string().optional(),
+        items: z.array(
+          z.object({ path: z.string(), title: z.string(), status: z.string() }),
+        ),
       },
     },
     async ({ branch, status }) => {
@@ -329,6 +415,18 @@ function buildServer(principal: Principal | null): McpServer {
         offset: z.number().int().min(0).optional().describe("First body line to return (0-based, default 0)"),
         limit: z.number().int().min(1).max(2000).optional().describe("Max body lines to return (default 300)"),
       },
+      outputSchema: {
+        path: z.string(),
+        branch: z.string(),
+        frontmatter: z.record(z.string(), z.unknown()),
+        content: z.string(),
+        offset: z.number(),
+        limit: z.number(),
+        returnedLines: z.number(),
+        totalLines: z.number(),
+        hasMore: z.boolean(),
+        nextOffset: z.number().nullable(),
+      },
     },
     async ({ path, branch, offset, limit }) => {
       const b = branch || base;
@@ -365,6 +463,7 @@ function buildServer(principal: Principal | null): McpServer {
       title: "List branches",
       description: "List branches in the documentation repository.",
       inputSchema: {},
+      outputSchema: { default: z.string(), branches: z.array(z.string()) },
     },
     async () => {
       try {
@@ -385,6 +484,7 @@ function buildServer(principal: Principal | null): McpServer {
         path: z.string().describe("Doc path"),
         base: z.string().optional().describe(`Base branch (default: ${base})`),
       },
+      outputSchema: { path: z.string(), base: z.string(), branches: z.array(z.string()) },
     },
     async ({ path, base: baseArg }) => {
       const b = baseArg || base;
@@ -413,6 +513,15 @@ function buildServer(principal: Principal | null): McpServer {
       inputSchema: {
         branch: z.string().describe("Branch to inspect, e.g. ai/improve-gait"),
         base: z.string().optional().describe(`Base branch (default: ${base})`),
+      },
+      outputSchema: {
+        branch: z.string(),
+        base: z.string(),
+        upToDate: z.boolean(),
+        ahead: z.number(),
+        behind: z.number(),
+        staleFiles: z.array(z.string()),
+        conflictFiles: z.array(z.string()),
       },
     },
     async ({ branch, base: baseArg }) => {
@@ -444,6 +553,7 @@ function buildServer(principal: Principal | null): McpServer {
           name: z.string().describe("New branch name, e.g. ai/improve-gait"),
           from: z.string().optional().describe(`Source branch (default: ${base})`),
         },
+        outputSchema: { name: z.string() },
       },
       async ({ name, from }) => {
         const verdict = canWriteBranch(principal, name);
@@ -478,6 +588,13 @@ function buildServer(principal: Principal | null): McpServer {
             .describe("How to reconcile (default: merge)"),
           base: z.string().optional().describe(`Base branch to pull from (default: ${base})`),
         },
+        outputSchema: {
+          strategy: z.string(),
+          merged: z.boolean(),
+          conflicts: z.array(z.string()),
+          branch: z.string(),
+          base: z.string(),
+        },
       },
       async ({ branch, strategy, base: baseArg }) => {
         const b = baseArg || base;
@@ -505,7 +622,7 @@ function buildServer(principal: Principal | null): McpServer {
       {
         title: "Save a document (propose an edit)",
         description:
-          "Create or update a document on a branch and commit it (opening/updating a Pull Request in GitHub mode). Writes are not allowed on the default branch — use an ai/* branch.",
+          "Create or update a document on a branch and commit it. Writes are not allowed on the default branch — use an ai/* branch.",
         inputSchema: {
           branch: z.string().describe("Target branch (e.g. ai/improve-gait)"),
           path: z.string().describe("Doc path, e.g. docs/04-gait-cycle/index.md"),
@@ -514,6 +631,11 @@ function buildServer(principal: Principal | null): McpServer {
           status: z.enum(DOC_STATUSES as unknown as [DocStatus, ...DocStatus[]]).optional(),
           tags: z.array(z.string()).optional(),
           message: z.string().optional().describe("Commit message"),
+        },
+        outputSchema: {
+          branch: z.string(),
+          path: z.string(),
+          sha: z.string(),
         },
       },
       async ({ branch, path, title, content, status, tags, message }) => {
@@ -531,16 +653,9 @@ function buildServer(principal: Principal | null): McpServer {
           });
           gitlib.writeFileToBranch(branch, path, serializeDoc(frontmatter, content));
           const commit = gitlib.commit(branch, message || `Update ${path}`, principal.name);
-          let pr: { number: number; url: string } | null = null;
-          if (config.githubEnabled) {
-            const p = await github.ensurePullRequest(branch, base, `Update ${path}`);
-            pr = { number: p.number, url: p.url };
-          }
           return ok(
-            `Saved ${path} on ${branch} (commit ${commit.sha.slice(0, 8)}).` +
-              (pr ? ` PR #${pr.number}: ${pr.url}` : "") +
-              staleNote(branch),
-            { branch, path, sha: commit.sha, pullRequest: pr },
+            `Saved ${path} on ${branch} (commit ${commit.sha.slice(0, 8)}).` + staleNote(branch),
+            { branch, path, sha: commit.sha },
           );
         } catch (e) {
           return fail(String((e as Error).message));
@@ -561,6 +676,12 @@ function buildServer(principal: Principal | null): McpServer {
           path: z.string().describe("Doc path to delete, e.g. docs/old/index.md"),
           message: z.string().optional().describe("Commit message"),
         },
+        outputSchema: {
+          branch: z.string(),
+          path: z.string(),
+          sha: z.string(),
+          deleted: z.boolean(),
+        },
       },
       async ({ branch, path, message }) => {
         const verdict = canWriteBranch(principal, branch);
@@ -570,16 +691,9 @@ function buildServer(principal: Principal | null): McpServer {
           if (!gitlib.fileExists(branch, path)) return fail(`Document not found on ${branch}: ${path}`);
           gitlib.deleteFileFromBranch(branch, path);
           const commit = gitlib.commit(branch, message || `Delete ${path}`, principal.name);
-          let pr: { number: number; url: string } | null = null;
-          if (config.githubEnabled) {
-            const p = await github.ensurePullRequest(branch, base, `Delete ${path}`);
-            pr = { number: p.number, url: p.url };
-          }
           return ok(
-            `Deleted ${path} on ${branch} (commit ${commit.sha.slice(0, 8)}).` +
-              (pr ? ` PR #${pr.number}: ${pr.url}` : "") +
-              staleNote(branch),
-            { branch, path, sha: commit.sha, pullRequest: pr, deleted: true },
+            `Deleted ${path} on ${branch} (commit ${commit.sha.slice(0, 8)}).` + staleNote(branch),
+            { branch, path, sha: commit.sha, deleted: true },
           );
         } catch (e) {
           return fail(String((e as Error).message));
@@ -588,8 +702,8 @@ function buildServer(principal: Principal | null): McpServer {
     );
 
     // Shared helper for incremental edits: preserves the existing frontmatter,
-    // re-stamps the version, writes a small change + commits (+PR in GitHub mode).
-    // Keeping each call's payload small avoids tripping client-side size limits.
+    // re-stamps the version, writes a small change + commits. Keeping each call's
+    // payload small avoids tripping client-side size limits.
     type EditResult = {
       body: string;
       frontmatter?: Record<string, unknown>; // fields to merge over the existing frontmatter
@@ -615,17 +729,11 @@ function buildServer(principal: Principal | null): McpServer {
         const fm = { ...frontmatter, ...(result.frontmatter ?? {}), version: stampVersion() };
         gitlib.writeFileToBranch(branch, path, serializeDoc(fm, result.body));
         const commit = gitlib.commit(branch, message, principal.name);
-        let pr: { number: number; url: string } | null = null;
-        if (config.githubEnabled) {
-          const p = await github.ensurePullRequest(branch, base, message);
-          pr = { number: p.number, url: p.url };
-        }
         return ok(
           `Updated ${path} on ${branch} (commit ${commit.sha.slice(0, 8)}).` +
             (result.note ? ` ${result.note}` : "") +
-            (pr ? ` PR #${pr.number}: ${pr.url}` : "") +
             staleNote(branch),
-          { branch, path, sha: commit.sha, pullRequest: pr, version: fm.version },
+          { branch, path, sha: commit.sha, version: fm.version },
         );
       } catch (e) {
         return fail(String((e as Error).message));
@@ -645,6 +753,7 @@ function buildServer(principal: Principal | null): McpServer {
           markdown: z.string().describe("Markdown to append (e.g. a new `## Section` and its body)"),
           message: z.string().optional().describe("Commit message"),
         },
+        outputSchema: DOC_WRITE_OUT,
       },
       ({ branch, path, markdown, message }) =>
         editDoc(branch, path, message || `Append to ${path}`, (body) => appendToBody(body, markdown)),
@@ -665,6 +774,7 @@ function buildServer(principal: Principal | null): McpServer {
           markdown: z.string().describe("Full replacement section, normally starting with its heading"),
           message: z.string().optional().describe("Commit message"),
         },
+        outputSchema: DOC_WRITE_OUT,
       },
       ({ branch, path, heading, markdown, message }) =>
         editDoc(branch, path, message || `Update "${heading}" in ${path}`, (body) =>
@@ -686,6 +796,7 @@ function buildServer(principal: Principal | null): McpServer {
           replace: z.string().describe("Replacement text"),
           message: z.string().optional().describe("Commit message"),
         },
+        outputSchema: DOC_WRITE_OUT,
       },
       ({ branch, path, find, replace, message }) =>
         editDoc(branch, path, message || `Patch ${path}`, (body) => patchInBody(body, find, replace)),
@@ -720,6 +831,7 @@ function buildServer(principal: Principal | null): McpServer {
             .describe("Ordered list of edit operations"),
           message: z.string().optional().describe("Commit message"),
         },
+        outputSchema: DOC_WRITE_OUT,
       },
       ({ branch, path, edits, message }) =>
         editDoc(branch, path, message || `Edit ${path} (${edits.length} change${edits.length > 1 ? "s" : ""})`, (body) => {
@@ -769,6 +881,7 @@ function buildServer(principal: Principal | null): McpServer {
           tags: z.array(z.string()).optional().describe("Replacement tag list"),
           message: z.string().optional().describe("Commit message"),
         },
+        outputSchema: DOC_WRITE_OUT,
       },
       ({ branch, path, status, title, tags, message }) =>
         editDoc(branch, path, message || `Update metadata of ${path}`, (body) => {
