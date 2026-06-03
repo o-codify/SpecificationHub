@@ -3,7 +3,7 @@ import fs from "node:fs";
 import pg from "pg";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import type { Role } from "@spec/core";
 import { config } from "./config.js";
 import * as schema from "./schema.js";
@@ -29,6 +29,36 @@ export async function initDb(): Promise<void> {
     await migrate(db, { migrationsFolder: config.migrationsDir });
   } else {
     console.warn(`Migrations folder not found at ${config.migrationsDir}; skipping migrate().`);
+  }
+  await ensureSessionsTable();
+}
+
+/**
+ * Self-heal the `sessions` table. An older deployment may have created it with a
+ * different shape; migrate() uses CREATE TABLE IF NOT EXISTS and won't fix an
+ * existing-but-wrong table, so logins (an INSERT into sessions) fail with a 500
+ * while everything else works. Sessions are disposable, so if the expected
+ * columns are missing we recreate the table (everyone just re-logs in).
+ */
+async function ensureSessionsTable(): Promise<void> {
+  try {
+    const res = await db.execute(
+      sql`select column_name from information_schema.columns where table_name = 'sessions' and table_schema = current_schema()`,
+    );
+    const have = new Set((res.rows as { column_name: string }[]).map((r) => r.column_name));
+    const need = ["token_hash", "username", "role", "created_at", "expires_at"];
+    if (need.every((c) => have.has(c))) return;
+    await db.execute(sql`DROP TABLE IF EXISTS sessions`);
+    await db.execute(sql`CREATE TABLE sessions (
+      token_hash text PRIMARY KEY,
+      username text NOT NULL,
+      role text NOT NULL,
+      created_at text NOT NULL,
+      expires_at text NOT NULL
+    )`);
+    console.warn("Recreated the 'sessions' table to match the current schema.");
+  } catch (e) {
+    console.warn("ensureSessionsTable check failed:", (e as Error).message);
   }
 }
 
