@@ -78,7 +78,17 @@ export interface MetaResponse {
   brand: string;
   version: string;
   defaultBranch: string;
+  linked: boolean;
+  private: boolean;
   github: { repo: string; url: string } | null;
+}
+
+export interface SiteBinding {
+  id: string;
+  domain: string;
+  repo: string;
+  brand: string;
+  visibility: "public" | "private";
 }
 
 export interface FileSuggestion {
@@ -203,4 +213,13 @@ export const api = {
       "GET",
       `/api/search?branch=${encodeURIComponent(branch)}&q=${encodeURIComponent(q)}`,
     ),
+
+  // ---- Sites (domain → repo bindings); admin only ----
+  sites: () => request<{ sites: SiteBinding[] }>("GET", "/api/sites", undefined, true),
+  createSite: (input: Omit<SiteBinding, "id">) =>
+    request<{ site: SiteBinding }>("POST", "/api/sites", input, true),
+  updateSite: (id: string, input: Omit<SiteBinding, "id">) =>
+    request<{ site: SiteBinding }>("PUT", `/api/sites/${encodeURIComponent(id)}`, input, true),
+  deleteSite: (id: string) =>
+    request<{ deleted: boolean }>("DELETE", `/api/sites/${encodeURIComponent(id)}`, undefined, true),
 };

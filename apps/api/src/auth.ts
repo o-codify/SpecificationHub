@@ -55,9 +55,13 @@ export function requireRole(...roles: Role[]) {
 }
 
 /** Whether a principal may create/edit/commit on the given branch. */
-export function canWriteBranch(principal: Principal, branch: string): { ok: boolean; reason?: string } {
-  if (branch === config.defaultBranch) {
-    return { ok: false, reason: `Direct writes to ${config.defaultBranch} are not allowed; use merge` };
+export function canWriteBranch(
+  principal: Principal,
+  branch: string,
+  defaultBranch: string = config.defaultBranch,
+): { ok: boolean; reason?: string } {
+  if (branch === defaultBranch) {
+    return { ok: false, reason: `Direct writes to ${defaultBranch} are not allowed; use merge` };
   }
   switch (principal.role) {
     case "admin":

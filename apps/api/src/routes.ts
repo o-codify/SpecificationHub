@@ -9,7 +9,7 @@ import {
   validateFrontmatter,
   type TreeItem,
 } from "@spec/core";
-import * as gitlib from "./git.js";
+import { repoFor, type SiteRepo } from "./git.js";
 import { GitError, MergeConflictError, NotFoundError } from "./git.js";
 import * as github from "./github.js";
 import { GitHubError } from "./github.js";
@@ -20,6 +20,7 @@ import {
   requireAuth,
   requireRole,
 } from "./auth.js";
+import { attachSite, clearSiteCache, type SiteContext } from "./site.js";
 import { verifyCredentials } from "./credentials.js";
 import { config } from "./config.js";
 
@@ -31,15 +32,17 @@ function bearerToken(req: Request): string | null {
 
 class HttpError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
 function sendError(res: Response, err: unknown): void {
   if (err instanceof HttpError) {
-    res.status(err.status).json({ error: err.message });
+    res.status(err.status).json({ error: err.message, ...(err.code ? { code: err.code } : {}) });
   } else if (err instanceof FrontmatterError) {
     res.status(422).json({ error: err.message, fields: err.fields });
   } else if (err instanceof NotFoundError) {
@@ -77,22 +80,54 @@ function requireBranch(value: unknown, field = "branch"): string {
   return value;
 }
 
-function ensureCanWrite(req: Request, branch: string): void {
+// ---- Site (tenant) resolution helpers ----
+
+/** The resolved site, or 409 `domain_not_linked` when the host has no binding. */
+function siteOf(req: Request): SiteContext {
+  if (!req.site) {
+    throw new HttpError(409, "This domain is not linked to a repository.", "domain_not_linked");
+  }
+  return req.site;
+}
+
+/** Read access: site must exist, and private sites require a principal. */
+function siteRead(req: Request): SiteContext {
+  const site = siteOf(req);
+  if (site.visibility === "private" && !req.principal) {
+    throw new HttpError(401, "This documentation is private. Sign in to view it.", "private");
+  }
+  return site;
+}
+
+/** A repo handle for reading (enforces read access). */
+function repoRead(req: Request): { repo: SiteRepo; site: SiteContext } {
+  const site = siteRead(req);
+  return { repo: repoFor(site), site };
+}
+
+/** A repo handle for writing (caller is already authenticated). */
+function repoWrite(req: Request): { repo: SiteRepo; site: SiteContext } {
+  const site = siteOf(req);
+  return { repo: repoFor(site), site };
+}
+
+function ensureCanWrite(req: Request, site: SiteContext, branch: string): void {
   if (!req.principal) throw new HttpError(401, "Authentication required");
-  const verdict = canWriteBranch(req.principal, branch);
+  const verdict = canWriteBranch(req.principal, branch, site.defaultBranch);
   if (!verdict.ok) throw new HttpError(403, verdict.reason ?? "Forbidden");
 }
 
 export function createRouter(): Router {
   const router = Router();
   router.use(attachPrincipal);
+  router.use(attachSite);
 
   // ---- Health ----
   router.get("/health", (_req, res) => {
     res.json({ status: "ok", service: "specification-hub", time: new Date().toISOString() });
   });
 
-  // ---- Auth (admin login/password) ----
+  // ---- Auth (admin login/password) — global, works without a site binding ----
   router.post(
     "/auth/login",
     h(async (req, res) => {
@@ -131,14 +166,83 @@ export function createRouter(): Router {
     }
   });
 
+  // ---- Sites (domain → repo bindings). Admin only. ----
+  const siteOut = (s: store.SiteRow) => ({
+    id: s.id,
+    domain: s.domain,
+    repo: s.githubRepo,
+    brand: s.brandName ?? "",
+    visibility: s.visibility,
+  });
+
+  router.get(
+    "/sites",
+    requireRole("admin"),
+    h(async (_req, res) => {
+      const sites = await store.listSites();
+      res.json({ sites: sites.map(siteOut) });
+    }),
+  );
+
+  const readSiteInput = (req: Request): store.SiteInput => {
+    const domain = String(req.body?.domain ?? "").trim().toLowerCase();
+    if (!domain || !/^[a-z0-9.-]+$/.test(domain)) throw new HttpError(400, "Valid `domain` is required");
+    const repo = String(req.body?.repo ?? "").trim();
+    if (repo && !/^[^/\s]+\/[^/\s]+$/.test(repo)) throw new HttpError(400, "`repo` must be owner/name");
+    const visibility = req.body?.visibility === "private" ? "private" : "public";
+    const brand = typeof req.body?.brand === "string" ? req.body.brand : "";
+    return { domain, githubRepo: repo, brandName: brand || null, visibility };
+  };
+
+  router.post(
+    "/sites",
+    requireRole("admin"),
+    h(async (req, res) => {
+      const input = readSiteInput(req);
+      if (await store.getSiteByDomain(input.domain)) {
+        throw new HttpError(409, `A binding for ${input.domain} already exists`);
+      }
+      const created = await store.createSite(input);
+      clearSiteCache();
+      res.status(201).json({ site: siteOut(created) });
+    }),
+  );
+
+  router.put(
+    "/sites/:id",
+    requireRole("admin"),
+    h(async (req, res) => {
+      const id = req.params.id;
+      const existing = await store.getSiteById(id);
+      if (!existing) throw new HttpError(404, "Site not found");
+      const input = readSiteInput(req);
+      const clash = await store.getSiteByDomain(input.domain);
+      if (clash && clash.id !== id) throw new HttpError(409, `A binding for ${input.domain} already exists`);
+      const updated = await store.updateSite(id, input);
+      clearSiteCache();
+      res.json({ site: updated ? siteOut(updated) : null });
+    }),
+  );
+
+  router.delete(
+    "/sites/:id",
+    requireRole("admin"),
+    h(async (req, res) => {
+      await store.deleteSite(req.params.id);
+      clearSiteCache();
+      res.json({ deleted: true });
+    }),
+  );
+
   // ---- Branches ----
   router.get(
     "/branches",
-    h((_req, res) => {
-      const branches = gitlib.listBranches();
+    h((req, res) => {
+      const { repo, site } = repoRead(req);
+      const branches = repo.listBranches();
       res.json({
-        default: config.defaultBranch,
-        branches: branches.map((name) => ({ name, isDefault: name === config.defaultBranch })),
+        default: site.defaultBranch,
+        branches: branches.map((name) => ({ name, isDefault: name === site.defaultBranch })),
       });
     }),
   );
@@ -147,10 +251,11 @@ export function createRouter(): Router {
     "/branches",
     requireAuth,
     h((req, res) => {
+      const { repo, site } = repoWrite(req);
       const name = requireBranch(req.body?.name, "name");
-      const from = (req.body?.from as string) || config.defaultBranch;
-      ensureCanWrite(req, name);
-      gitlib.createBranch(name, from);
+      const from = (req.body?.from as string) || site.defaultBranch;
+      ensureCanWrite(req, site, name);
+      repo.createBranch(name, from);
       res.status(201).json({ name, from });
     }),
   );
@@ -159,8 +264,9 @@ export function createRouter(): Router {
     "/branches",
     requireRole("admin", "reviewer"),
     h((req, res) => {
+      const { repo } = repoWrite(req);
       const name = requireBranch((req.query.name ?? req.body?.name) as string, "name");
-      gitlib.deleteBranch(name);
+      repo.deleteBranch(name);
       res.json({ name, deleted: true });
     }),
   );
@@ -169,13 +275,14 @@ export function createRouter(): Router {
   router.get(
     "/tree",
     h((req, res) => {
-      const branch = (req.query.branch as string) || config.defaultBranch;
-      const files = gitlib.listMarkdownFiles(branch);
+      const { repo, site } = repoRead(req);
+      const branch = (req.query.branch as string) || site.defaultBranch;
+      const files = repo.listMarkdownFiles(branch);
       const items: TreeItem[] = files.map((path) => {
         let title = path;
         let status = "";
         try {
-          const { frontmatter } = parseFrontmatter(gitlib.readFile(branch, path));
+          const { frontmatter } = parseFrontmatter(repo.readFile(branch, path));
           if (frontmatter.title) title = String(frontmatter.title);
           if (frontmatter.status) status = String(frontmatter.status);
         } catch {
@@ -191,9 +298,10 @@ export function createRouter(): Router {
   router.get(
     "/docs",
     h((req, res) => {
-      const branch = (req.query.branch as string) || config.defaultBranch;
+      const { repo, site } = repoRead(req);
+      const branch = (req.query.branch as string) || site.defaultBranch;
       const docPath = validateDocPath(req.query.path);
-      const raw = gitlib.readFile(branch, docPath);
+      const raw = repo.readFile(branch, docPath);
       const { frontmatter, content } = parseFrontmatter(raw);
       res.json({ path: docPath, branch, frontmatter, content });
     }),
@@ -201,9 +309,10 @@ export function createRouter(): Router {
 
   const writeDoc = (mode: "create" | "upsert") =>
     h((req: Request, res: Response) => {
+      const { repo, site } = repoWrite(req);
       const branch = requireBranch(req.body?.branch);
       const docPath = validateDocPath(req.body?.path);
-      ensureCanWrite(req, branch);
+      ensureCanWrite(req, site, branch);
 
       // Version is server-authoritative (time-based, minute cooldown); any
       // client-supplied version is ignored so neither users nor AI control it.
@@ -212,12 +321,12 @@ export function createRouter(): Router {
       const frontmatter = validateFrontmatter(fmInput);
       const content = typeof req.body?.content === "string" ? req.body.content : "";
 
-      if (mode === "create" && gitlib.fileExists(branch, docPath)) {
+      if (mode === "create" && repo.fileExists(branch, docPath)) {
         throw new HttpError(409, `File already exists: ${docPath}`);
       }
 
       const serialized = serializeDoc(frontmatter, content);
-      gitlib.writeFileToBranch(branch, docPath, serialized);
+      repo.writeFileToBranch(branch, docPath, serialized);
       res.status(mode === "create" ? 201 : 200).json({
         path: docPath,
         branch,
@@ -233,10 +342,11 @@ export function createRouter(): Router {
     "/docs",
     requireAuth,
     h((req, res) => {
+      const { repo, site } = repoWrite(req);
       const branch = requireBranch(req.body?.branch ?? req.query.branch);
       const docPath = validateDocPath(req.body?.path ?? req.query.path);
-      ensureCanWrite(req, branch);
-      gitlib.deleteFileFromBranch(branch, docPath);
+      ensureCanWrite(req, site, branch);
+      repo.deleteFileFromBranch(branch, docPath);
       res.json({ path: docPath, branch, deleted: true, staged: true });
     }),
   );
@@ -246,11 +356,12 @@ export function createRouter(): Router {
     "/commits",
     requireAuth,
     h(async (req, res) => {
+      const { repo, site } = repoWrite(req);
       const branch = requireBranch(req.body?.branch);
       const message = (req.body?.message as string) || "Update documentation";
       const author = (req.body?.author as string) || req.principal!.name;
-      ensureCanWrite(req, branch);
-      const result = gitlib.commit(branch, message, author); // commits (+ pushes in GitHub mode)
+      ensureCanWrite(req, site, branch);
+      const result = repo.commit(branch, message, author); // commits (+ pushes in GitHub mode)
       res.status(201).json(result);
     }),
   );
@@ -259,21 +370,22 @@ export function createRouter(): Router {
   router.get(
     "/diff",
     h((req, res) => {
+      const { repo } = repoRead(req);
       const base = requireBranch(req.query.base, "base");
       const head = requireBranch(req.query.head, "head");
-      const files = gitlib.diff(base, head);
+      const files = repo.diff(base, head);
       res.json({ base, head, files });
     }),
   );
 
-  // Docs whose body meaningfully changed between two branches (ignores the
-  // auto-stamped version / whitespace) — drives the branch-view change chips.
+  // Docs whose body meaningfully changed between two branches.
   router.get(
     "/changed-docs",
     h((req, res) => {
+      const { repo } = repoRead(req);
       const base = requireBranch(req.query.base, "base");
       const head = requireBranch(req.query.head, "head");
-      res.json({ base, head, paths: gitlib.changedDocsBetween(base, head) });
+      res.json({ base, head, paths: repo.changedDocsBetween(base, head) });
     }),
   );
 
@@ -282,13 +394,14 @@ export function createRouter(): Router {
     "/merge",
     requireRole("admin", "reviewer"),
     h(async (req, res) => {
+      const { repo, site } = repoWrite(req);
       const base = requireBranch(req.body?.base, "base");
       const head = requireBranch(req.body?.head, "head");
       const message = (req.body?.message as string) || `Merge ${head} into ${base}`;
-      if (config.githubEnabled) {
-        const pr = await github.ensurePullRequest(head, base, `Merge ${head} into ${base}`);
-        const merged = await github.mergePullRequest(pr.number, message);
-        gitlib.fetchRemote(true);
+      if (repo.githubEnabled) {
+        const pr = await github.ensurePullRequest(site.githubRepo, head, base, `Merge ${head} into ${base}`);
+        const merged = await github.mergePullRequest(site.githubRepo, pr.number, message);
+        repo.fetchRemote(true);
         res.status(200).json({
           merged: merged.merged,
           sha: merged.sha,
@@ -297,7 +410,7 @@ export function createRouter(): Router {
         });
         return;
       }
-      const result = gitlib.merge(base, head, message);
+      const result = repo.merge(base, head, message);
       res.status(201).json(result);
     }),
   );
@@ -306,9 +419,10 @@ export function createRouter(): Router {
   router.get(
     "/suggestions",
     h((req, res) => {
-      const base = (req.query.base as string) || config.defaultBranch;
+      const { repo, site } = repoRead(req);
+      const base = (req.query.base as string) || site.defaultBranch;
       const docPath = validateDocPath(req.query.path);
-      const suggestions = gitlib.suggestionsForFile(docPath, base);
+      const suggestions = repo.suggestionsForFile(docPath, base);
       res.json({ path: docPath, base, suggestions });
     }),
   );
@@ -316,12 +430,13 @@ export function createRouter(): Router {
   router.get(
     "/suggestions/summary",
     h((req, res) => {
-      const base = (req.query.base as string) || config.defaultBranch;
+      const { repo, site } = repoRead(req);
+      const base = (req.query.base as string) || site.defaultBranch;
       res.json({
         base,
-        counts: gitlib.suggestionCounts(base),
-        news: gitlib.newDocsForBase(base),
-        deletions: gitlib.deletedDocsForBase(base),
+        counts: repo.suggestionCounts(base),
+        news: repo.newDocsForBase(base),
+        deletions: repo.deletedDocsForBase(base),
       });
     }),
   );
@@ -332,23 +447,23 @@ export function createRouter(): Router {
     "/suggestions/accept",
     requireRole("admin", "reviewer"),
     h((req, res) => {
-      const base = (req.body?.base as string) || config.defaultBranch;
+      const { repo, site } = repoWrite(req);
+      const base = (req.body?.base as string) || site.defaultBranch;
       const docPath = validateDocPath(req.body?.path);
       const isDelete = req.body?.delete === true;
       const fromBranch = typeof req.body?.head === "string" ? (req.body.head as string) : null;
       // Capture base's pre-accept content so we can fast-forward other branches
       // that merely tracked it (see propagateAcceptToBranches).
-      const pre = gitlib.fileExists(base, docPath) ? gitlib.readFile(base, docPath) : "";
+      const pre = repo.fileExists(base, docPath) ? repo.readFile(base, docPath) : "";
 
       let result;
       if (isDelete) {
         // Accept a deletion proposed on a branch: remove the file from base.
         const message = (req.body?.message as string) || `Delete ${docPath}`;
-        result = gitlib.applyContentsToBase(base, [], message, req.principal!.name, [docPath]);
+        result = repo.applyContentsToBase(base, [], message, req.principal!.name, [docPath]);
       } else {
         const rawContent = typeof req.body?.content === "string" ? req.body.content : "";
-        // Re-stamp the version and promote review→stable server-side, so accepting
-        // into main updates the timestamp and marks an approved doc stable.
+        // Re-stamp the version and promote review→stable server-side.
         const parsed = parseFrontmatter(rawContent);
         const content =
           Object.keys(parsed.frontmatter).length > 0
@@ -362,25 +477,24 @@ export function createRouter(): Router {
               )
             : rawContent;
         const message = (req.body?.message as string) || `Update ${docPath}`;
-        result = gitlib.applyContentToBase(base, docPath, content, message, req.principal!.name);
+        result = repo.applyContentToBase(base, docPath, content, message, req.principal!.name);
       }
       // Bring the source branch (and stale unmodified branches) in line with base.
-      gitlib.propagateAcceptToBranches(base, [docPath], { [docPath]: pre }, fromBranch, req.principal!.name);
+      repo.propagateAcceptToBranches(base, [docPath], { [docPath]: pre }, fromBranch, req.principal!.name);
       res.json(result);
     }),
   );
 
-  // Accept ALL of a branch's changes into base in a single commit (status/tags
-  // included, version re-stamped). Applies content directly — does not rely on
-  // the branch's PR, which may have diverged from prior individual accepts.
+  // Accept ALL of a branch's changes into base in a single commit.
   router.post(
     "/suggestions/accept-all",
     requireRole("admin", "reviewer"),
     h((req, res) => {
-      const base = (req.body?.base as string) || config.defaultBranch;
+      const { repo, site } = repoWrite(req);
+      const base = (req.body?.base as string) || site.defaultBranch;
       const head = requireBranch(req.body?.head, "head");
       const message = (req.body?.message as string) || `Accept all changes from ${head}`;
-      const result = gitlib.acceptBranchIntoBase(base, head, message, req.principal!.name);
+      const result = repo.acceptBranchIntoBase(base, head, message, req.principal!.name);
       res.json(result);
     }),
   );
@@ -389,23 +503,28 @@ export function createRouter(): Router {
   router.get(
     "/search",
     h((req, res) => {
-      const branch = (req.query.branch as string) || config.defaultBranch;
+      const { repo, site } = repoRead(req);
+      const branch = (req.query.branch as string) || site.defaultBranch;
       const q = ((req.query.q as string) || "").trim();
-      res.json({ branch, query: q, hits: q ? gitlib.searchDocs(branch, q) : [] });
+      res.json({ branch, query: q, hits: q ? repo.searchDocs(branch, q) : [] });
     }),
   );
 
-
-  // Expose allowed status values for the editor UI.
-  router.get("/meta", (_req, res) => {
+  // Expose deployment/site metadata for the UI. Always available (even on an
+  // unlinked or private domain) so the frontend can render the right shell.
+  router.get("/meta", (req, res) => {
+    const site = req.site;
+    const linked = Boolean(site);
+    const isPrivate = site?.visibility === "private";
+    const repo = site?.githubRepo || "";
     res.json({
       statuses: DOC_STATUSES,
-      brand: config.brandName,
+      brand: site?.brandName || config.brandName,
       version: config.buildVersion,
-      defaultBranch: config.defaultBranch,
-      github: config.githubEnabled
-        ? { repo: config.githubRepo, url: `${config.githubServer}/${config.githubRepo}` }
-        : null,
+      defaultBranch: site?.defaultBranch || config.defaultBranch,
+      linked,
+      private: isPrivate,
+      github: repo ? { repo, url: `${config.githubServer}/${repo}` } : null,
     });
   });
 

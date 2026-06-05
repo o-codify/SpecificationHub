@@ -15,6 +15,13 @@
       "when": 1748563260000,
       "tag": "0001_drop_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1748563320000,
+      "tag": "0002_sites",
+      "breakpoints": true
     }
   ]
 }

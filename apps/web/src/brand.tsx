@@ -7,6 +7,8 @@ const FALLBACK: MetaResponse = {
   brand: DEFAULT,
   version: "",
   defaultBranch: "main",
+  linked: true,
+  private: false,
   github: null,
 };
 let metaPromise: Promise<MetaResponse> | null = null;
@@ -15,6 +17,24 @@ let metaPromise: Promise<MetaResponse> | null = null;
 function loadMeta(): Promise<MetaResponse> {
   if (!metaPromise) metaPromise = api.meta().catch(() => FALLBACK);
   return metaPromise;
+}
+
+/** Force a re-fetch of /api/meta (e.g. after logging in to a private site). */
+export function refreshMeta(): void {
+  metaPromise = null;
+}
+
+/** The full site meta (linked / private / brand …); null until first load. */
+export function useMeta(): MetaResponse | null {
+  const [meta, setMeta] = useState<MetaResponse | null>(null);
+  useEffect(() => {
+    let alive = true;
+    loadMeta().then((m) => alive && setMeta(m));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return meta;
 }
 
 export function useBrand(): string {

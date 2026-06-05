@@ -32,6 +32,20 @@ export const oauthCodes = pgTable("oauth_codes", {
   expiresAt: text("expires_at").notNull(),
 });
 
+// Domain → repository bindings. One container can serve many domains; the host
+// of each request selects the site (and thus the repo + brand + visibility).
+// When this table is EMPTY the app runs in legacy single-tenant mode (every host
+// → the env/local repo), so existing deployments keep working without any rows.
+export const sites = pgTable("sites", {
+  id: text("id").primaryKey(), // stable slug, e.g. "owner__name"
+  domain: text("domain").notNull().unique(), // lower-cased host to match
+  githubRepo: text("github_repo").notNull().default(""), // "owner/name" ("" = local-only)
+  brandName: text("brand_name"),
+  defaultBranch: text("default_branch"), // cached repo HEAD (main/master)
+  visibility: text("visibility").notNull().default("public"), // 'public' | 'private'
+  createdAt: text("created_at").notNull(),
+});
+
 export const oauthTokens = pgTable("oauth_tokens", {
   tokenHash: text("token_hash").primaryKey(),
   kind: text("kind").notNull(),

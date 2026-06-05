@@ -43,11 +43,19 @@ export async function initDb(): Promise<void> {
 async function ensureSessionsTable(): Promise<void> {
   try {
     const res = await db.execute(
-      sql`select column_name from information_schema.columns where table_name = 'sessions' and table_schema = current_schema()`,
+      sql`select column_name, data_type from information_schema.columns where table_name = 'sessions' and table_schema = current_schema()`,
     );
-    const have = new Set((res.rows as { column_name: string }[]).map((r) => r.column_name));
-    const need = ["token_hash", "username", "role", "created_at", "expires_at"];
-    if (need.every((c) => have.has(c))) return;
+    const cols = new Map(
+      (res.rows as { column_name: string; data_type: string }[]).map((r) => [r.column_name, r.data_type]),
+    );
+    // Recreate unless the table has EXACTLY these columns, all `text`. This
+    // catches a missing column, an extra (possibly NOT NULL) leftover column,
+    // and a wrong type/length (e.g. token_hash as a short varchar) — any of
+    // which makes the INSERT fail.
+    const expected = ["token_hash", "username", "role", "created_at", "expires_at"];
+    const matches =
+      cols.size === expected.length && expected.every((c) => cols.get(c) === "text");
+    if (matches) return;
     await db.execute(sql`DROP TABLE IF EXISTS sessions`);
     await db.execute(sql`CREATE TABLE sessions (
       token_hash text PRIMARY KEY,
@@ -64,6 +72,101 @@ async function ensureSessionsTable(): Promise<void> {
 
 export async function closeDb(): Promise<void> {
   await pool?.end();
+}
+
+// ---- Sites (domain → repository bindings) ----
+
+export interface SiteRow {
+  id: string;
+  domain: string;
+  githubRepo: string;
+  brandName: string | null;
+  defaultBranch: string | null;
+  visibility: string; // 'public' | 'private'
+  createdAt: string;
+}
+
+function toSiteRow(r: typeof schema.sites.$inferSelect): SiteRow {
+  return {
+    id: r.id,
+    domain: r.domain,
+    githubRepo: r.githubRepo,
+    brandName: r.brandName,
+    defaultBranch: r.defaultBranch,
+    visibility: r.visibility,
+    createdAt: r.createdAt,
+  };
+}
+
+export async function listSites(): Promise<SiteRow[]> {
+  const rows = await db.select().from(schema.sites);
+  return rows.map(toSiteRow).sort((a, b) => a.domain.localeCompare(b.domain));
+}
+
+export async function countSites(): Promise<number> {
+  const rows = await db.select({ id: schema.sites.id }).from(schema.sites);
+  return rows.length;
+}
+
+export async function getSiteByDomain(domain: string): Promise<SiteRow | null> {
+  const rows = await db
+    .select()
+    .from(schema.sites)
+    .where(eq(schema.sites.domain, domain.toLowerCase()));
+  return rows[0] ? toSiteRow(rows[0]) : null;
+}
+
+export async function getSiteById(id: string): Promise<SiteRow | null> {
+  const rows = await db.select().from(schema.sites).where(eq(schema.sites.id, id));
+  return rows[0] ? toSiteRow(rows[0]) : null;
+}
+
+export interface SiteInput {
+  domain: string;
+  githubRepo: string;
+  brandName: string | null;
+  visibility: string;
+}
+
+export async function createSite(input: SiteInput): Promise<SiteRow> {
+  const domain = input.domain.trim().toLowerCase();
+  const id = domain; // domain is unique and stable — use it as the row id
+  const row = {
+    id,
+    domain,
+    githubRepo: input.githubRepo.trim(),
+    brandName: input.brandName?.trim() || null,
+    defaultBranch: null,
+    visibility: input.visibility === "private" ? "private" : "public",
+    createdAt: new Date().toISOString(),
+  };
+  await db.insert(schema.sites).values(row);
+  return toSiteRow(row);
+}
+
+export async function updateSite(id: string, input: SiteInput): Promise<SiteRow | null> {
+  const domain = input.domain.trim().toLowerCase();
+  const rows = await db
+    .update(schema.sites)
+    .set({
+      domain,
+      githubRepo: input.githubRepo.trim(),
+      brandName: input.brandName?.trim() || null,
+      visibility: input.visibility === "private" ? "private" : "public",
+      // Repo may have changed → drop the cached default branch; it re-resolves lazily.
+      defaultBranch: null,
+    })
+    .where(eq(schema.sites.id, id))
+    .returning();
+  return rows[0] ? toSiteRow(rows[0]) : null;
+}
+
+export async function deleteSite(id: string): Promise<void> {
+  await db.delete(schema.sites).where(eq(schema.sites.id, id));
+}
+
+export async function setSiteDefaultBranch(id: string, branch: string): Promise<void> {
+  await db.update(schema.sites).set({ defaultBranch: branch }).where(eq(schema.sites.id, id));
 }
 
 function hashToken(token: string): string {

@@ -12,10 +12,11 @@ import {
   validateFrontmatter,
   type DocStatus,
 } from "@spec/core";
-import * as gitlib from "./git.js";
+import * as gitmod from "./git.js";
 import { canWriteBranch } from "./auth.js";
 import { resolveSession, resolveOAuthToken, type Principal } from "./db.js";
 import { config } from "./config.js";
+import { resolveSite, hostFromRequest, type SiteContext } from "./site.js";
 import { baseUrl } from "./oauth.js";
 
 // Auth is via `Authorization: Bearer <token>`: an OAuth access token (ChatGPT /
@@ -112,10 +113,10 @@ function patchInBody(body: string, find: string, replace: string): BodyEdit {
  * especially important for an empty spec, where the model has no examples to
  * copy from.
  */
-function authoringGuide(): string {
-  const base = config.defaultBranch;
+function authoringGuide(site: SiteContext): string {
+  const base = site.defaultBranch;
   const statuses = DOC_STATUSES.join(", ");
-  return `# ${config.brandName} — authoring guide for AI
+  return `# ${site.brandName} — authoring guide for AI
 
 This server hosts a Git-backed Markdown specification. You may READ everything
 freely, but every WRITE is a *proposal* on a branch — never commit to the
@@ -124,8 +125,12 @@ default branch (\`${base}\`). A human reviews and accepts your changes.
 ## Workflow
 1. Look first: \`list_docs\`, \`read_doc\`, \`search_docs\` to learn what exists and
    match the existing style.
-2. Work on a branch: pass a new \`ai/<topic>\` branch to the write tools (it is
-   auto-created from \`${base}\`), or call \`create_branch\` explicitly.
+2. Use ONE branch for your whole session — not a branch per task or per file.
+   At the start, pick a single \`ai/<topic>\` name and pass that SAME branch to
+   every write for the rest of the session (it is auto-created from \`${base}\` on
+   first use, or call \`create_branch\` once). Do NOT spin up a new branch for
+   each change: multiple branches editing the same docs collide and make review
+   a mess. One session → one branch → one review.
 3. Write with the smallest tool that fits:
    - \`save_doc\` — create a new document, or replace a whole one.
    - \`append_section\` — add a \`## Section\` to the end (best for building a doc
@@ -274,12 +279,15 @@ Scope it correctly and keep it tight:
 - Write clear, specific commit \`message\`s — they appear in the review UI.`;
 }
 
-function buildServer(principal: Principal | null): McpServer {
+function buildServer(principal: Principal | null, site: SiteContext): McpServer {
   const server = new McpServer(
     { name: "specification-hub", version: "0.1.0" },
-    { instructions: authoringGuide() },
+    { instructions: authoringGuide(site) },
   );
-  const base = config.defaultBranch;
+  // All tool handlers below operate on THIS request's site (repo selected by the
+  // request host). A SiteRepo is cheap to construct per connection.
+  const gitlib = gitmod.repoFor(site);
+  const base = site.defaultBranch;
 
   // Short branch-state warning appended to write results, so the model notices
   // when main has advanced and can reconcile (branch_status / sync_branch)
@@ -310,7 +318,7 @@ function buildServer(principal: Principal | null): McpServer {
       outputSchema: { guide: z.string() },
     },
     async () => {
-      const guide = authoringGuide();
+      const guide = authoringGuide(site);
       return ok(guide, { guide });
     },
   );
@@ -548,7 +556,10 @@ function buildServer(principal: Principal | null): McpServer {
       "create_branch",
       {
         title: "Create a branch",
-        description: "Create a new branch for proposing changes (writes never go to the default branch).",
+        description:
+          "Create the branch for this session's proposals (writes never go to the default " +
+          "branch). Create ONE branch per session and reuse it for all your edits — don't make a " +
+          "new branch per task; that splits related changes and collides in review.",
         inputSchema: {
           name: z.string().describe("New branch name, e.g. ai/improve-gait"),
           from: z.string().optional().describe(`Source branch (default: ${base})`),
@@ -556,7 +567,7 @@ function buildServer(principal: Principal | null): McpServer {
         outputSchema: { name: z.string() },
       },
       async ({ name, from }) => {
-        const verdict = canWriteBranch(principal, name);
+        const verdict = canWriteBranch(principal, name, base);
         if (!verdict.ok) return fail(verdict.reason ?? "Not allowed");
         try {
           gitlib.createBranch(name, from || base);
@@ -598,7 +609,7 @@ function buildServer(principal: Principal | null): McpServer {
       },
       async ({ branch, strategy, base: baseArg }) => {
         const b = baseArg || base;
-        const verdict = canWriteBranch(principal, branch);
+        const verdict = canWriteBranch(principal, branch, base);
         if (!verdict.ok) return fail(verdict.reason ?? "Not allowed");
         try {
           const r = gitlib.updateBranchFromBase(branch, b, strategy || "merge", principal.name);
@@ -639,7 +650,7 @@ function buildServer(principal: Principal | null): McpServer {
         },
       },
       async ({ branch, path, title, content, status, tags, message }) => {
-        const verdict = canWriteBranch(principal, branch);
+        const verdict = canWriteBranch(principal, branch, base);
         if (!verdict.ok) return fail(verdict.reason ?? "Not allowed");
         try {
           if (!gitlib.branchExists(branch)) gitlib.createBranch(branch, base);
@@ -684,7 +695,7 @@ function buildServer(principal: Principal | null): McpServer {
         },
       },
       async ({ branch, path, message }) => {
-        const verdict = canWriteBranch(principal, branch);
+        const verdict = canWriteBranch(principal, branch, base);
         if (!verdict.ok) return fail(verdict.reason ?? "Not allowed");
         try {
           if (!gitlib.branchExists(branch)) gitlib.createBranch(branch, base);
@@ -716,7 +727,7 @@ function buildServer(principal: Principal | null): McpServer {
       message: string,
       transform: (body: string, frontmatter: Record<string, unknown>) => EditResult,
     ) => {
-      const verdict = canWriteBranch(principal, branch);
+      const verdict = canWriteBranch(principal, branch, base);
       if (!verdict.ok) return fail(verdict.reason ?? "Not allowed");
       try {
         if (!gitlib.branchExists(branch)) gitlib.createBranch(branch, base);
@@ -913,6 +924,17 @@ export function registerMcp(app: Express): void {
         unauthorized(req, res);
         return;
       }
+      // The repository is selected by the request host. An unlinked domain has no
+      // docs to serve, so refuse before building a server.
+      const site = await resolveSite(hostFromRequest(req));
+      if (!site) {
+        res.status(404).json({
+          jsonrpc: "2.0",
+          error: { code: -32000, message: "This domain is not linked to a repository." },
+          id: null,
+        });
+        return;
+      }
       const sid = req.headers["mcp-session-id"] as string | undefined;
       let transport = sid ? transports[sid] : undefined;
       if (!transport) {
@@ -933,7 +955,7 @@ export function registerMcp(app: Express): void {
         transport.onclose = () => {
           if (transport!.sessionId) delete transports[transport!.sessionId];
         };
-        await buildServer(principal).connect(transport);
+        await buildServer(principal, site).connect(transport);
       }
       await transport.handleRequest(req, res, req.body);
     } catch (e) {

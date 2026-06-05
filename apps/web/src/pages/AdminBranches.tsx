@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { useAuth } from "../auth";
+import { useToast } from "../toast";
 
 export function AdminBranches() {
   const { authed } = useAuth();
+  const toast = useToast();
   const [branches, setBranches] = useState<string[]>([]);
   const [defaultBranch, setDefaultBranch] = useState("main");
   const [name, setName] = useState("");
   const [from, setFrom] = useState("main");
-  const [msg, setMsg] = useState("");
-  const [err, setErr] = useState("");
 
   const load = () => {
     api
@@ -19,34 +19,30 @@ export function AdminBranches() {
         setDefaultBranch(r.default);
         if (!r.branches.some((b) => b.name === from)) setFrom(r.default);
       })
-      .catch((e) => setErr(String(e.message)));
+      .catch((e) => toast.show(String(e.message), "bad"));
   };
 
   useEffect(load, []);
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMsg("");
-    setErr("");
     try {
       await api.createBranch(name.trim(), from);
-      setMsg(`Created branch ${name} from ${from}.`);
+      toast.show(`Created branch ${name} from ${from}.`);
       setName("");
       load();
     } catch (e) {
-      setErr(String((e as Error).message));
+      toast.show(String((e as Error).message), "bad");
     }
   };
 
   const remove = async (b: string) => {
-    setMsg("");
-    setErr("");
     try {
       await api.deleteBranch(b);
-      setMsg(`Deleted branch ${b}.`);
+      toast.show(`Deleted branch ${b}.`);
       load();
     } catch (e) {
-      setErr(String((e as Error).message));
+      toast.show(String((e as Error).message), "bad");
     }
   };
 
@@ -79,8 +75,6 @@ export function AdminBranches() {
           </button>
         </form>
       )}
-      {msg && <div className="banner good" style={{ margin: "8px 0 14px" }}>{msg}</div>}
-      {err && <div className="banner bad" style={{ margin: "8px 0 14px" }}>{err}</div>}
 
       <div style={{ borderTop: "1px solid var(--border)", marginTop: 12 }}>
         {branches.map((b) => (

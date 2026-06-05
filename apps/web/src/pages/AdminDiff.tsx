@@ -35,7 +35,6 @@ export function AdminDiff() {
   const [files, setFiles] = useState<DiffFile[] | null>(null);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string>(""); // path being accepted, or "*" for all
-  const [err, setErr] = useState("");
 
   useEffect(() => {
     api
@@ -47,11 +46,10 @@ export function AdminDiff() {
         const other = names.find((n) => n !== r.default);
         if (other) setHead(other);
       })
-      .catch((e) => setErr(String(e.message)));
+      .catch((e) => toast.show(String(e.message), "bad"));
   }, []);
 
   const run = async (b = base, h = head) => {
-    setErr("");
     setFiles(null);
     if (!h || h === b) return;
     try {
@@ -61,7 +59,7 @@ export function AdminDiff() {
       setFiles(d.files.filter((f) => keep.has(f.path)));
       setOpen(new Set()); // collapsed by default
     } catch (e) {
-      setErr(String((e as Error).message));
+      toast.show(String((e as Error).message), "bad");
     }
   };
 
@@ -91,7 +89,6 @@ export function AdminDiff() {
 
   const accept = async (path: string, status: string) => {
     setBusy(path);
-    setErr("");
     try {
       await acceptOne(path, status);
       toast.show(
@@ -101,7 +98,7 @@ export function AdminDiff() {
       );
       await run();
     } catch (e) {
-      setErr(String((e as Error).message));
+      toast.show(String((e as Error).message), "bad");
     } finally {
       setBusy("");
     }
@@ -116,7 +113,6 @@ export function AdminDiff() {
     if (!files || files.length === 0) return;
     const branch = head;
     setBusy("*");
-    setErr("");
     try {
       const r = await api.acceptAll(base, branch, `Accept all changes from ${branch}`);
       toast.show(
@@ -127,7 +123,7 @@ export function AdminDiff() {
       );
       await run();
     } catch (e) {
-      setErr(String((e as Error).message));
+      toast.show(String((e as Error).message), "bad");
     } finally {
       setBusy("");
     }
@@ -162,7 +158,6 @@ export function AdminDiff() {
         )}
       </div>
 
-      {err && <div className="banner bad" style={{ marginTop: 16 }}>{err}</div>}
 
       <div style={{ marginTop: 18 }}>
         {files && files.length === 0 && (

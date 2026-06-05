@@ -51,77 +51,10 @@ export function DocsReader() {
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [searchedFor, setSearchedFor] = useState("");
 
-  // Scroll-direction-aware sticky sidebar (the GitHub/Stripe behaviour). The
-  // sidebar rides with the page, but its visible top is clamped between two
-  // bounds: it can't drop below the topbar (top >= 60) and its bottom can't
-  // rise above the bottom of the screen (bottom <= viewport height). So when
-  // the menu is taller than the screen: scrolling down moves it up until its
-  // bottom pins to the screen bottom; the moment you scroll back up it rides
-  // down with the content until its top pins under the topbar. A single CSS
-  // `position: sticky` can only pin one edge, so this is done with `transform`.
+  // The sidebar is a pinned, independently-scrollable panel (see .sidebar in
+  // styles.css). Its scroll position is the browser's own and persists across
+  // doc navigation; the doc/page scrolls separately (reset to the top on open).
   const sidebarRef = useRef<HTMLElement>(null);
-  const shellRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = sidebarRef.current;
-    if (!el) return;
-    const TOP = 60; // topbar height
-    const desktop = window.matchMedia("(min-width: 761px)");
-    let baseTop = 0; // sidebar's offset from the top of the document (no transform)
-    let vt = TOP; // current visible top of the sidebar, in viewport coords
-    let prevY = window.scrollY;
-    let raf = 0;
-
-    const measure = () => {
-      const prev = el.style.transform;
-      el.style.transform = "none";
-      baseTop = el.getBoundingClientRect().top + window.scrollY;
-      el.style.transform = prev;
-    };
-    const render = () => {
-      el.style.transform = `translateY(${vt - baseTop + window.scrollY}px)`;
-    };
-    const onScroll = () => {
-      if (!desktop.matches) return;
-      const y = window.scrollY;
-      const dy = y - prevY;
-      prevY = y;
-      const lower = window.innerHeight - el.offsetHeight; // bottom pinned (<= TOP)
-      vt = Math.max(lower, Math.min(TOP, vt - dy));
-      render();
-    };
-    const onScrollRaf = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        onScroll();
-      });
-    };
-    const reset = () => {
-      if (!desktop.matches) {
-        el.style.transform = "";
-        return;
-      }
-      measure();
-      prevY = window.scrollY;
-      const lower = window.innerHeight - el.offsetHeight;
-      vt = Math.max(lower, Math.min(TOP, vt));
-      render();
-    };
-
-    reset();
-    window.addEventListener("scroll", onScrollRaf, { passive: true });
-    window.addEventListener("resize", reset);
-    desktop.addEventListener("change", reset);
-    const ro = new ResizeObserver(reset);
-    ro.observe(el);
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      window.removeEventListener("scroll", onScrollRaf);
-      window.removeEventListener("resize", reset);
-      desktop.removeEventListener("change", reset);
-      ro.disconnect();
-    };
-  }, []);
 
   const [doc, setDoc] = useState<Doc | null>(null);
   const [loading, setLoading] = useState(true);
@@ -259,22 +192,13 @@ export function DocsReader() {
 
   useEffect(loadDoc, [loadDoc]);
 
-  // When the open doc changes, the page may get shorter. Clamp the scroll to the
-  // new content's real height (the grid's layout height — the sticky sidebar's
-  // transform doesn't expand it) so we don't keep a now-out-of-range scroll
-  // (which the sidebar transform would otherwise inflate the page to preserve).
-  // Position is kept where it was when it still fits; if it was past the new
-  // bottom, it snaps to the new bottom — never jumped to the top.
+  // Opening a doc starts it from the top — a navigation, not a kept scroll. Only
+  // the page/doc scrolls to the top; the sidebar has its own scroll and stays
+  // put. Keyed on slug so reloading the same doc (e.g. after accepting an edit)
+  // doesn't yank you to the top.
   useEffect(() => {
-    const el = shellRef.current;
-    if (!el || !doc) return;
-    const id = requestAnimationFrame(() => {
-      const contentBottom = el.getBoundingClientRect().bottom + window.scrollY;
-      const maxScroll = Math.max(0, Math.ceil(contentBottom - window.innerHeight));
-      if (window.scrollY > maxScroll) window.scrollTo(0, maxScroll);
-    });
-    return () => cancelAnimationFrame(id);
-  }, [doc]);
+    window.scrollTo(0, 0);
+  }, [slug, branch]);
 
   // Auto-expand the category path leading to the open document.
   useEffect(() => {
@@ -410,7 +334,7 @@ export function DocsReader() {
   );
 
   return (
-    <div className="docs-shell" ref={shellRef}>
+    <div className="docs-shell">
       <aside ref={sidebarRef} className={`sidebar${sidebarOpen ? " open" : ""}`}>
         <div className="sb-head">
           <span className="t">Documentation</span>

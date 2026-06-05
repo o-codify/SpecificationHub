@@ -8,7 +8,7 @@ import { LoginModal } from "./LoginModal";
 import { Brand } from "../brand";
 
 export function AppShell() {
-  const { authed, user, openLogin, logout } = useAuth();
+  const { authed, user, role, openLogin, logout } = useAuth();
   const { navOpen, setNavOpen, setSidebarOpen } = useLayout();
   const location = useLocation();
 
@@ -51,6 +51,11 @@ export function AppShell() {
           <NavLink to="/review" onClick={(e) => goAdmin(e, "/review")}>
             Review
           </NavLink>
+          {authed && user && role === "admin" && (
+            <NavLink to="/settings" onClick={(e) => goAdmin(e, "/settings")}>
+              Settings
+            </NavLink>
+          )}
         </nav>
         <div className="spacer" />
         <button

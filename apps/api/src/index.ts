@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import express from "express";
 import { config } from "./config.js";
-import { ensureRepo, currentDefaultBranch } from "./git.js";
+import { ensureRepo, repoFor } from "./git.js";
+import { legacySite } from "./site.js";
 import { initDb, pruneExpiredSessions, pruneExpiredOAuth } from "./db.js";
 import { initCredentials, getAdminUsername } from "./credentials.js";
 import { createRouter } from "./routes.js";
@@ -11,9 +12,13 @@ import { registerOAuth } from "./oauth.js";
 
 async function bootstrap(): Promise<void> {
   fs.mkdirSync(config.dataDir, { recursive: true });
-  ensureRepo();
+  // Ensure the legacy/single-tenant repo on the original on-disk paths. When no
+  // domain bindings exist this is the active site; when they do it is the
+  // env-fallback. Either way existing deployments keep their data untouched.
+  const legacy = legacySite();
+  ensureRepo(legacy);
   // Align the protected/default branch with the repo's actual HEAD (main vs master).
-  config.defaultBranch = currentDefaultBranch();
+  config.defaultBranch = repoFor(legacy).currentDefaultBranch();
   if (config.githubEnabled) {
     console.log(
       `GitHub mode ON → ${config.githubRepo} (default branch: ${config.defaultBranch}). ` +
