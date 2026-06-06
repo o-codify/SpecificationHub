@@ -258,10 +258,9 @@ tbody tr:hover{background:var(--surface-2)}
   padding:24px 20px;display:flex;flex-direction:column;gap:14px;
 }
 /* Desktop: the sidebar is a screen-tall, clipped column pinned under the header
-   (no scrollbar of its own). It is decoupled from the page scroll — its inner
-   wrapper is translated in code (the wheel handler in DocsReader) only when the
-   page itself can't scroll, clamped to the menu's own content, and the offset is
-   not reset when switching docs. */
+   (no scrollbar of its own). It is decoupled from the page scroll position — its
+   inner wrapper is translated in code on every wheel (the handler in DocsReader),
+   clamped to the menu's own content, and the offset is not reset on doc switch. */
 @media (min-width: 761px) {
   .sidebar {
     position: sticky;
@@ -562,3 +561,8 @@ body{-webkit-user-select:none;user-select:none}
 .site-form .fld{display:flex;flex-direction:column;gap:4px;min-width:220px;flex:1}
 .site-form .fld span{font-size:12px;color:var(--muted)}
 .pill-private{background:var(--accent-soft,#4a3b1c);color:var(--accent,#e6b450)}
+
+/* ---- Inline images in docs ---- */
+.doc-img,
+.doc-body img{max-width:100%;height:auto;border-radius:10px;border:1px solid var(--border);margin:6px 0;display:block}
+.doc-body img{cursor:default}

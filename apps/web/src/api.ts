@@ -214,6 +214,23 @@ export const api = {
       `/api/search?branch=${encodeURIComponent(branch)}&q=${encodeURIComponent(q)}`,
     ),
 
+  // ---- Image assets ----
+  uploadAsset: async (file: File): Promise<{ path: string; url: string }> => {
+    const headers: Record<string, string> = {
+      "Content-Type": file.type || "application/octet-stream",
+    };
+    if (getToken()) headers["Authorization"] = `Bearer ${getToken()}`;
+    const res = await fetch(`/api/assets?name=${encodeURIComponent(file.name)}`, {
+      method: "POST",
+      headers,
+      body: file,
+    });
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : {};
+    if (!res.ok) throw new ApiError(res.status, data as ApiErrorBody);
+    return data as { path: string; url: string };
+  },
+
   // ---- Sites (domain → repo bindings); admin only ----
   sites: () => request<{ sites: SiteBinding[] }>("GET", "/api/sites", undefined, true),
   createSite: (input: Omit<SiteBinding, "id">) =>

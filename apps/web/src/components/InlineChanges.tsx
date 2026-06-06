@@ -6,6 +6,7 @@ import { useToast } from "../toast";
 import { applyChange, changesFor, renderTrackedHtml, type Change } from "../trackChanges";
 import { rewriteDocLinks } from "../docpath";
 import { enhanceCodeBlocks } from "../codeHighlight";
+import { resolveImages } from "../assets";
 import { nextVersion } from "../version";
 
 interface Props {
@@ -48,6 +49,7 @@ export function InlineChanges({ path, base, content, frontmatter, suggestions, r
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     enhanceCodeBlocks(bodyRef.current);
+    resolveImages(bodyRef.current);
   }, [html]);
 
   const current = (): Change | undefined => changes.find((c) => c.id === pop?.id);

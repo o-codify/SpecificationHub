@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from "express";
+import express, { Router, type Request, type Response } from "express";
 import {
   DOC_STATUSES,
   FrontmatterError,
@@ -22,6 +22,7 @@ import {
 } from "./auth.js";
 import { attachSite, clearSiteCache, type SiteContext } from "./site.js";
 import { verifyCredentials } from "./credentials.js";
+import { pickImageExt, mimeForExt, MAX_IMAGE_BYTES } from "./images.js";
 import { config } from "./config.js";
 
 function bearerToken(req: Request): string | null {
@@ -507,6 +508,55 @@ export function createRouter(): Router {
       const branch = (req.query.branch as string) || site.defaultBranch;
       const q = ((req.query.q as string) || "").trim();
       res.json({ branch, query: q, hits: q ? repo.searchDocs(branch, q) : [] });
+    }),
+  );
+
+  // ---- Image assets ----
+  // Images are content-addressed binary blobs stored under assets/ on the
+  // default branch (immutable, shared by every branch and already present when a
+  // doc is accepted into main — no per-branch propagation needed). Upload commits
+  // (and pushes) the blob; docs reference it as ![alt](assets/<hash>.<ext>).
+  router.post(
+    "/assets",
+    express.raw({ type: () => true, limit: "25mb" }),
+    requireAuth,
+    h((req, res) => {
+      const site = siteOf(req);
+      const buf = req.body as Buffer;
+      if (!Buffer.isBuffer(buf) || buf.length === 0) throw new HttpError(400, "Empty image body");
+      if (buf.length > MAX_IMAGE_BYTES) throw new HttpError(413, "Image too large (max 25MB)");
+      const ext = pickImageExt({ contentType: req.headers["content-type"], name: String(req.query.name ?? ""), buf });
+      if (!ext) throw new HttpError(415, "Unsupported image type");
+      const repoPath = repoFor(site).addImage(site.defaultBranch, buf, ext, req.principal!.name);
+      res.status(201).json({ path: repoPath, url: `/api/assets?path=${encodeURIComponent(repoPath)}` });
+    }),
+  );
+
+  // Serve an image blob. Public sites serve freely; private sites require a
+  // principal — and since <img> can't send an Authorization header, a session/
+  // OAuth token may be passed as `?token=` for that case.
+  router.get(
+    "/assets",
+    h(async (req, res) => {
+      const site = siteOf(req);
+      let principal = req.principal;
+      if (!principal && typeof req.query.token === "string" && req.query.token) {
+        principal =
+          (await store.resolveSession(req.query.token)) ||
+          (await store.resolveOAuthToken(req.query.token));
+      }
+      if (site.visibility === "private" && !principal) {
+        throw new HttpError(401, "This documentation is private.", "private");
+      }
+      const p = String(req.query.path ?? "");
+      if (!p.startsWith("assets/") || p.includes("..") || p.includes("\\")) {
+        throw new HttpError(400, "invalid path");
+      }
+      const ext = (p.split(".").pop() ?? "").toLowerCase();
+      const buf = repoFor(site).readBinary(site.defaultBranch, p);
+      res.setHeader("Content-Type", mimeForExt(ext));
+      res.setHeader("Cache-Control", "public, max-age=300");
+      res.end(buf);
     }),
   );
 

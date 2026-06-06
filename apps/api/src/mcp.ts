@@ -17,6 +17,7 @@ import { canWriteBranch } from "./auth.js";
 import { resolveSession, resolveOAuthToken, type Principal } from "./db.js";
 import { config } from "./config.js";
 import { resolveSite, hostFromRequest, type SiteContext } from "./site.js";
+import { pickImageExt, decodeImageData, fetchImageFromUrl, MAX_IMAGE_BYTES } from "./images.js";
 import { baseUrl } from "./oauth.js";
 
 // Auth is via `Authorization: Bearer <token>`: an OAuth access token (ChatGPT /
@@ -197,8 +198,13 @@ default branch (\`${base}\`). A human reviews and accepts your changes.
   | ------ | ----- |
   | Health | float |
   \`\`\`
-- Blockquotes \`> …\`, horizontal rule \`---\`, images \`![alt](url)\`. Links: see
-  "Linking between documents" below.
+- Blockquotes \`> …\`, horizontal rule \`---\`. Links: see "Linking between
+  documents" below.
+- Images: to embed one, FIRST call \`add_image\` (pass a public \`url\` or inline
+  base64 \`data\`) — it stores the image and returns ready Markdown like
+  \`![alt](assets/<hash>.png)\`. Put that into the doc. Don't hand-write
+  \`assets/…\` paths; only reference images that \`add_image\` returned (or that
+  already exist). External \`![alt](https://…)\` URLs also render.
 - Diagrams: a \`mermaid\` fenced block renders as a real diagram (flowchart,
   sequence, state, etc.). Prefer this over ASCII art. Example:
   \`\`\`
@@ -906,6 +912,52 @@ function buildServer(principal: Principal | null, site: SiteContext): McpServer 
           const parts = Object.keys(changes).join(", ");
           return { body, frontmatter: changes, note: `(metadata: ${parts})` };
         }),
+    );
+
+    server.registerTool(
+      "add_image",
+      {
+        title: "Add an image to embed in a doc",
+        description:
+          "Store an image so a document can display it. Provide EITHER a public `url` to fetch, OR " +
+          "inline `data` (a base64 string or a data: URL). The image is saved on the default branch " +
+          "as assets/<hash>.<ext> (shared by all branches, so it survives review). The result " +
+          "includes ready-to-paste Markdown — put that `![alt](assets/…)` into a doc via save_doc/" +
+          "edit_doc. Supported types: png, jpg, gif, webp, svg, avif (max 25MB).",
+        inputSchema: {
+          url: z.string().describe("Public http(s) URL of the image to fetch (omit if using data)").optional(),
+          data: z
+            .string()
+            .describe("Base64 image data or a data: URL (omit if using url)")
+            .optional(),
+          alt: z.string().optional().describe("Alt text used in the returned Markdown"),
+          filename: z.string().optional().describe("Original filename — helps infer the type"),
+        },
+        outputSchema: { path: z.string(), markdown: z.string() },
+      },
+      async ({ url, data, alt, filename }) => {
+        try {
+          const img = data
+            ? decodeImageData(data)
+            : url
+              ? await fetchImageFromUrl(url)
+              : null;
+          if (!img) return fail("Provide either `url` or `data`.");
+          if (img.buf.length === 0) return fail("The image is empty.");
+          if (img.buf.length > MAX_IMAGE_BYTES) return fail("Image too large (max 25MB).");
+          const ext = pickImageExt({
+            contentType: img.contentType,
+            name: filename || url || "",
+            buf: img.buf,
+          });
+          if (!ext) return fail("Unsupported or unrecognized image type (png, jpg, gif, webp, svg, avif).");
+          const repoPath = gitlib.addImage(base, img.buf, ext, principal.name);
+          const md = `![${alt || ""}](${repoPath})`;
+          return ok(`Stored ${repoPath}. Embed it in a doc with:\n\n${md}`, { path: repoPath, markdown: md });
+        } catch (e) {
+          return fail(String((e as Error).message));
+        }
+      },
     );
   }
 

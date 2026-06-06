@@ -10,6 +10,20 @@ const turndown = new TurndownService({
   emDelimiter: "*",
 });
 
+// Serialize images back to Markdown using the repo path stashed in `data-path`
+// (the visible `src` is a served /api/assets URL), so we store ![alt](assets/…).
+turndown.addRule("repoImage", {
+  filter: "img",
+  replacement: (_content, node) => {
+    const el = node as HTMLImageElement;
+    const path = el.getAttribute("data-path") || el.getAttribute("src") || "";
+    if (!path) return "";
+    const alt = el.getAttribute("alt") || "";
+    const title = el.getAttribute("title");
+    return `![${alt}](${path}${title ? ` "${title}"` : ""})`;
+  },
+});
+
 /** Markdown → HTML (for loading into the contenteditable editor / preview). */
 export function mdToHtml(md: string): string {
   return marked.parse(md ?? "", { async: false }) as string;

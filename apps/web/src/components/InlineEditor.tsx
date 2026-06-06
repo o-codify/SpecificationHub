@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { FrontMatter } from "@spec/core";
 import { api, ApiError } from "../api";
+import { assetUrl } from "../assets";
 import { htmlToMd } from "../markdownConvert";
 import { statusColor } from "../status";
 import { nextVersion } from "../version";
@@ -45,6 +46,9 @@ export function InlineEditor({ initial, isNew, branch, onCancel, onSaved }: Prop
   const bodyRef = useRef<HTMLDivElement>(null);
   const slashRef = useRef<HTMLDivElement>(null);
   const pathEdited = useRef(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const savedRange = useRef<Range | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const [status, setStatus] = useState<string>(String(initial.frontmatter.status || "draft"));
   const [statusMenu, setStatusMenu] = useState(false);
@@ -76,6 +80,69 @@ export function InlineEditor({ initial, isNew, branch, onCancel, onSaved }: Prop
     }
   };
 
+  // ---- Image insertion ----
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && bodyRef.current?.contains(sel.anchorNode)) {
+      savedRange.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
+  const openImagePicker = () => {
+    saveSelection();
+    fileRef.current?.click();
+  };
+  const insertImageHtml = (path: string) => {
+    bodyRef.current?.focus();
+    const sel = window.getSelection();
+    if (savedRange.current && sel) {
+      sel.removeAllRanges();
+      sel.addRange(savedRange.current);
+    }
+    document.execCommand(
+      "insertHTML",
+      false,
+      `<img src="${assetUrl(path)}" data-path="${path}" alt="" /><p><br></p>`,
+    );
+    savedRange.current = null;
+  };
+  const uploadAndInsert = async (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    setUploading(true);
+    try {
+      const { path } = await api.uploadAsset(file);
+      insertImageHtml(path);
+    } catch (e) {
+      toast.show(e instanceof ApiError ? e.body.error : String((e as Error).message), "bad");
+    } finally {
+      setUploading(false);
+    }
+  };
+  const onFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) void uploadAndInsert(f);
+    e.target.value = "";
+  };
+  const onBodyPaste = (e: React.ClipboardEvent) => {
+    const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith("image/"));
+    const f = item?.getAsFile();
+    if (f) {
+      e.preventDefault();
+      saveSelection();
+      void uploadAndInsert(f);
+    }
+  };
+  const onBodyDrop = (e: React.DragEvent) => {
+    const f = Array.from(e.dataTransfer.files).find((x) => x.type.startsWith("image/"));
+    if (f) {
+      e.preventDefault();
+      const r = document.caretRangeFromPoint?.(e.clientX, e.clientY);
+      if (r) savedRange.current = r;
+      else saveSelection();
+      void uploadAndInsert(f);
+    }
+  };
+  const slashItems = [...SLASH, { ic: "🖼", k: "Image", run: openImagePicker }];
+
   const openSlash = () => {
     const sel = window.getSelection();
     if (!sel || !sel.rangeCount) return;
@@ -96,7 +163,7 @@ export function InlineEditor({ initial, isNew, branch, onCancel, onSaved }: Prop
       if (sel.toString() === "/") document.execCommand("delete");
       else sel.collapseToEnd();
     }
-    SLASH[i].run();
+    slashItems[i].run();
     bodyRef.current?.focus();
   };
 
@@ -107,10 +174,10 @@ export function InlineEditor({ initial, isNew, branch, onCancel, onSaved }: Prop
     if (!slash.open) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSlash((s) => ({ ...s, active: (s.active + 1) % SLASH.length }));
+      setSlash((s) => ({ ...s, active: (s.active + 1) % slashItems.length }));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSlash((s) => ({ ...s, active: (s.active - 1 + SLASH.length) % SLASH.length }));
+      setSlash((s) => ({ ...s, active: (s.active - 1 + slashItems.length) % slashItems.length }));
     } else if (e.key === "Enter") {
       e.preventDefault();
       applySlash(slash.active);
@@ -258,14 +325,24 @@ export function InlineEditor({ initial, isNew, branch, onCancel, onSaved }: Prop
         data-ph="Start writing…  (type / for blocks)"
         onKeyUp={onBodyKeyUp}
         onKeyDown={onBodyKeyDown}
+        onPaste={onBodyPaste}
+        onDrop={onBodyDrop}
         onBlur={() => setTimeout(closeSlash, 150)}
       />
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={onFilePicked}
+      />
+      {uploading && <div className="muted" style={{ marginTop: 8, fontSize: 13 }}>Uploading image…</div>}
 
       {err && <div className="banner bad" style={{ marginTop: 16 }}>{err}</div>}
 
       {slash.open && (
         <div className="slash-menu open" ref={slashRef} style={{ left: slash.x, top: slash.y }}>
-          {SLASH.map((o, i) => (
+          {slashItems.map((o, i) => (
             <div
               key={o.k}
               className={`slash-item${i === slash.active ? " active" : ""}`}

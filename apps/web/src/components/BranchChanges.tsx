@@ -7,6 +7,7 @@ import { Markdown } from "./Markdown";
 import { rewriteDocLinks } from "../docpath";
 import { applyChanges, changesFor, renderTrackedHtml } from "../trackChanges";
 import { enhanceCodeBlocks } from "../codeHighlight";
+import { resolveImages } from "../assets";
 import { nextVersion } from "../version";
 
 interface Props {
@@ -46,6 +47,7 @@ export function BranchChanges({ path, base, branch, baseBody, headBody, frontmat
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     enhanceCodeBlocks(bodyRef.current);
+    resolveImages(bodyRef.current);
   }, [html]);
 
   const current = () => changes.find((c) => c.id === pop?.id);

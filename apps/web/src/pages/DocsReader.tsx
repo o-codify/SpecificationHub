@@ -10,6 +10,7 @@ import { useBuildVersion } from "../brand";
 import { pathToSlug, slugToPath } from "../docpath";
 import { statusColor } from "../status";
 import { mdToHtml, stripLeadingH1 } from "../markdownConvert";
+import { hydrateEditorImages } from "../assets";
 import { Markdown } from "../components/Markdown";
 import { BranchChanges } from "../components/BranchChanges";
 import { StatusBadge } from "../components/StatusBadge";
@@ -52,9 +53,9 @@ export function DocsReader() {
   const [searchedFor, setSearchedFor] = useState("");
 
   // The desktop sidebar has no scrollbar of its own and is decoupled from the
-  // page scroll: the page scrolls on its own without moving the menu, and the
-  // menu is scrolled purely in code (the wheel handler below) when the page
-  // can't scroll. The offset persists across doc navigation.
+  // page scroll position: the page never moves the menu. Instead every wheel
+  // scrolls the menu in code (clamped to its content), so it always responds.
+  // The offset persists across doc navigation.
   const sidebarRef = useRef<HTMLElement>(null);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const menuOffsetRef = useRef(0); // current menu scroll offset (px), persisted across nav
@@ -231,26 +232,16 @@ export function DocsReader() {
     return () => window.removeEventListener("resize", refreshMenu);
   }, [refreshMenu]);
 
-  // The menu is scrolled in code by the wheel — but ONLY when the page itself
-  // can't scroll in that direction (a short doc, or you're already at the page
-  // top/bottom). While the page can scroll it scrolls on its own and the menu
-  // stays put (no coupling, no double scroll); once the page bottoms out, further
-  // wheeling moves the menu so every item stays reachable.
+  // Every wheel scrolls the menu (in code), clamped to its own content — so the
+  // menu always responds to scrolling, not only at the page's extremes. The page
+  // still scrolls natively alongside; the menu reaches its end and stops while
+  // the page keeps going.
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
       if (!isDesktop()) return;
       const max = maxRef.current;
       if (max <= 0) return; // menu fits — nothing to scroll
-      const el = document.scrollingElement || document.documentElement;
-      const dy = e.deltaY;
-      const pageCanScroll =
-        dy > 0
-          ? el.scrollTop + el.clientHeight < el.scrollHeight - 1
-          : dy < 0
-            ? el.scrollTop > 0
-            : false;
-      if (pageCanScroll) return; // let the page scroll; leave the menu alone
-      let off = menuOffsetRef.current + dy;
+      let off = menuOffsetRef.current + e.deltaY;
       if (off < 0) off = 0;
       else if (off > max) off = max;
       if (off === menuOffsetRef.current) return;
@@ -318,7 +309,7 @@ export function DocsReader() {
     setEditorInit({
       path: doc.path,
       frontmatter: doc.frontmatter,
-      bodyHtml: mdToHtml(stripLeadingH1(doc.content)),
+      bodyHtml: hydrateEditorImages(mdToHtml(stripLeadingH1(doc.content))),
     });
     setMode("edit");
   };

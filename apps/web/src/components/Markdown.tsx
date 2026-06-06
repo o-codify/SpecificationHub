@@ -2,6 +2,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link } from "react-router-dom";
 import { resolveDocHref } from "../docpath";
+import { resolveImgSrc } from "../assets";
 import { Mermaid } from "./Mermaid";
 import { CodeBlock } from "./CodeBlock";
 
@@ -40,6 +41,17 @@ export function Markdown({ content, currentPath, branch }: Props) {
           }
           const lang = /language-([\w-]+)/.exec(cls)?.[1];
           return <CodeBlock code={text} lang={lang} />;
+        },
+        img({ src, alt, title }) {
+          return (
+            <img
+              src={resolveImgSrc(typeof src === "string" ? src : "")}
+              alt={alt ?? ""}
+              title={title}
+              loading="lazy"
+              className="doc-img"
+            />
+          );
         },
         a({ href, children }) {
           const internal = href ? resolveDocHref(currentPath, href, branch) : null;

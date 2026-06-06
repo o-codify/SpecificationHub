@@ -1,4 +1,5 @@
 import { execFile, execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -109,6 +110,17 @@ export class SiteRepo {
   // ---- low-level ----
   private repo(args: string[]): string {
     return git(args, { cwd: this.site.repoDir });
+  }
+
+  /** Like repo(), but returns raw bytes — for binary blobs such as images. */
+  private repoBuf(args: string[]): Buffer {
+    try {
+      return execFileSync("git", args, { cwd: this.site.repoDir, maxBuffer: 256 * 1024 * 1024 });
+    } catch (err) {
+      const e = err as { stderr?: Buffer | string; message?: string };
+      const stderr = e.stderr ? e.stderr.toString() : "";
+      throw new GitError(`git ${args.join(" ")} failed: ${stderr || e.message}`, stderr);
+    }
   }
 
   get githubEnabled(): boolean {
@@ -365,6 +377,44 @@ export class SiteRepo {
     fs.mkdirSync(path.dirname(abs), { recursive: true });
     fs.writeFileSync(abs, content, "utf8");
     inDir(dir, ["add", "--", filePath]);
+  }
+
+  /** Stage a binary file (e.g. an uploaded image) on a branch's worktree. */
+  writeBinaryToBranch(branch: string, filePath: string, buf: Buffer): void {
+    const dir = this.ensureWorktree(branch);
+    const abs = path.join(dir, filePath);
+    if (!abs.startsWith(dir)) {
+      throw new GitError("Invalid path");
+    }
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, buf);
+    inDir(dir, ["add", "--", filePath]);
+  }
+
+  /**
+   * Store an image as a content-addressed blob (assets/<sha>.<ext>) on a branch,
+   * committing (and pushing) it. Idempotent — identical bytes reuse the same path.
+   * Returns the repo-relative path to reference from Markdown.
+   */
+  addImage(branch: string, buf: Buffer, ext: string, author: string): string {
+    const hash = crypto.createHash("sha256").update(buf).digest("hex").slice(0, 16);
+    const repoPath = `assets/${hash}.${ext}`;
+    if (!this.fileExists(branch, repoPath)) {
+      this.writeBinaryToBranch(branch, repoPath, buf);
+      this.commit(branch, `Add image ${repoPath}`, author);
+    }
+    return repoPath;
+  }
+
+  /** Read a file's raw bytes from a branch (for serving images, etc.). */
+  readBinary(branch: string, filePath: string): Buffer {
+    if (!this.branchExists(branch)) {
+      throw new NotFoundError(`Branch not found: ${branch}`);
+    }
+    if (!this.fileExists(branch, filePath)) {
+      throw new NotFoundError(`File not found: ${filePath} on ${branch}`);
+    }
+    return this.repoBuf(["show", `${branch}:${filePath}`]);
   }
 
   deleteFileFromBranch(branch: string, filePath: string): void {
