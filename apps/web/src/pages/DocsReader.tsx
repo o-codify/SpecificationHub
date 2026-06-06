@@ -51,10 +51,14 @@ export function DocsReader() {
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   const [searchedFor, setSearchedFor] = useState("");
 
-  // The sidebar is a pinned, independently-scrollable panel (see .sidebar in
-  // styles.css). Its scroll position is the browser's own and persists across
-  // doc navigation; the doc/page scrolls separately (reset to the top on open).
+  // The desktop sidebar has no scrollbar of its own. Its inner wrapper is
+  // translated so the menu scrolls *with the page* (by the same delta), clamped
+  // to the menu's own content, and it is NOT reset when you switch docs.
   const sidebarRef = useRef<HTMLElement>(null);
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+  const menuOffsetRef = useRef(0); // current menu scroll offset (px), persisted across nav
+  const lastYRef = useRef(0); // last observed window.scrollY (for delta)
+  const ignoreNextScrollRef = useRef(false); // swallow the programmatic scroll-to-top on nav
 
   const [doc, setDoc] = useState<Doc | null>(null);
   const [loading, setLoading] = useState(true);
@@ -192,13 +196,76 @@ export function DocsReader() {
 
   useEffect(loadDoc, [loadDoc]);
 
-  // Opening a doc starts it from the top — a navigation, not a kept scroll. Only
-  // the page/doc scrolls to the top; the sidebar has its own scroll and stays
-  // put. Keyed on slug so reloading the same doc (e.g. after accepting an edit)
-  // doesn't yank you to the top.
+  // Opening a doc starts the PAGE from the top (a navigation, not a kept scroll).
+  // The menu must NOT jump to the top with it, so we swallow the scroll event the
+  // programmatic reset fires (see the scroll effect below). Keyed on slug so
+  // reloading the same doc (e.g. after accepting an edit) doesn't yank the page.
   useEffect(() => {
-    window.scrollTo(0, 0);
+    if (window.scrollY !== 0) {
+      ignoreNextScrollRef.current = true;
+      window.scrollTo(0, 0);
+    }
   }, [slug, branch]);
+
+  // Drive the desktop menu's scroll from the page scroll: accumulate the page
+  // scroll delta into menuOffset, clamp it to the menu's own content (cached in
+  // maxRef so a scroll never reads layout), and translate the inner wrapper. No
+  // separate scrollbar, and the offset persists across doc navigation (it lives
+  // in a ref, untouched by the page reset above).
+  const maxRef = useRef(0);
+  const isDesktop = () =>
+    typeof window !== "undefined" && window.matchMedia("(min-width: 761px)").matches;
+  // Recompute the scroll range (on mount / resize / content change) and re-apply.
+  const refreshMenu = useCallback(() => {
+    const aside = sidebarRef.current;
+    const inner = sidebarScrollRef.current;
+    if (!aside || !inner) return;
+    if (!isDesktop()) {
+      inner.style.transform = "";
+      maxRef.current = 0;
+      return;
+    }
+    maxRef.current = Math.max(0, inner.scrollHeight - aside.clientHeight);
+    let off = menuOffsetRef.current;
+    if (off > maxRef.current) off = maxRef.current;
+    if (off < 0) off = 0;
+    menuOffsetRef.current = off;
+    inner.style.transform = `translateY(${-off}px)`;
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      const prev = lastYRef.current;
+      lastYRef.current = y;
+      // Swallow the programmatic scroll-to-top fired on doc open (keep the menu).
+      if (ignoreNextScrollRef.current) {
+        ignoreNextScrollRef.current = false;
+        return;
+      }
+      const inner = sidebarScrollRef.current;
+      if (!inner || !isDesktop()) return;
+      let off = menuOffsetRef.current + (y - prev);
+      if (off < 0) off = 0;
+      else if (off > maxRef.current) off = maxRef.current;
+      menuOffsetRef.current = off;
+      inner.style.transform = `translateY(${-off}px)`;
+    };
+    lastYRef.current = window.scrollY;
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", refreshMenu);
+    refreshMenu();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", refreshMenu);
+    };
+  }, [refreshMenu]);
+
+  // Re-measure when the menu's height can change (tree/search/expanded), so the
+  // offset never exceeds the new content and the transform stays correct.
+  useEffect(() => {
+    refreshMenu();
+  }, [refreshMenu, tree, newDocs, hits, expandedDirs, query]);
 
   // Auto-expand the category path leading to the open document.
   useEffect(() => {
@@ -336,6 +403,7 @@ export function DocsReader() {
   return (
     <div className="docs-shell">
       <aside ref={sidebarRef} className={`sidebar${sidebarOpen ? " open" : ""}`}>
+       <div className="sidebar-scroll" ref={sidebarScrollRef}>
         <div className="sb-head">
           <span className="t">Documentation</span>
           <button className="sb-close" aria-label="Close" onClick={() => setSidebarOpen(false)}>
@@ -413,6 +481,7 @@ export function DocsReader() {
             build {buildVersion}
           </div>
         )}
+       </div>
       </aside>
 
       <main className="doc-main" style={hlStyle}>
