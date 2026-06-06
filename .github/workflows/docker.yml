@@ -58,24 +58,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Trigger Coolify deploys
+      - name: Trigger Coolify deploy
         env:
-          # Each prod is its own Coolify resource (own docs repo + brand), so the
-          # same image is deployed to multiple webhooks. WEBHOOK_2/_3 are optional.
+          # One container serves every domain (domain→repo bindings live in the
+          # app), so there's a single deploy webhook.
           COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
-          COOLIFY_WEBHOOK_2: ${{ secrets.COOLIFY_WEBHOOK_2 }}
-          COOLIFY_WEBHOOK_3: ${{ secrets.COOLIFY_WEBHOOK_3 }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         run: |
-          trigger() {
-            [ -z "$1" ] && return 0
-            echo "Deploying → $1"
-            curl -f -X POST "$1" -H "Authorization: Bearer $COOLIFY_TOKEN"
-          }
-          if [ -z "$COOLIFY_WEBHOOK" ] && [ -z "$COOLIFY_WEBHOOK_2" ] && [ -z "$COOLIFY_WEBHOOK_3" ]; then
-            echo "No COOLIFY_WEBHOOK* secrets set — skipping deploy."
+          if [ -z "$COOLIFY_WEBHOOK" ]; then
+            echo "No COOLIFY_WEBHOOK secret set — skipping deploy."
             exit 0
           fi
-          trigger "$COOLIFY_WEBHOOK"
-          trigger "$COOLIFY_WEBHOOK_2"
-          trigger "$COOLIFY_WEBHOOK_3"
+          echo "Deploying → $COOLIFY_WEBHOOK"
+          curl -f -X POST "$COOLIFY_WEBHOOK" -H "Authorization: Bearer $COOLIFY_TOKEN"

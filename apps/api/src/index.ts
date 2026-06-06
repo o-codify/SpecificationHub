@@ -2,8 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import express from "express";
 import { config } from "./config.js";
-import { ensureRepo, repoFor } from "./git.js";
-import { legacySite } from "./site.js";
 import { initDb, pruneExpiredSessions, pruneExpiredOAuth } from "./db.js";
 import { initCredentials, getAdminUsername } from "./credentials.js";
 import { createRouter } from "./routes.js";
@@ -12,21 +10,14 @@ import { registerOAuth } from "./oauth.js";
 
 async function bootstrap(): Promise<void> {
   fs.mkdirSync(config.dataDir, { recursive: true });
-  // Ensure the legacy/single-tenant repo on the original on-disk paths. When no
-  // domain bindings exist this is the active site; when they do it is the
-  // env-fallback. Either way existing deployments keep their data untouched.
-  const legacy = legacySite();
-  ensureRepo(legacy);
-  // Align the protected/default branch with the repo's actual HEAD (main vs master).
-  config.defaultBranch = repoFor(legacy).currentDefaultBranch();
-  if (config.githubEnabled) {
-    console.log(
-      `GitHub mode ON → ${config.githubRepo} (default branch: ${config.defaultBranch}). ` +
-        `Commits push & open PRs; merges go through the PR API.`,
-    );
-  } else {
-    console.log("GitHub mode OFF → local git repo is the source of truth (in-app merges).");
-  }
+  // No global repo: each domain's repository is configured per site (Settings)
+  // and cloned lazily on first use. Until a domain is bound, the UI shows a
+  // "configure this domain" notice.
+  console.log(
+    config.githubToken
+      ? "GitHub token present → sites with a repository push to GitHub on accept."
+      : "No GITHUB_TOKEN → sites are local-only. Configure domain→repo bindings in Settings.",
+  );
   await initDb();
   await pruneExpiredSessions();
   await pruneExpiredOAuth();

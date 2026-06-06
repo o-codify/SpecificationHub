@@ -26,9 +26,9 @@ export const config = {
   docsSeedDir: envPath("DOCS_SEED", path.join(repoRoot, "docs")),
   webDist: envPath("WEB_DIST", path.join(repoRoot, "apps/web/dist")),
   defaultBranch: process.env.DEFAULT_BRANCH ?? "main",
-  // Site brand/title shown in the UI. Configurable per deployment (the same
-  // image powers multiple prods with different names), read at runtime.
-  brandName: process.env.BRAND_NAME ?? "Specification Hub",
+  // Default brand/title — only a fallback for the bootstrap/unconfigured state.
+  // Each site sets its own brand in the app (Settings → bindings); not from env.
+  brandName: "Specification Hub",
   // Build/deploy version (set by CI via the BUILD_VERSION build-arg → env);
   // "dev" for local runs. Shown in the UI so a successful deploy is visible.
   buildVersion: process.env.BUILD_VERSION ?? "dev",
@@ -39,29 +39,16 @@ export const config = {
   gitAuthorName: "Specification Hub",
   gitAuthorEmail: "hub@specification-hub.local",
 
-  // ---- GitHub integration (optional) ----
-  // When both token and repo are set, GitHub becomes the source of truth:
-  // commits are pushed, PRs are opened, and merges go through the PR merge API.
+  // ---- GitHub integration ----
+  // A single shared token (env). Which repository each domain uses is set per
+  // site in the app (Settings), not via env. With a token + a site's repo,
+  // GitHub is that site's source of truth (commits pushed on accept).
   githubToken: process.env.GITHUB_TOKEN ?? "",
-  githubRepo: process.env.GITHUB_REPO ?? "", // "owner/name"
   githubApi: (process.env.GITHUB_API ?? "https://api.github.com").replace(/\/$/, ""),
   githubServer: (process.env.GITHUB_SERVER ?? "https://github.com").replace(/\/$/, ""),
   // Minimum gap between background `git fetch` syncs triggered by reads.
   syncIntervalMs: Number(process.env.SYNC_INTERVAL_MS ?? 10000),
   mcpEnabled: (process.env.MCP_ENABLED ?? "true") !== "false",
-  // Public base URL of this server (scheme + host, no trailing slash). Used to
-  // build absolute OAuth metadata URLs. If empty, derived from request headers
-  // (honouring X-Forwarded-Proto / X-Forwarded-Host behind a proxy).
-  publicUrl: (process.env.PUBLIC_URL ?? "").replace(/\/$/, ""),
   // Access-token lifetime for the MCP OAuth flow (seconds).
   oauthTokenTtlSec: Number(process.env.OAUTH_TOKEN_TTL_SEC ?? 3600),
-  get githubEnabled(): boolean {
-    return Boolean(this.githubToken && this.githubRepo);
-  },
-  get githubOwner(): string {
-    return this.githubRepo.split("/")[0] ?? "";
-  },
-  get githubName(): string {
-    return this.githubRepo.split("/")[1] ?? "";
-  },
 };

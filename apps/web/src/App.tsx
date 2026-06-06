@@ -1,33 +1,52 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import type { ReactNode } from "react";
 import { AppShell } from "./components/AppShell";
 import { SiteGate } from "./components/SiteGate";
+import { useAuth } from "./auth";
 import { DocsReader } from "./pages/DocsReader";
 import { AdminBranches } from "./pages/AdminBranches";
 import { AdminDiff } from "./pages/AdminDiff";
 import { AdminSites } from "./pages/AdminSites";
 
+/** Guests may only see Docs and Review — everything else redirects to Docs. */
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { ready, authed } = useAuth();
+  if (!ready) return null; // wait for auth hydration before deciding
+  if (!authed) return <Navigate to="/docs" replace />;
+  return <>{children}</>;
+}
+
 export function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        {/* Settings is reachable even on an unlinked/private domain so an admin can
-            configure bindings — so it sits OUTSIDE the SiteGate. */}
-        <Route path="/settings" element={<AdminSites />} />
+        {/* Settings: signed-in admins only (outside SiteGate so it's reachable
+            even on an unconfigured domain, to bind a repository). */}
+        <Route
+          path="/settings"
+          element={
+            <RequireAuth>
+              <AdminSites />
+            </RequireAuth>
+          }
+        />
 
         {/* Everything else is gated by the site's link state / visibility. */}
         <Route element={<SiteGate />}>
           <Route index element={<Navigate to="/docs" replace />} />
           <Route path="/docs/*" element={<DocsReader />} />
-          {/* Branches & Review are readable by everyone on a public site; the write
-              actions inside them are gated to signed-in admins. */}
+          {/* Branches is sign-in only; guests are redirected to Docs. */}
           <Route
             path="/branches"
             element={
-              <div className="page">
-                <AdminBranches />
-              </div>
+              <RequireAuth>
+                <div className="page">
+                  <AdminBranches />
+                </div>
+              </RequireAuth>
             }
           />
+          {/* Review is readable by everyone; its write actions are gated inside. */}
           <Route
             path="/review"
             element={

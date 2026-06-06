@@ -5,10 +5,12 @@ import { useLayout } from "../layout";
 import { setViewAccent } from "../status";
 import { ThemeToggle } from "./ThemeToggle";
 import { LoginModal } from "./LoginModal";
-import { Brand } from "../brand";
+import { Brand, useMeta } from "../brand";
 
 export function AppShell() {
   const { authed, user, role, openLogin, logout } = useAuth();
+  const meta = useMeta();
+  const linked = meta?.linked !== false; // hide repo-only nav on unconfigured domains
   const { navOpen, setNavOpen, setSidebarOpen } = useLayout();
   const location = useLocation();
 
@@ -45,13 +47,18 @@ export function AppShell() {
           <Brand />
         </Link>
         <nav className={`nav${navOpen ? " open" : ""}`}>
-          <NavLink to="/branches" onClick={(e) => goAdmin(e, "/branches")}>
-            Branches
-          </NavLink>
-          <NavLink to="/review" onClick={(e) => goAdmin(e, "/review")}>
-            Review
-          </NavLink>
-          {authed && user && role === "admin" && (
+          {/* Review is the only nav page guests see; Branches is sign-in only. */}
+          {linked && authed && (
+            <NavLink to="/branches" onClick={(e) => goAdmin(e, "/branches")}>
+              Branches
+            </NavLink>
+          )}
+          {linked && (
+            <NavLink to="/review" onClick={(e) => goAdmin(e, "/review")}>
+              Review
+            </NavLink>
+          )}
+          {authed && role === "admin" && (
             <NavLink to="/settings" onClick={(e) => goAdmin(e, "/settings")}>
               Settings
             </NavLink>

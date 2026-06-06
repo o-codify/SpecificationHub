@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
 import { config } from "./config.js";
-import { countSites, getSiteByDomain, setSiteDefaultBranch, type SiteRow } from "./db.js";
+import { getSiteByDomain, setSiteDefaultBranch, type SiteRow } from "./db.js";
 import { ensureRepo, repoFor } from "./git.js";
 
 /**
@@ -47,21 +47,6 @@ function slug(s: string): string {
   );
 }
 
-/** The single-tenant fallback site on the original on-disk paths. */
-export function legacySite(): SiteContext {
-  return {
-    id: "__legacy__",
-    domain: "",
-    githubRepo: config.githubRepo,
-    brandName: config.brandName,
-    visibility: "public",
-    repoDir: config.repoDir,
-    worktreesDir: config.worktreesDir,
-    legacy: true,
-    defaultBranch: config.defaultBranch,
-  };
-}
-
 function siteFromRow(row: SiteRow): SiteContext {
   // Storage key from the repo slug so several domains pointing at the same repo
   // share one on-disk clone; local-only sites key by domain.
@@ -105,11 +90,9 @@ async function doResolve(host: string): Promise<SiteContext | null> {
     }
     return ctx;
   }
-  // No binding for this host. If there are NO bindings at all, run in legacy
-  // single-tenant mode (every host → env/local repo). Otherwise the domain is
-  // genuinely unlinked.
-  const n = await countSites();
-  if (n === 0) return legacySite();
+  // No binding for this host → the domain is unconfigured. The app still works
+  // for login and Settings (those aren't site-scoped); docs/branches/review are
+  // gated in the UI until an admin binds a repository to this domain.
   return null;
 }
 

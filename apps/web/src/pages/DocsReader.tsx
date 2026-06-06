@@ -19,6 +19,7 @@ import { InlineEditor, type EditorInitial } from "../components/InlineEditor";
 import { InlineChanges } from "../components/InlineChanges";
 import { Suggestions } from "../components/Suggestions";
 import { DocTree, buildDocTree } from "../components/DocTree";
+import { EmptyState } from "../components/EmptyState";
 
 type Mode = "view" | "edit" | "new";
 
@@ -495,9 +496,13 @@ export function DocsReader() {
             }}
           />
         ) : loading || !treeLoaded ? (
-          <div className="muted">Loading…</div>
+          <EmptyState loading title="Loading…" />
         ) : error ? (
-          <div className="banner bad">{error}</div>
+          <EmptyState
+            icon="🔍"
+            title="This document isn’t available"
+            subtitle={error}
+          />
         ) : doc && fm ? (
           <>
             <div className="doc-meta">
@@ -609,11 +614,26 @@ export function DocsReader() {
             )}
           </>
         ) : sidebarItems.length === 0 ? (
-          <div className="muted">
-            No documents yet.{authed ? " Create one with “+ New document”." : ""}
-          </div>
+          authed ? (
+            <EmptyState
+              icon="📝"
+              title="No documents yet"
+              subtitle="This space is empty. Create the first page to get started."
+              action={
+                <button className="btn btn-primary" onClick={startNew}>
+                  + New document
+                </button>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon="📄"
+              title="No documentation yet"
+              subtitle="This space doesn’t have any pages yet — check back later."
+            />
+          )
         ) : (
-          <div className="muted">Select a document.</div>
+          <EmptyState icon="📄" title="Select a document" subtitle="Choose a page from the menu to start reading." />
         )}
       </main>
     </div>

@@ -12,9 +12,12 @@ import {
   type OAuthClient,
 } from "./db.js";
 
-/** Public base URL (scheme + host) — explicit config, else derived from the request. */
+/**
+ * Public base URL (scheme + host) of THIS request's domain — always derived from
+ * the request so OAuth/MCP discovery is correct per domain (one container serves
+ * many). Honours X-Forwarded-Proto / X-Forwarded-Host behind a proxy.
+ */
 export function baseUrl(req: Request): string {
-  if (config.publicUrl) return config.publicUrl;
   const proto = (req.headers["x-forwarded-proto"] as string)?.split(",")[0]?.trim() || req.protocol;
   const host = (req.headers["x-forwarded-host"] as string)?.split(",")[0]?.trim() || req.headers.host;
   return `${proto}://${host}`;
