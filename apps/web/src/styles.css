@@ -258,10 +258,10 @@ tbody tr:hover{background:var(--surface-2)}
   padding:24px 20px;display:flex;flex-direction:column;gap:14px;
 }
 /* Desktop: the sidebar is a screen-tall, clipped column pinned under the header
-   (no scrollbar of its own). Its inner wrapper is translated by JS so the menu
-   scroll is *driven by the page scroll* (delta-accumulated) and clamped to the
-   menu's own content — you can't push it past its ends, and switching docs does
-   not reset it. See the scroll effect in DocsReader. */
+   (no scrollbar of its own). It is decoupled from the page scroll — its inner
+   wrapper is translated in code (the wheel handler in DocsReader) only when the
+   page itself can't scroll, clamped to the menu's own content, and the offset is
+   not reset when switching docs. */
 @media (min-width: 761px) {
   .sidebar {
     position: sticky;
@@ -270,7 +270,11 @@ tbody tr:hover{background:var(--surface-2)}
     height: calc(100vh - 60px);
     overflow: hidden;
   }
-  .sidebar-scroll { will-change: transform; }
+  /* Smooth the wheel: each (jumpy) wheel notch eases the menu to its new offset. */
+  .sidebar-scroll { will-change: transform; transition: transform 0.2s ease-out; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-scroll { transition: none; }
 }
 .sb-head{display:flex;align-items:baseline;justify-content:space-between}
 .sb-head .t{font-weight:700;font-size:17px;color:var(--text-strong)}
