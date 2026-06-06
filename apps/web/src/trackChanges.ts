@@ -88,6 +88,32 @@ const escAttr = (s: string) => s.replace(/"/g, "&quot;");
 const escHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// Inline constructs whose markers must never be split across a change boundary —
+// otherwise a stray `**`, `` ` ``, or half a `[label](url)` leaks as literal text
+// (or breaks the markdown). The whole construct stays on one side of the cut.
+const INLINE_CONSTRUCTS = [
+  /!?\[[^\]\n]*\]\([^)\n]*\)/, // links & images
+  /`[^`\n]+`/, // inline code
+  /\*\*[^*\n]+\*\*/, // **strong**
+  /__[^_\n]+__/, // __strong__
+  /~~[^~\n]+~~/, // ~~strike~~
+  /\*[^*\n]+\*/, // *em*
+  /_[^_\n]+_/, // _em_
+];
+
+/** Char ranges of inline constructs in `text` (so a cut never lands inside one). */
+function protectedSpans(text: string): Array<[number, number]> {
+  const spans: Array<[number, number]> = [];
+  for (const base of INLINE_CONSTRUCTS) {
+    const re = new RegExp(base.source, "g");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text))) spans.push([m.index, m.index + m[0].length]);
+  }
+  return spans;
+}
+const insideSpan = (spans: Array<[number, number]>, idx: number) =>
+  spans.some(([a, b]) => idx > a && idx < b);
+
 function clauseInner(
   c: Change,
   oldText: string,
@@ -95,21 +121,17 @@ function clauseInner(
   render: (s: string) => string = mdInline,
 ): string {
   const isW = (ch: string | undefined) => !!ch && /\w/.test(ch);
-  // Is index `idx` inside an inline `code` span? (odd number of backticks before it)
-  const inCode = (t: string, idx: number) => {
-    let n = 0;
-    for (let i = 0; i < idx; i++) if (t[i] === "`") n++;
-    return n % 2 === 1;
-  };
+  const oldSpans = protectedSpans(oldText);
+  const newSpans = protectedSpans(newText);
   // Character-level common prefix/suffix (handles attached punctuation like
   // "speed" → "speed, …"), then snap the boundaries to whole-word edges so we
   // never cut inside a word.
   let p = 0;
   while (p < oldText.length && p < newText.length && oldText[p] === newText[p]) p++;
   while (p > 0 && isW(oldText[p - 1]) && (isW(oldText[p]) || isW(newText[p]))) p--;
-  // …and never cut inside an inline-code span (keep the whole `code`, backticks
-  // and all, on the same side) — otherwise a stray backtick breaks the markdown.
-  while (p > 0 && (inCode(oldText, p) || inCode(newText, p))) p--;
+  // …and never cut inside an inline construct (code / **bold** / *em* / links):
+  // keep the whole thing — markers and all — on one side, so markdown stays valid.
+  while (p > 0 && (insideSpan(oldSpans, p) || insideSpan(newSpans, p))) p--;
   let s = 0;
   while (
     s < oldText.length - p &&
@@ -125,7 +147,7 @@ function clauseInner(
     s--;
   while (
     s > 0 &&
-    (inCode(oldText, oldText.length - s) || inCode(newText, newText.length - s))
+    (insideSpan(oldSpans, oldText.length - s) || insideSpan(newSpans, newText.length - s))
   )
     s--;
   const prefix = oldText.slice(0, p);
@@ -147,6 +169,10 @@ function wholeSpan(c: Change, html: string, kind: "ins" | "del"): string {
 }
 
 const isCode = (b: string) => b.trim().startsWith("```");
+/** A block that contains a fenced code section anywhere (not necessarily at the start). */
+const hasFence = (b: string) => b.includes("```");
+/** Plain prose safe to diff inline (no fenced code that inline rendering would break). */
+const isSimpleProse = (b: string) => isProse(b) && !hasFence(b);
 
 /** Replace a fenced code block line-by-line; only changed lines are interactive. */
 function codeReplace(c: Change, oldBlock: string, newBlock: string): string {
@@ -194,11 +220,16 @@ function renderReplacePair(c: Change, oldBlock: string, newBlock: string): strin
   if (op && np)
     return headingReplace(c, op[1], np[1]) + renderReplacePair(c, op[2].trim(), np[2].trim());
   if (isHeading(oldBlock) && isHeading(newBlock)) return headingReplace(c, oldBlock, newBlock);
-  if (isProse(oldBlock) && isProse(newBlock)) return `<p>${clauseInner(c, oldBlock, newBlock)}</p>`;
-  if (isList(oldBlock) && isList(newBlock)) return listReplace(c, oldBlock, newBlock);
-  if (isTable(oldBlock) && isTable(newBlock)) return tableReplace(c, oldBlock, newBlock);
   if (isCode(oldBlock) && isCode(newBlock)) return codeReplace(c, oldBlock, newBlock);
-  // Different block kinds — show as struck old + green new callouts.
+  // Inline diffing (prose/list/table) only when neither side hides a code fence —
+  // a fence rendered inline would break (literal ``` and mangled markers).
+  if (!hasFence(oldBlock) && !hasFence(newBlock)) {
+    if (isProse(oldBlock) && isProse(newBlock)) return `<p>${clauseInner(c, oldBlock, newBlock)}</p>`;
+    if (isList(oldBlock) && isList(newBlock)) return listReplace(c, oldBlock, newBlock);
+    if (isTable(oldBlock) && isTable(newBlock)) return tableReplace(c, oldBlock, newBlock);
+  }
+  // Different block kinds, or a block containing a code fence — show as struck
+  // old + green new callouts (mdToHtmlDoc renders the fence correctly).
   return (
     `<div class="sug del" ${attrs}>${mdToHtmlDoc(oldBlock)}</div>` +
     `<div class="sug add" ${attrs}>${mdToHtmlDoc(newBlock)}</div>`
@@ -340,12 +371,12 @@ function tableReplace(c: Change, oldBlock: string, newBlock: string): string {
 function sugBlock(c: Change): string {
   const attrs = `data-id="${c.id}" data-branch="${escAttr(c.branch)}"`;
   if (c.kind === "add") {
-    return c.newBlocks.length === 1 && isProse(c.newBlocks[0])
+    return c.newBlocks.length === 1 && isSimpleProse(c.newBlocks[0])
       ? `<p class="sug add" ${attrs}>${mdInline(c.newBlocks[0])}</p>`
       : `<div class="sug add" ${attrs}>${mdToHtmlDoc(joinBlocks(c.newBlocks))}</div>`;
   }
   if (c.kind === "del") {
-    return c.oldBlocks.length === 1 && isProse(c.oldBlocks[0])
+    return c.oldBlocks.length === 1 && isSimpleProse(c.oldBlocks[0])
       ? `<p class="sug del" ${attrs}>${mdInline(c.oldBlocks[0])}</p>`
       : `<div class="sug del" ${attrs}>${mdToHtmlDoc(joinBlocks(c.oldBlocks))}</div>`;
   }

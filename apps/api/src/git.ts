@@ -87,11 +87,9 @@ export interface NewDoc {
 export interface BranchSyncStatus {
   branch: string;
   base: string;
-  upToDate: boolean;
-  ahead: number; // commits on the branch not in base
-  behind: number; // commits on base not in the branch
-  staleFiles: string[]; // docs changed on base that this branch hasn't (should pull)
-  conflictFiles: string[]; // docs changed on BOTH base and the branch (need a decision)
+  upToDate: boolean; // no DOC differs in content (commits are irrelevant)
+  staleFiles: string[]; // docs base has a newer version of that this branch hasn't
+  conflictFiles: string[]; // docs whose content changed on BOTH base and the branch
 }
 
 export type SyncStrategy = "merge" | "prefer-main" | "prefer-mine" | "reset";
@@ -812,13 +810,19 @@ export class SiteRepo {
     return updated;
   }
 
-  /** How a branch stands relative to `base` (main). */
+  /**
+   * How a branch stands relative to `base`, judged purely by document CONTENT
+   * (never by commit counts — each edit is its own commit, so commit-level
+   * ahead/behind is meaningless and would falsely look "diverged"). The
+   * merge-base diff is only a candidate set; `changeKey` (version-insensitive)
+   * decides what actually differs.
+   */
   branchSyncStatus(branch: string, base: string): BranchSyncStatus {
     this.fetchRemote();
     if (!this.branchExists(base)) throw new NotFoundError(`Branch not found: ${base}`);
     if (!this.branchExists(branch)) throw new NotFoundError(`Branch not found: ${branch}`);
     if (branch === base) {
-      return { branch, base, upToDate: true, ahead: 0, behind: 0, staleFiles: [], conflictFiles: [] };
+      return { branch, base, upToDate: true, staleFiles: [], conflictFiles: [] };
     }
     let mb = "";
     try {
@@ -826,13 +830,6 @@ export class SiteRepo {
     } catch {
       mb = "";
     }
-    const count = (range: string) => {
-      try {
-        return Number(this.repo(["rev-list", "--count", range]).trim()) || 0;
-      } catch {
-        return 0;
-      }
-    };
     const docs = (out: string) =>
       out
         .split("\n")
@@ -850,8 +847,6 @@ export class SiteRepo {
     return {
       branch,
       base,
-      ahead: count(`${base}..${branch}`),
-      behind: count(`${branch}..${base}`),
       staleFiles,
       conflictFiles,
       upToDate: staleFiles.length === 0 && conflictFiles.length === 0,

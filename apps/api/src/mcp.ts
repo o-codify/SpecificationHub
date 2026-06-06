@@ -138,9 +138,12 @@ default branch (\`${base}\`). A human reviews and accepts your changes.
      up in small steps — one section per call).
    - \`replace_section\` — swap a single section identified by its heading.
    - \`patch_doc\` — exact find/replace for small targeted fixes.
-   - \`edit_doc\` — apply SEVERAL edits (appends + section replaces + patches) to
-     one doc in a single commit; use it when a change both adds and replaces
-     parts. If any op fails, nothing is committed.
+   - \`edit_doc\` — the BEST tool for changing several places at once: apply many
+     edits (appends + section replaces + exact patches) to one doc in a SINGLE
+     atomic commit. Read the doc ONCE, then send all your changes together — you
+     never need to re-read between edits, because each op is anchored by a heading
+     or by verbatim text, not by line numbers. If any op fails, nothing commits
+     and you're told which one. Use this instead of many separate calls.
    - \`set_metadata\` — change ONLY status/title/tags, body untouched. Use this
      to flip status (e.g. → \`review\`) or retag — do NOT resend the whole doc
      via \`save_doc\` just to change metadata.
@@ -149,13 +152,20 @@ default branch (\`${base}\`). A human reviews and accepts your changes.
      a manual \`git rm\`.
    Prefer several small edits over one huge \`save_doc\`: smaller diffs review
    better and avoid client size limits.
-4. Keep your branch current: \`${base}\` moves on as changes are accepted. Write
-   results warn you when it has advanced; call \`branch_status\` to see what
-   differs (staleFiles = base changed, you didn't — safe to pull; conflictFiles
-   = changed on both). Reconcile with \`sync_branch\` — strategy \`merge\` (keep
-   your edits; conflicts are reported, not forced), \`prefer-main\`,
-   \`prefer-mine\`, or \`reset\` (discard your changes, match base). YOU decide
-   which; do it before building further on a stale branch.
+4. Keep your branch's CONTENT current. As docs are accepted, \`${base}\` gains
+   newer versions of some files. This is judged by document CONTENT, never by git
+   commits — so do NOT reason about "commits ahead/behind", pull requests, or
+   merge-base divergence. None of that applies here: each edit is its own commit,
+   so branches always look "diverged" at the commit level even when the text is
+   identical. Only \`branch_status\` matters — it lists the docs that actually
+   differ (\`staleFiles\` = \`${base}\` has a newer version, safe to pull;
+   \`conflictFiles\` = the same doc changed on both sides). If both are empty you
+   are fully current. When a doc you care about is stale, reconcile with
+   \`sync_branch\` (\`merge\` keeps your edits and reports conflicts; \`prefer-main\`;
+   \`prefer-mine\`; \`reset\` discards your changes). There are NO pull requests and
+   you never touch git directly: a human reviews your branch and accepts docs in
+   the app, which copies the accepted content into \`${base}\`. Your only job is to
+   keep your branch's docs correct and mark them \`review\` when ready.
 
 ## Document structure
 - \`path\`: under \`docs/\`, kebab-case, ending in \`.md\`. A section with sub-pages
@@ -520,10 +530,11 @@ function buildServer(principal: Principal | null, site: SiteContext): McpServer 
     {
       title: "Branch status vs main",
       description:
-        "Report how a branch stands relative to the base branch: whether it's up to date, which " +
-        "docs base changed that the branch hasn't yet (staleFiles — safe to pull) and which were " +
-        "changed on BOTH sides (conflictFiles — need a decision). Check this before editing a " +
-        "long-lived branch; if it's behind, reconcile with sync_branch first.",
+        "Report how a branch differs from the base branch BY DOCUMENT CONTENT (not by commits — " +
+        "commit counts are meaningless here since every edit is its own commit). Returns the docs " +
+        "the base has a newer version of that this branch hasn't (staleFiles — safe to pull) and " +
+        "the docs changed on BOTH sides (conflictFiles — a real decision). If both are empty the " +
+        "branch is current; there is nothing else to reconcile.",
       inputSchema: {
         branch: z.string().describe("Branch to inspect, e.g. ai/improve-gait"),
         base: z.string().optional().describe(`Base branch (default: ${base})`),
@@ -532,8 +543,6 @@ function buildServer(principal: Principal | null, site: SiteContext): McpServer 
         branch: z.string(),
         base: z.string(),
         upToDate: z.boolean(),
-        ahead: z.number(),
-        behind: z.number(),
         staleFiles: z.array(z.string()),
         conflictFiles: z.array(z.string()),
       },
@@ -542,13 +551,15 @@ function buildServer(principal: Principal | null, site: SiteContext): McpServer 
       const b = baseArg || base;
       try {
         const s = gitlib.branchSyncStatus(branch, b);
-        const lines = [
-          s.upToDate ? `✓ ${branch} is up to date with ${b}.` : `⚠ ${branch} is behind ${b}.`,
-          `ahead ${s.ahead}, behind ${s.behind}`,
-        ];
-        if (s.staleFiles.length) lines.push(`Updated on ${b} (safe to pull): ${s.staleFiles.join(", ")}`);
-        if (s.conflictFiles.length) lines.push(`Changed on both (decide): ${s.conflictFiles.join(", ")}`);
-        if (!s.upToDate) lines.push("Reconcile with sync_branch (merge | prefer-main | prefer-mine | reset).");
+        const lines: string[] = [];
+        if (s.upToDate) {
+          lines.push(`✓ ${branch} matches ${b} — no document differs in content.`);
+        } else {
+          lines.push(`${branch} differs from ${b} by content:`);
+          if (s.staleFiles.length) lines.push(`• newer on ${b}, safe to pull: ${s.staleFiles.join(", ")}`);
+          if (s.conflictFiles.length) lines.push(`• changed on both, decide: ${s.conflictFiles.join(", ")}`);
+          lines.push("Reconcile with sync_branch (merge | prefer-main | prefer-mine | reset) — only the listed docs matter.");
+        }
         return ok(lines.join("\n"), { ...s });
       } catch (e) {
         return fail(String((e as Error).message));
@@ -589,14 +600,15 @@ function buildServer(principal: Principal | null, site: SiteContext): McpServer 
       {
         title: "Update branch from main",
         description:
-          "Reconcile a branch with the base branch, git-style — YOU choose how:\n" +
-          "• merge (default) — bring base in, keeping your changes; if it conflicts nothing is " +
+          "Bring newer base-branch document content into a branch — YOU choose how:\n" +
+          "• merge (default) — pull base in, keeping your edits; if a doc conflicts nothing is " +
           "changed and the conflicting files are returned (read both versions, then save_doc to " +
           "resolve);\n" +
-          "• prefer-main — merge, base wins conflicts;\n" +
-          "• prefer-mine — merge, your branch wins conflicts;\n" +
+          "• prefer-main — base wins conflicts;\n" +
+          "• prefer-mine — your branch wins conflicts;\n" +
           "• reset — discard the branch's own changes entirely and match base.\n" +
-          "Run branch_status first to see what differs.",
+          "Run branch_status first; only the docs it lists differ. This is about document content, " +
+          "not git commits or pull requests.",
         inputSchema: {
           branch: z.string().describe("Branch to update (e.g. ai/improve-gait)"),
           strategy: z
@@ -824,13 +836,17 @@ function buildServer(principal: Principal | null, site: SiteContext): McpServer 
       {
         title: "Apply several edits at once",
         description:
-          "Apply a sequence of edits to one document in a SINGLE commit — mix appends and " +
-          "replacements of different parts in one call (instead of several separate edits). " +
-          "Operations run in order; each is one of:\n" +
+          "Edit MANY places in one document in a SINGLE atomic call — this is the preferred way to " +
+          "make multiple changes: you do NOT need to re-read the doc between edits, because every " +
+          "op is anchored by a heading or by exact text (never by line numbers/offsets). Read the " +
+          "doc once, then send all edits here. Ops run in order against the running document; each " +
+          "is one of:\n" +
           '• {"op":"append","markdown":"…"} — add to the end;\n' +
-          '• {"op":"replace_section","heading":"## X","markdown":"## X\\n…"} — replace that section;\n' +
-          '• {"op":"patch","find":"…","replace":"…"} — exact find/replace.\n' +
-          "If any operation fails (e.g. heading or text not found), nothing is committed.",
+          '• {"op":"replace_section","heading":"## X","markdown":"## X\\n…"} — replace that whole section;\n' +
+          '• {"op":"patch","find":"…","replace":"…"} — exact find/replace (use a verbatim, unique ' +
+          "snippet as `find`; it replaces every exact match).\n" +
+          "It's transactional: if ANY op fails (heading or text not found), NOTHING is committed and " +
+          "you're told which op failed — fix it and resend. Prefer this over several separate calls.",
         inputSchema: {
           branch: z.string().describe("Target branch (e.g. ai/improve-gait)"),
           path: z.string().describe("Doc path, e.g. docs/04-gait-cycle/index.md"),
