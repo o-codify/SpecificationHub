@@ -19,6 +19,16 @@ export function AppShell() {
     ? "docs"
     : location.pathname.replace(/^\/+/, "").split("/")[0] || "docs";
 
+  // Mobile ☰ should only appear when there's actually something to open: the
+  // doc-tree sidebar (a real, linked docs page) or at least one nav link. On a
+  // gate page (unconfigured / private wall) there's neither — match desktop and
+  // hide it.
+  const gated = !linked || (!!meta?.private && !authed);
+  const hasSidebar = onDocs && !gated;
+  const navCount =
+    (linked && authed ? 1 : 0) + (linked ? 1 : 0) + (authed && role === "admin" ? 1 : 0);
+  const showMenuBtn = hasSidebar || navCount > 0;
+
   useEffect(() => {
     setViewAccent(section);
     document.body.classList.toggle("is-auth", authed);
@@ -33,16 +43,18 @@ export function AppShell() {
   };
 
   const onMenu = () => {
-    if (onDocs) setSidebarOpen(true);
+    if (hasSidebar) setSidebarOpen(true);
     else setNavOpen(!navOpen);
   };
 
   return (
     <>
       <header className="topbar">
-        <button className="menu-btn" aria-label="Menu" onClick={onMenu}>
-          ☰
-        </button>
+        {showMenuBtn && (
+          <button className="menu-btn" aria-label="Menu" onClick={onMenu}>
+            ☰
+          </button>
+        )}
         <Link to="/docs" className="brand" title="Docs home">
           <Brand />
         </Link>

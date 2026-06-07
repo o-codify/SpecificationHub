@@ -12,21 +12,37 @@ const FALLBACK: MetaResponse = {
   github: null,
 };
 let metaPromise: Promise<MetaResponse> | null = null;
+let usedInjected = false;
 
-/** Load /api/meta once (per deployment), cached and shared by the hooks below. */
+/** Server-injected meta (window.__SITE_META__) so the first paint has the right
+ *  brand/link-state without a round-trip. Present only on the initial document. */
+function injectedMeta(): MetaResponse | null {
+  const m = (window as unknown as { __SITE_META__?: unknown }).__SITE_META__;
+  return m && typeof m === "object" && "brand" in (m as object) ? (m as MetaResponse) : null;
+}
+
+/** Load meta once: prefer the server-injected blob on first load, else /api/meta. */
 function loadMeta(): Promise<MetaResponse> {
-  if (!metaPromise) metaPromise = api.meta().catch(() => FALLBACK);
+  if (!metaPromise) {
+    const inj = usedInjected ? null : injectedMeta();
+    if (inj) {
+      usedInjected = true;
+      metaPromise = Promise.resolve(inj);
+    } else {
+      metaPromise = api.meta().catch(() => FALLBACK);
+    }
+  }
   return metaPromise;
 }
 
-/** Force a re-fetch of /api/meta (e.g. after logging in to a private site). */
+/** Force a re-fetch of /api/meta (e.g. after binding a repo in Settings). */
 export function refreshMeta(): void {
-  metaPromise = null;
+  metaPromise = null; // next loadMeta() goes to /api/meta (injected already consumed)
 }
 
-/** The full site meta (linked / private / brand …); null until first load. */
+/** The full site meta (linked / private / brand …); seeded from the injected blob. */
 export function useMeta(): MetaResponse | null {
-  const [meta, setMeta] = useState<MetaResponse | null>(null);
+  const [meta, setMeta] = useState<MetaResponse | null>(() => injectedMeta());
   useEffect(() => {
     let alive = true;
     loadMeta().then((m) => alive && setMeta(m));
@@ -38,7 +54,7 @@ export function useMeta(): MetaResponse | null {
 }
 
 export function useBrand(): string {
-  const [brand, setBrand] = useState(DEFAULT);
+  const [brand, setBrand] = useState(() => injectedMeta()?.brand || DEFAULT);
   useEffect(() => {
     let alive = true;
     loadMeta().then((m) => {

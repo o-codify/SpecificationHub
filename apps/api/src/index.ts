@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import express from "express";
 import { config } from "./config.js";
+import { siteMeta, hostFromRequest } from "./site.js";
 import { initDb, pruneExpiredSessions, pruneExpiredOAuth } from "./db.js";
 import { initCredentials, getAdminUsername } from "./credentials.js";
 import { createRouter } from "./routes.js";
@@ -68,12 +69,34 @@ function createApp(): express.Express {
   registerOAuth(app);
   registerMcp(app);
 
-  // Serve the built frontend, with SPA fallback.
+  // Serve the built frontend, with SPA fallback. The HTML is served per-domain:
+  // we inject the site's brand into <title> and a window.__SITE_META__ blob so the
+  // FIRST response already renders the right brand (no flash of the default).
   if (fs.existsSync(config.webDist)) {
-    app.use(express.static(config.webDist));
-    app.get("*", (req, res, next) => {
+    const indexPath = path.join(config.webDist, "index.html");
+    // `index:false` so "/" falls through to our injecting handler, not raw index.html.
+    app.use(express.static(config.webDist, { index: false }));
+    app.get("*", async (req, res, next) => {
       if (req.path.startsWith("/api/")) return next();
-      res.sendFile(path.join(config.webDist, "index.html"));
+      let template: string;
+      try {
+        template = fs.readFileSync(indexPath, "utf8");
+      } catch {
+        return next();
+      }
+      let meta: Awaited<ReturnType<typeof siteMeta>> | null = null;
+      try {
+        meta = await siteMeta(hostFromRequest(req));
+      } catch {
+        /* fall back to the template's default brand */
+      }
+      const brand = meta?.brand || config.brandName;
+      const titleEsc = brand.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const blob = JSON.stringify(meta ?? {}).replace(/</g, "\\u003c");
+      const html = template
+        .replace(/<title>[\s\S]*?<\/title>/, `<title>${titleEsc}</title>`)
+        .replace("</head>", `    <script>window.__SITE_META__=${blob}</script>\n  </head>`);
+      res.type("html").send(html);
     });
   } else {
     app.get("/", (_req, res) => {

@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
+import { DOC_STATUSES } from "@spec/core";
 import { config } from "./config.js";
 import { getSiteByDomain, setSiteDefaultBranch, type SiteRow } from "./db.js";
 import { ensureRepo, repoFor } from "./git.js";
@@ -107,6 +108,35 @@ export function resolveSite(host: string): Promise<SiteContext | null> {
     p.catch(() => cache.delete(key));
   }
   return p;
+}
+
+export interface SiteMeta {
+  statuses: readonly string[];
+  brand: string;
+  version: string;
+  defaultBranch: string;
+  linked: boolean;
+  private: boolean;
+  github: { repo: string; url: string } | null;
+}
+
+/**
+ * Public site metadata for a host — derived straight from the DB row (no repo
+ * clone), so it's cheap enough to inline into the served HTML and to back the
+ * /api/meta endpoint. This is what lets the first response carry the right brand.
+ */
+export async function siteMeta(host: string): Promise<SiteMeta> {
+  const row = await getSiteByDomain(host);
+  const repo = row?.githubRepo?.trim() || "";
+  return {
+    statuses: DOC_STATUSES,
+    brand: row?.brandName?.trim() || config.brandName,
+    version: config.buildVersion,
+    defaultBranch: row?.defaultBranch || config.defaultBranch,
+    linked: Boolean(row),
+    private: row?.visibility === "private",
+    github: repo ? { repo, url: `${config.githubServer}/${repo}` } : null,
+  };
 }
 
 /** Express middleware: attach the resolved site (or null) to the request. */
