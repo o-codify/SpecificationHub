@@ -38,11 +38,13 @@ async function request<T>(
   method: string,
   url: string,
   body?: unknown,
-  auth = false,
+  // Retained for call-site intent; the token is now always sent when present so
+  // reads work on private sites too (public endpoints simply ignore it).
+  _auth = false,
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (auth && getToken()) headers["Authorization"] = `Bearer ${getToken()}`;
+  if (getToken()) headers["Authorization"] = `Bearer ${getToken()}`;
   const res = await fetch(url, {
     method,
     headers,

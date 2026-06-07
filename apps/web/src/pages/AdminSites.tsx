@@ -171,7 +171,15 @@ export function AdminSites() {
           {sites.map((s) => (
             <div className="branch-row" key={s.id}>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <code>{s.domain}</code>
+                <a
+                  className="site-domain"
+                  href={`//${s.domain}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={`Open ${s.domain}`}
+                >
+                  <code>{s.domain}</code> ↗
+                </a>
                 <span className="muted" style={{ fontSize: 12 }}>
                   {s.repo || "local-only"} {s.brand ? `· ${s.brand}` : ""}
                 </span>
