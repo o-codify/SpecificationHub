@@ -75,9 +75,28 @@ function createApp(): express.Express {
   if (fs.existsSync(config.webDist)) {
     const indexPath = path.join(config.webDist, "index.html");
     // `index:false` so "/" falls through to our injecting handler, not raw index.html.
-    app.use(express.static(config.webDist, { index: false }));
+    app.use(
+      express.static(config.webDist, {
+        index: false,
+        setHeaders: (res, filePath) => {
+          // Content-hashed assets never change → cache them forever. Anything else
+          // (incl. index.html) must revalidate so a deploy's new asset hashes are
+          // picked up immediately (otherwise a stale HTML loads a dead bundle).
+          res.setHeader(
+            "Cache-Control",
+            filePath.includes(`${path.sep}assets${path.sep}`)
+              ? "public, max-age=31536000, immutable"
+              : "no-cache",
+          );
+        },
+      }),
+    );
     app.get("*", async (req, res, next) => {
       if (req.path.startsWith("/api/")) return next();
+      // A path with a file extension is a static asset. If express.static didn't
+      // serve it (e.g. a stale HTML referenced an old hash), return 404 — never
+      // the SPA shell, or the browser rejects "text/html" as a module script.
+      if (/\.[a-z0-9]+$/i.test(req.path)) return res.status(404).end();
       let template: string;
       try {
         template = fs.readFileSync(indexPath, "utf8");
@@ -96,6 +115,9 @@ function createApp(): express.Express {
       const html = template
         .replace(/<title>[\s\S]*?<\/title>/, `<title>${titleEsc}</title>`)
         .replace("</head>", `    <script>window.__SITE_META__=${blob}</script>\n  </head>`);
+      // Per-domain, always-fresh HTML: never serve a stale document that could
+      // reference a previous build's (now-deleted) asset hashes → blank page.
+      res.setHeader("Cache-Control", "no-cache");
       res.type("html").send(html);
     });
   } else {
