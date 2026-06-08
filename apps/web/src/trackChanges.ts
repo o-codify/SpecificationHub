@@ -181,6 +181,8 @@ function wholeSpan(c: Change, html: string, kind: "ins" | "del"): string {
 }
 
 const isCode = (b: string) => b.trim().startsWith("```");
+/** A ```mermaid fenced block — rendered as a diagram, never line-diffed as code. */
+const isMermaid = (b: string) => /^```mermaid\b/.test(b.trim());
 /** A block that contains a fenced code section anywhere (not necessarily at the start). */
 const hasFence = (b: string) => b.includes("```");
 /** Plain prose safe to diff inline (no fenced code that inline rendering would break). */
@@ -232,7 +234,11 @@ function renderReplacePair(c: Change, oldBlock: string, newBlock: string): strin
   if (op && np)
     return headingReplace(c, op[1], np[1]) + renderReplacePair(c, op[2].trim(), np[2].trim());
   if (isHeading(oldBlock) && isHeading(newBlock)) return headingReplace(c, oldBlock, newBlock);
-  if (isCode(oldBlock) && isCode(newBlock)) return codeReplace(c, oldBlock, newBlock);
+  // Line-diff two plain code blocks — but NOT when mermaid is involved: a
+  // ```mermaid block must stay whole so it renders as a diagram (via the callout
+  // below → mdToHtmlDoc → renderMermaid), not as interleaved source lines.
+  if (isCode(oldBlock) && isCode(newBlock) && !isMermaid(oldBlock) && !isMermaid(newBlock))
+    return codeReplace(c, oldBlock, newBlock);
   // Inline diffing (prose/list/table) only when neither side hides a code fence —
   // a fence rendered inline would break (literal ``` and mangled markers).
   if (!hasFence(oldBlock) && !hasFence(newBlock)) {

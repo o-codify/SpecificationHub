@@ -5,7 +5,7 @@ import { api } from "../api";
 import { useToast } from "../toast";
 import { applyChange, changesFor, renderTrackedHtml, type Change } from "../trackChanges";
 import { rewriteDocLinks } from "../docpath";
-import { enhanceCodeBlocks } from "../codeHighlight";
+import { enhanceCodeBlocks, renderMermaid } from "../codeHighlight";
 import { resolveImages } from "../assets";
 import { nextVersion } from "../version";
 
@@ -49,6 +49,7 @@ export function InlineChanges({ path, base, content, frontmatter, suggestions, r
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     enhanceCodeBlocks(bodyRef.current);
+    renderMermaid(bodyRef.current);
     resolveImages(bodyRef.current);
   }, [html]);
 

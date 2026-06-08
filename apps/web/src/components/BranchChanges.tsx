@@ -6,7 +6,7 @@ import { useToast } from "../toast";
 import { Markdown } from "./Markdown";
 import { rewriteDocLinks } from "../docpath";
 import { applyChanges, changesFor, renderTrackedHtml } from "../trackChanges";
-import { enhanceCodeBlocks } from "../codeHighlight";
+import { enhanceCodeBlocks, renderMermaid } from "../codeHighlight";
 import { resolveImages } from "../assets";
 import { nextVersion } from "../version";
 
@@ -47,6 +47,7 @@ export function BranchChanges({ path, base, branch, baseBody, headBody, frontmat
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     enhanceCodeBlocks(bodyRef.current);
+    renderMermaid(bodyRef.current);
     resolveImages(bodyRef.current);
   }, [html]);
 
