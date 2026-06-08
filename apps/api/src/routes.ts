@@ -120,6 +120,12 @@ function ensureCanWrite(req: Request, site: SiteContext, branch: string): void {
 
 export function createRouter(): Router {
   const router = Router();
+  // API responses are per-request/auth-dependent — never let a browser or proxy
+  // cache them (a stale 401 or error page would otherwise resurface randomly).
+  router.use((_req, res, next) => {
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
   router.use(attachPrincipal);
   router.use(attachSite);
 
