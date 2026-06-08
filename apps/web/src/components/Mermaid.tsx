@@ -34,14 +34,24 @@ export function Mermaid({ chart }: { chart: string }) {
     const id = `mmd-${seq++}`;
     (async () => {
       const mermaid = (await import("mermaid")).default;
-      // Wait for web fonts so mermaid measures label boxes with the final font —
-      // otherwise it sizes nodes to the fallback font and multi-line labels
-      // overflow once the real font loads.
+      // Measure AND paint with the same, fully-loaded font. We pin mermaid's
+      // font to the site font and wait for it to load first — otherwise mermaid
+      // sizes each box with the fallback font, the real (wider) font paints over
+      // it, and the right edge of every label gets clipped (esp. classDiagram).
+      if (document.fonts?.load) {
+        try {
+          await document.fonts.load('400 14px "IBM Plex Sans"');
+          await document.fonts.load('600 14px "IBM Plex Sans"');
+        } catch {
+          /* fall back to whatever is available */
+        }
+      }
       if (document.fonts?.ready) await document.fonts.ready;
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: "strict",
         theme: theme === "dark" ? "dark" : "default",
+        fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
       });
       const out = await mermaid.render(id, chart);
       if (alive) {

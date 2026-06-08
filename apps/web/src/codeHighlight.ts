@@ -131,10 +131,24 @@ export function renderMermaid(root: HTMLElement | null): void {
     const id = `mmd-tc-${mseq++}`;
     loadMermaid()
       .then(async (mermaid) => {
-        // Wait for web fonts so label boxes are measured with the final font
-        // (avoids multi-line labels overflowing their node).
+        // Measure AND paint with the same, fully-loaded font (pin to the site
+        // font and load it first) — otherwise boxes are sized with the fallback
+        // font and the wider real font clips each label's right edge.
+        if (document.fonts?.load) {
+          try {
+            await document.fonts.load('400 14px "IBM Plex Sans"');
+            await document.fonts.load('600 14px "IBM Plex Sans"');
+          } catch {
+            /* fall back to whatever is available */
+          }
+        }
         if (document.fonts?.ready) await document.fonts.ready;
-        mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "default" });
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "strict",
+          theme: dark ? "dark" : "default",
+          fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
+        });
         return mermaid.render(id, src);
       })
       .then((out) => {
