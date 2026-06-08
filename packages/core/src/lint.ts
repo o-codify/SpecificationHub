@@ -104,6 +104,17 @@ function lintMermaid(path: string, block: string[], start: number, out: LintFind
         snippet: t,
       });
     }
+    // Token error: an unquoted "@" — mermaid's lexer reads it as a link/edge id
+    // and fails to parse (e.g. `A[@v/list]`). It's only valid as node metadata
+    // (`A@{ … }`), an edge-id marker (`e1@-->`), or inside quotes. Flag the rest.
+    const unquoted = t.replace(/"[^"]*"/g, "");
+    if (/(?:^|[^A-Za-z0-9_])@(?!\{)/.test(unquoted)) {
+      out.push({
+        path, rule: "mermaid", severity: "error", line: start + idx,
+        message: 'Unquoted "@" breaks the mermaid parser (read as a link/edge id). Wrap the text in quotes, e.g. ["@v/list"].',
+        snippet: t,
+      });
+    }
   });
 }
 
