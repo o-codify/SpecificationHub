@@ -6,13 +6,16 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import {
   DOC_STATUSES,
+  LINT_RULES,
   parseFrontmatter,
   serializeDoc,
   stampVersion,
   validateFrontmatter,
   type DocStatus,
+  type LintRule,
 } from "@spec/core";
 import * as gitmod from "./git.js";
+import { runLint } from "./lintRepo.js";
 import { canWriteBranch } from "./auth.js";
 import { resolveSession, resolveOAuthToken, type Principal } from "./db.js";
 import { config } from "./config.js";
@@ -166,6 +169,13 @@ default branch (\`${base}\`). A human reviews and accepts your changes.
    you never touch git directly: a human reviews your branch and accepts docs in
    the app, which copies the accepted content into \`${base}\`. Your only job is to
    keep your branch's docs correct and mark them \`review\` when ready.
+5. Verify before you finish. After writing — and ALWAYS right after adding a
+   \`\`\`mermaid diagram or a table — call \`lint_docs\` (pass your \`branch\`) to get
+   EVERY problem in one shot: invalid frontmatter, broken mermaid (empty / wrong
+   diagram type / unbalanced brackets / dangling edges), dead internal links,
+   missing image assets, malformed tables. Don't eyeball it — run the command.
+   Filter with \`rule\` / \`path\` to focus, fix what it reports, and only mark a
+   doc \`review\` once \`lint_docs\` is clean for it.
 
 ## Document structure
 - \`path\`: under \`docs/\`, kebab-case, ending in \`.md\`. A section with sub-pages
@@ -561,6 +571,62 @@ function buildServer(principal: Principal | null, site: SiteContext): McpServer 
           lines.push("Reconcile with sync_branch (merge | prefer-main | prefer-mine | reset) — only the listed docs matter.");
         }
         return ok(lines.join("\n"), { ...s });
+      } catch (e) {
+        return fail(String((e as Error).message));
+      }
+    },
+  );
+
+  server.registerTool(
+    "lint_docs",
+    {
+      title: "Lint documents (find all errors)",
+      description:
+        "Scan the whole specification (or one branch) and return EVERY problem found, so you don't " +
+        "have to hunt for them: invalid frontmatter, broken mermaid diagrams (empty / unknown diagram " +
+        "type / unbalanced brackets / dangling edges), dead internal doc links, missing image assets, " +
+        "and malformed tables. Mermaid checking is structural (catches the common syntax errors), not a " +
+        "full render. Filter by `rule`, `severity`, or a `path` substring. Run this after editing — " +
+        "especially after writing a mermaid diagram or a table — to confirm the spec is clean.",
+      inputSchema: {
+        branch: z.string().optional().describe(`Branch to lint (default: ${base})`),
+        rule: z
+          .enum(LINT_RULES as unknown as [LintRule, ...LintRule[]])
+          .optional()
+          .describe("Only this kind of problem: frontmatter | mermaid | link | image | table"),
+        severity: z.enum(["error", "warning"]).optional().describe("Only this severity"),
+        path: z.string().optional().describe("Only findings whose doc path contains this substring"),
+      },
+      outputSchema: {
+        branch: z.string(),
+        total: z.number(),
+        errors: z.number(),
+        warnings: z.number(),
+        findings: z.array(
+          z.object({
+            path: z.string(),
+            rule: z.string(),
+            severity: z.string(),
+            message: z.string(),
+            line: z.number().nullable(),
+            snippet: z.string().optional(),
+          }),
+        ),
+      },
+    },
+    async ({ branch, rule, severity, path }) => {
+      const b = branch || base;
+      try {
+        const findings = runLint(gitlib, b, base, { rule, severity, path });
+        const errors = findings.filter((f) => f.severity === "error").length;
+        const warnings = findings.length - errors;
+        const text = findings.length
+          ? `${findings.length} finding(s) on ${b} (${errors} error, ${warnings} warning):\n` +
+            findings
+              .map((f) => `• [${f.severity}/${f.rule}] ${f.path}${f.line != null ? `:${f.line}` : ""} — ${f.message}`)
+              .join("\n")
+          : `✓ No problems found on ${b}${rule || severity || path ? " for that filter" : ""}.`;
+        return ok(text, { branch: b, total: findings.length, errors, warnings, findings });
       } catch (e) {
         return fail(String((e as Error).message));
       }

@@ -329,6 +329,18 @@ export class SiteRepo {
       .sort();
   }
 
+  /** Every file path tracked on a branch (docs, assets, everything). */
+  listFiles(branch: string): string[] {
+    this.fetchRemote();
+    if (!this.branchExists(branch)) {
+      throw new NotFoundError(`Branch not found: ${branch}`);
+    }
+    return this.repo(["ls-tree", "-r", "--name-only", branch])
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
   fileExists(branch: string, filePath: string): boolean {
     try {
       this.repo(["cat-file", "-e", `${branch}:${filePath}`]);

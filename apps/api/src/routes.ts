@@ -8,8 +8,10 @@ import {
   stampVersion,
   validateFrontmatter,
   type TreeItem,
+  type LintRule,
 } from "@spec/core";
 import { repoFor, type SiteRepo } from "./git.js";
+import { runLint } from "./lintRepo.js";
 import { GitError, MergeConflictError, NotFoundError } from "./git.js";
 import * as github from "./github.js";
 import { GitHubError } from "./github.js";
@@ -298,6 +300,21 @@ export function createRouter(): Router {
         return { path, type: "file", title, status };
       });
       res.json({ branch, items });
+    }),
+  );
+
+  // ---- Lint (all validation errors across the spec) ----
+  router.get(
+    "/lint",
+    h((req, res) => {
+      const { repo, site } = repoRead(req);
+      const branch = (req.query.branch as string) || site.defaultBranch;
+      const rule = req.query.rule as LintRule | undefined;
+      const severity = req.query.severity as "error" | "warning" | undefined;
+      const path = (req.query.path as string) || undefined;
+      const findings = runLint(repo, branch, site.defaultBranch, { rule, severity, path });
+      const errors = findings.filter((f) => f.severity === "error").length;
+      res.json({ branch, total: findings.length, errors, warnings: findings.length - errors, findings });
     }),
   );
 

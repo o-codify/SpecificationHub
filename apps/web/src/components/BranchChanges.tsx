@@ -65,6 +65,11 @@ export function BranchChanges({ path, base, branch, baseBody, headBody, frontmat
     return () => document.removeEventListener("click", onDocClick);
   }, [pop]);
 
+  const place = (el: HTMLElement): { x: number; y: number } => {
+    const r = el.getBoundingClientRect();
+    return { x: Math.min(r.left, window.innerWidth - 230), y: r.bottom + 8 };
+  };
+
   const onClick = (e: React.MouseEvent) => {
     if (!authed) return;
     const el = (e.target as HTMLElement).closest(".sug") as HTMLElement | null;
@@ -72,9 +77,29 @@ export function BranchChanges({ path, base, branch, baseBody, headBody, frontmat
       setPop(null);
       return;
     }
-    const r = el.getBoundingClientRect();
-    setPop({ id: el.dataset.id!, x: Math.min(r.left, window.innerWidth - 230), y: r.bottom + 8 });
+    setPop({ id: el.dataset.id!, ...place(el) });
   };
+
+  // Keep the popover glued to its change while the page scrolls or resizes
+  // (it's position:fixed, so without this it drifts away from the content).
+  useEffect(() => {
+    if (!pop) return;
+    let raf = 0;
+    const reposition = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const el = bodyRef.current?.querySelector<HTMLElement>(`.sug[data-id="${pop.id}"]`);
+        if (el) setPop((p) => (p ? { ...p, ...place(el) } : p));
+      });
+    };
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [pop?.id]);
 
   const revert = async () => {
     const c = current();

@@ -201,3 +201,5 @@ export function validateFrontmatter(fm: Record<string, unknown>): FrontMatter {
 export function isValidRole(role: string): role is Role {
   return (ROLES as string[]).includes(role);
 }
+
+export * from "./lint";

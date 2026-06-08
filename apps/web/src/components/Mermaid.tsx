@@ -31,19 +31,28 @@ export function Mermaid({ chart }: { chart: string }) {
 
   useEffect(() => {
     let alive = true;
+    const id = `mmd-${seq++}`;
     (async () => {
       const mermaid = (await import("mermaid")).default;
+      // Wait for web fonts so mermaid measures label boxes with the final font —
+      // otherwise it sizes nodes to the fallback font and multi-line labels
+      // overflow once the real font loads.
+      if (document.fonts?.ready) await document.fonts.ready;
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: "strict",
         theme: theme === "dark" ? "dark" : "default",
       });
-      const out = await mermaid.render(`mmd-${seq++}`, chart);
+      const out = await mermaid.render(id, chart);
       if (alive) {
         setSvg(out.svg);
         setError(null);
       }
     })().catch((e) => {
+      // Drop the leftover error graphic mermaid appends to <body> on a parse
+      // failure; we show our own compact <pre className="mermaid-error"> instead.
+      document.getElementById(id)?.remove();
+      document.getElementById(`d${id}`)?.remove();
       if (alive) setError(e instanceof Error ? e.message : String(e));
     });
     return () => {

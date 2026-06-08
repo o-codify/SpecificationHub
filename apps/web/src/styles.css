@@ -523,8 +523,14 @@ tbody tr:hover{background:var(--surface-2)}
 /* Never let content (long URLs, wide tables, etc.) push the page wider than the
    viewport. Long tokens wrap; oversized tables scroll inside their own box. */
 .doc-body,.doc-path{overflow-wrap:anywhere}
-.doc-body table{display:block;width:100%;max-width:100%;overflow-x:auto;border-collapse:collapse;margin:0 0 18px}
+/* Size to content (shrink-wrap) but never wider than the column; text-heavy
+   tables still wrap to fit (fit-content caps at the available width), small
+   tables no longer stretch to full width. Oversized ones scroll in their box. */
+.doc-body table{display:block;width:fit-content;max-width:100%;overflow-x:auto;border-collapse:collapse;margin:0 0 18px}
 .doc-body th,.doc-body td{border:1px solid var(--border);padding:8px 12px}
+/* The global `tbody tr:last-child td{border-bottom:none}` (for card tables) must
+   not strip the closing border off document tables. */
+.doc-body table tbody tr:last-child td{border-bottom:1px solid var(--border)}
 /* text selection: off for the app chrome, on for document content + fields */
 body{-webkit-user-select:none;user-select:none}
 .doc-main,.doc-body,input,textarea,select,[contenteditable],.patch,code,.mono,.auth-card{-webkit-user-select:text;user-select:text}
@@ -550,10 +556,10 @@ body{-webkit-user-select:none;user-select:none}
 .doc-body tr.row-del td{background:color-mix(in oklch,var(--bad-tx) 10%,transparent);color:var(--faint);text-decoration:line-through;text-decoration-color:color-mix(in oklch,var(--bad-tx) 50%,transparent)}
 .doc-body tr.sug:hover td{box-shadow:inset 0 0 0 9999px color-mix(in oklch,var(--p2) 12%,transparent)}
 /* suggestion popover */
-.sug-pop{position:fixed;z-index:75;min-width:200px;max-width:320px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);box-shadow:var(--shadow);padding:11px;display:none}
+.sug-pop{position:fixed;z-index:75;width:max-content;min-width:0;max-width:min(320px,calc(100vw - 24px));background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);box-shadow:var(--shadow);padding:11px;display:none}
 .sug-pop.open{display:block}
 .sp-head{font-size:12px;color:var(--muted);margin-bottom:9px}
-.sug-pop.compact{min-width:0;padding:7px 10px}
+.sug-pop.compact{padding:7px 10px}
 .sug-pop.compact .sp-head{margin-bottom:0}
 .sp-head b{color:var(--text-strong);font-family:var(--font-mono);font-size:12px;font-weight:500}
 .sp-acts{display:flex;gap:6px;flex-wrap:wrap}

@@ -43,14 +43,36 @@ export interface Change {
   newBlocks: string[];
 }
 
-/** Split markdown into top-level blocks (paragraphs/headings/etc.) on blank lines. */
+/** Split markdown into top-level blocks (paragraphs/headings/etc.) on blank lines.
+ *  Fence-aware: blank lines *inside* a ``` / ~~~ fenced code block do NOT split it
+ *  — otherwise a code block (or ASCII/mermaid diagram) containing blank lines is
+ *  torn into several "blocks", which mangles the track-changes diff. */
 export function splitBlocks(md: string): string[] {
-  return md
-    .replace(/\r\n/g, "\n")
-    .trim()
-    .split(/\n{2,}/)
-    .map((b) => b.trim())
-    .filter(Boolean);
+  const lines = md.replace(/\r\n/g, "\n").trim().split("\n");
+  const blocks: string[] = [];
+  let cur: string[] = [];
+  let fence: string | null = null; // fence char ("`" or "~") while inside a code block
+  const flush = () => {
+    const b = cur.join("\n").trim();
+    if (b) blocks.push(b);
+    cur = [];
+  };
+  for (const line of lines) {
+    const m = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fence !== null) {
+      cur.push(line);
+      if (m && line.trim()[0] === fence) fence = null; // closing fence
+    } else if (m) {
+      fence = m[1][0]; // opening fence — keep gathering until it closes
+      cur.push(line);
+    } else if (line.trim() === "") {
+      flush();
+    } else {
+      cur.push(line);
+    }
+  }
+  flush();
+  return blocks;
 }
 
 function joinBlocks(blocks: string[]): string {
@@ -358,9 +380,30 @@ function tableReplace(c: Change, oldBlock: string, newBlock: string): string {
   const header = cells(b[0] ?? a[0] ?? "");
   const head = `<thead><tr>${header.map((h) => `<th>${mdInline(h)}</th>`).join("")}</tr></thead>`;
   const tds = (cs: string[]) => cs.map((x) => `<td>${mdInline(x)}</td>`).join("");
-  const sameFirstCell = (x: string, y: string) => cells(x)[0]?.toLowerCase() === cells(y)[0]?.toLowerCase();
+  // Match rows by *content similarity*, ignoring columns that are constant across
+  // the whole table (e.g. a repeated "2026-Q2" first column). Keying on the first
+  // cell alone wrongly pairs every row when that column repeats, so inserted rows
+  // cascade into bogus per-row "modifications" instead of showing as added rows.
+  const norm = (s: string | undefined) => (s ?? "").trim().toLowerCase();
+  const dataRows = [...a.slice(2), ...b.slice(2)].map(cells);
+  const colCount = dataRows.reduce((m, r) => Math.max(m, r.length), 0);
+  const constant: boolean[] = [];
+  for (let i = 0; i < colCount; i++) {
+    constant[i] = new Set(dataRows.map((r) => norm(r[i]))).size <= 1;
+  }
+  const keyCells = (row: string) => cells(row).filter((_, i) => !constant[i]);
+  const rowSimilar = (x: string, y: string): boolean => {
+    if (x === y) return true;
+    const xc = keyCells(x);
+    const yc = keyCells(y);
+    const n = Math.max(xc.length, yc.length);
+    if (!n) return false;
+    let same = 0;
+    for (let i = 0; i < n; i++) if (norm(xc[i]) === norm(yc[i])) same++;
+    return same / n >= 0.5;
+  };
   let body = "";
-  for (const e of alignBy(a.slice(2), b.slice(2), sameFirstCell)) {
+  for (const e of alignBy(a.slice(2), b.slice(2), rowSimilar)) {
     if (e.kind === "same") {
       body += `<tr>${tds(cells(e.old!))}</tr>`;
     } else if (e.kind === "mod") {
