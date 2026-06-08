@@ -10,9 +10,21 @@ const isHeading = (b: string) => {
   return /^#{1,6}\s/.test(t) && !t.includes("\n");
 };
 
-/** A bullet/ordered list block (every line is a list item). */
-const isList = (b: string) =>
-  b.trim().split("\n").every((l) => /^\s*([-*+]|\d+\.)\s+/.test(l));
+const BULLET = /^\s*([-*+]|\d+\.)\s+/;
+/** A list block — starts with a bullet/number. Items may wrap onto indented
+ *  continuation lines, so we don't require every line to be a marker. */
+const isList = (b: string) => BULLET.test(b.trim());
+
+/** Split a list block into items, folding wrapped continuation lines into the
+ *  item they belong to (and stripping the leading marker). */
+function listItems(block: string): string[] {
+  const out: string[] = [];
+  for (const raw of block.replace(/\r\n/g, "\n").split("\n")) {
+    if (BULLET.test(raw)) out.push(raw.replace(BULLET, "").trim());
+    else if (raw.trim() && out.length) out[out.length - 1] += " " + raw.trim();
+  }
+  return out;
+}
 
 /** A GitHub-flavoured table block (rows of `| … |` with a `---` separator row). */
 const isTable = (b: string) => {
@@ -315,13 +327,10 @@ function similarEntry(x: string, y: string): boolean {
 
 /** Replace a list block item-by-item; only the changed clause/bullet is interactive. */
 function listReplace(c: Change, oldBlock: string, newBlock: string): string {
-  const strip = (l: string) => l.replace(/^\s*([-*+]|\d+\.)\s+/, "");
-  const lines = (b: string) => b.trim().split("\n").filter((l) => l.trim());
-  const rawA = lines(oldBlock);
-  const ordered = /^\s*\d+\./.test(rawA[0] ?? lines(newBlock)[0] ?? "");
+  const ordered = /^\s*\d+\.\s/.test(oldBlock.trim()) || /^\s*\d+\.\s/.test(newBlock.trim());
   const tag = ordered ? "ol" : "ul";
-  const a = rawA.map(strip);
-  const b = lines(newBlock).map(strip);
+  const a = listItems(oldBlock); // wrapped continuation lines folded into each item
+  const b = listItems(newBlock);
   let inner = "";
   for (const e of alignBy(a, b, similarEntry)) {
     if (e.kind === "same") inner += `<li>${mdInline(e.old!)}</li>`;
