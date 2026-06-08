@@ -197,12 +197,27 @@ export function DocsReader() {
 
   useEffect(loadDoc, [loadDoc]);
 
-  // Opening a doc starts the PAGE from the top (a navigation). The menu is
-  // decoupled from the page scroll, so its offset is untouched here. Keyed on
-  // slug so reloading the same doc doesn't yank the page.
+  // Opening a doc starts the PAGE from the top (a navigation) — unless the URL
+  // carries a #heading anchor, in which case the hash-scroll effect below handles
+  // it. The menu is decoupled from the page scroll, so its offset is untouched.
   useEffect(() => {
-    window.scrollTo(0, 0);
+    if (!location.hash) window.scrollTo(0, 0);
   }, [slug, branch]);
+
+  // Deep link to a heading: once the doc has rendered, scroll its #anchor into
+  // view (headings carry GitHub-style ids — see Markdown).
+  useEffect(() => {
+    if (loading || error || !doc) return;
+    const id = decodeURIComponent(location.hash.replace(/^#/, ""));
+    if (!id) return;
+    const scroll = () => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ block: "start" });
+    };
+    scroll();
+    const t = setTimeout(scroll, 60); // retry once after late layout (fonts/images)
+    return () => clearTimeout(t);
+  }, [loading, error, doc, location.hash, location.key]);
 
   // The menu has no scrollbar; its inner wrapper is translated in code. maxRef
   // caches the scroll range (recomputed on mount / resize / content change).

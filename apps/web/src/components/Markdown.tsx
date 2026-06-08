@@ -16,6 +16,26 @@ interface Props {
 const codeText = (c: unknown): string =>
   Array.isArray(c) ? c.map(codeText).join("") : typeof c === "string" ? c : "";
 
+/** Plain text of arbitrary React children (recurses into elements). */
+function textOf(c: unknown): string {
+  if (c == null || typeof c === "boolean") return "";
+  if (typeof c === "string" || typeof c === "number") return String(c);
+  if (Array.isArray(c)) return c.map(textOf).join("");
+  if (typeof c === "object" && "props" in (c as object)) {
+    return textOf((c as { props?: { children?: unknown } }).props?.children);
+  }
+  return "";
+}
+
+/** GitHub-style heading slug, so #anchor deep links resolve to a heading. */
+function headingId(children: unknown): string {
+  return textOf(children)
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s/g, "-");
+}
+
 export function Markdown({ content, currentPath, branch }: Props) {
   return (
     <ReactMarkdown
@@ -23,11 +43,16 @@ export function Markdown({ content, currentPath, branch }: Props) {
       components={{
         h1({ children }) {
           return (
-            <h1>
+            <h1 id={headingId(children)}>
               <span className="hl">{children}</span>
             </h1>
           );
         },
+        h2: ({ children }) => <h2 id={headingId(children)}>{children}</h2>,
+        h3: ({ children }) => <h3 id={headingId(children)}>{children}</h3>,
+        h4: ({ children }) => <h4 id={headingId(children)}>{children}</h4>,
+        h5: ({ children }) => <h5 id={headingId(children)}>{children}</h5>,
+        h6: ({ children }) => <h6 id={headingId(children)}>{children}</h6>,
         pre({ children }) {
           const child = (Array.isArray(children) ? children[0] : children) as
             | { props?: { className?: string; children?: unknown } }
@@ -54,6 +79,10 @@ export function Markdown({ content, currentPath, branch }: Props) {
           );
         },
         a({ href, children }) {
+          // Same-page anchor (#heading) — scroll within the doc, don't open a tab.
+          if (href && href.startsWith("#")) {
+            return <a href={href}>{children}</a>;
+          }
           const internal = href ? resolveDocHref(currentPath, href, branch) : null;
           if (internal) {
             return <Link to={internal}>{children}</Link>;

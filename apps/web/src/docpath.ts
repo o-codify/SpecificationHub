@@ -52,9 +52,15 @@ export function rewriteDocLinks(html: string, currentPath: string, branch: strin
 export function resolveDocHref(currentPath: string, href: string, branch: string): string | null {
   if (!href) return null;
   if (/^[a-z]+:/i.test(href) || href.startsWith("#") || href.startsWith("//")) return null;
+  // Split off a #heading fragment (and any ?query) before path resolution, then
+  // carry the fragment onto the in-app route so deep links to a heading work.
+  const hashIdx = href.indexOf("#");
+  const frag = hashIdx >= 0 ? href.slice(hashIdx) : "";
+  let pathPart = (hashIdx >= 0 ? href.slice(0, hashIdx) : href).split("?")[0];
+  if (!pathPart) return null;
   const dir = currentPath.includes("/") ? currentPath.slice(0, currentPath.lastIndexOf("/")) : "";
-  const joined = normalize(`${dir}/${href}`);
+  const joined = normalize(`${dir}/${pathPart}`);
   if (!joined.startsWith("docs/") || !joined.toLowerCase().endsWith(".md")) return null;
   const slug = pathToSlug(joined);
-  return `/docs/${slug}?branch=${encodeURIComponent(branch)}`;
+  return `/docs/${slug}?branch=${encodeURIComponent(branch)}${frag}`;
 }

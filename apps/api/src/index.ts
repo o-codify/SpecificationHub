@@ -93,10 +93,16 @@ function createApp(): express.Express {
     );
     app.get("*", async (req, res, next) => {
       if (req.path.startsWith("/api/")) return next();
-      // A path with a file extension is a static asset. If express.static didn't
-      // serve it (e.g. a stale HTML referenced an old hash), return 404 — never
-      // the SPA shell, or the browser rejects "text/html" as a module script.
-      if (/\.[a-z0-9]+$/i.test(req.path)) return res.status(404).end();
+      // A request for a real static asset that express.static didn't serve (e.g.
+      // a stale HTML referenced an old hash) must 404 — never the SPA shell, or
+      // the browser rejects "text/html" as a module script. Doc-ish paths (incl.
+      // *.md deep links) fall through to the SPA.
+      if (
+        req.path.startsWith("/assets/") ||
+        /\.(js|mjs|css|map|json|png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf)$/i.test(req.path)
+      ) {
+        return res.status(404).end();
+      }
       let template: string;
       try {
         template = fs.readFileSync(indexPath, "utf8");

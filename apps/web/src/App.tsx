@@ -1,8 +1,22 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import { AppShell } from "./components/AppShell";
 import { SiteGate } from "./components/SiteGate";
 import { useAuth } from "./auth";
+
+/**
+ * Map an unknown path to a /docs route, so GitHub-style links like
+ * `/unreal/transform-query.md#heading` resolve to the in-app doc (with anchor).
+ */
+function DocPathRedirect() {
+  const loc = useLocation();
+  const rest = loc.pathname
+    .replace(/^\/+/, "")
+    .replace(/\.md$/i, "")
+    .replace(/\/index$/i, "");
+  const target = rest ? `/docs/${rest}${loc.search}${loc.hash}` : "/docs";
+  return <Navigate to={target} replace />;
+}
 import { DocsReader } from "./pages/DocsReader";
 import { AdminBranches } from "./pages/AdminBranches";
 import { AdminDiff } from "./pages/AdminDiff";
@@ -55,7 +69,7 @@ export function App() {
               </div>
             }
           />
-          <Route path="*" element={<Navigate to="/docs" replace />} />
+          <Route path="*" element={<DocPathRedirect />} />
         </Route>
       </Route>
     </Routes>

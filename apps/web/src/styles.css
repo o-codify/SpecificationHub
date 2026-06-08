@@ -585,6 +585,9 @@ body{-webkit-user-select:none;user-select:none}
 .site-form .fld span{font-size:12px;color:var(--muted)}
 .pill-private{background:var(--accent-soft,#4a3b1c);color:var(--accent,#e6b450)}
 
+/* Anchored headings (#deep-links) land below the sticky top bar, not under it. */
+.doc-main :where(h1,h2,h3,h4,h5,h6){scroll-margin-top:76px}
+
 /* ---- Inline images in docs ---- */
 .doc-img,
 .doc-body img{max-width:100%;height:auto;border-radius:10px;border:1px solid var(--border);margin:6px 0;display:block}
