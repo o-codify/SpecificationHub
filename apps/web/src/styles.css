@@ -216,8 +216,13 @@ label.lbl{display:block;font-size:12.5px;color:var(--accent);font-weight:500;mar
 .mono{font-family:var(--font-mono);font-size:13px;color:var(--muted)}
 .ed-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px}
 .ed-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-.table-wrap{overflow-x:auto}
+.table-wrap{overflow-x:auto;max-width:100%}
 .table-wrap td .mono{overflow-wrap:anywhere}
+/* In doc tables, don't break inside tokens (e.g. a "1.12.5" version splitting to
+   "1." / "12" / ".5"); wrap at spaces and, if the table still won't fit, let the
+   .table-wrap scroll horizontally instead of squeezing columns to slivers. */
+.doc-body table th,
+.doc-body table td{overflow-wrap:normal;word-break:normal}
 
 /* ---------- table ---------- */
 table{width:100%;border-collapse:collapse}

@@ -48,6 +48,11 @@ export function Markdown({ content, currentPath, branch }: Props) {
             </h1>
           );
         },
+        table: ({ children }) => (
+          <div className="table-wrap">
+            <table>{children}</table>
+          </div>
+        ),
         h2: ({ children }) => <h2 id={headingId(children)}>{children}</h2>,
         h3: ({ children }) => <h3 id={headingId(children)}>{children}</h3>,
         h4: ({ children }) => <h4 id={headingId(children)}>{children}</h4>,

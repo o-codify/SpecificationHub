@@ -374,7 +374,7 @@ function tableReplace(c: Change, oldBlock: string, newBlock: string): string {
       body += `<tr class="sug row-add" ${attrs}>${tds(cells(e.neu!))}</tr>`;
     }
   }
-  return `<table>${head}<tbody>${body}</tbody></table>`;
+  return `<div class="table-wrap"><table>${head}<tbody>${body}</tbody></table></div>`;
 }
 
 function sugBlock(c: Change): string {
