@@ -86,6 +86,8 @@ export interface MetaResponse {
   github: { repo: string; url: string } | null;
   /** "" for a host-bound site, "/prefix" when served under a path. */
   basePath?: string;
+  /** Set when the bound repository can't be reached (bad token, missing repo…). */
+  repoError?: string;
 }
 
 export interface SiteBinding {

@@ -119,7 +119,7 @@ function createApp(): express.Express {
         // req.site/.siteBase were resolved (and the prefix stripped) upstream;
         // look meta up by the base URL that actually matched.
         const base = req.siteBase ?? "";
-        meta = await siteMeta(req.site?.domain ?? hostFromRequest(req), base);
+        meta = await siteMeta(req.site?.domain ?? hostFromRequest(req), base, req.site?.repoError);
       } catch {
         /* fall back to the template's default brand */
       }

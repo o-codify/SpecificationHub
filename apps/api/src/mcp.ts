@@ -1070,6 +1070,14 @@ export function registerMcp(app: Express): void {
         });
         return;
       }
+      if (site.repoError) {
+        res.status(503).json({
+          jsonrpc: "2.0",
+          error: { code: -32000, message: site.repoError },
+          id: null,
+        });
+        return;
+      }
       const sid = req.headers["mcp-session-id"] as string | undefined;
       let transport = sid ? transports[sid] : undefined;
       if (!transport) {

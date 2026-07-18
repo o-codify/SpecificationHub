@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { DOC_STATUSES } from "@spec/core";
 import { config } from "./config.js";
 import { getSiteByDomain, setSiteDefaultBranch, type SiteRow } from "./db.js";
-import { ensureRepo, repoFor } from "./git.js";
+import { ensureRepo, repoFor, redactSecrets } from "./git.js";
 
 /**
  * The resolved tenant for a request: one bare repo + worktrees + brand + access
@@ -21,6 +21,13 @@ export interface SiteContext {
   worktreesDir: string;
   legacy: boolean;
   defaultBranch: string; // resolved repo HEAD (cached)
+  /**
+   * Set when the repository couldn't be made available (bad/missing GitHub
+   * token, repo not found, network). The site still resolves — brand and
+   * settings work — but any repo operation fails with this message instead of
+   * retrying the clone on every request.
+   */
+  repoError?: string;
 }
 
 declare global {
@@ -113,11 +120,38 @@ export function clearSiteCache(): void {
   cache.clear();
 }
 
+/**
+ * Turn a failed clone/fetch into one actionable sentence (no stack, no secrets).
+ * The common cause is a GITHUB_TOKEN that can't see the configured repository.
+ */
+function describeRepoFailure(ctx: SiteContext, err: unknown): string {
+  const raw = redactSecrets(err instanceof Error ? err.message : String(err));
+  const repo = ctx.githubRepo || "(local)";
+  if (/not granted|403/i.test(raw)) {
+    return `GitHub repository ${repo} is not accessible: the configured GITHUB_TOKEN lacks access to it. Grant the token access to this repository (or fix the repo name in Settings).`;
+  }
+  if (/repository not found|404/i.test(raw)) {
+    return `GitHub repository ${repo} was not found — check the owner/name in Settings, and that the token can see it.`;
+  }
+  if (/authentication failed|401|could not read Username/i.test(raw)) {
+    return `GitHub authentication failed for ${repo} — the GITHUB_TOKEN is missing, expired or invalid.`;
+  }
+  return `Could not prepare the repository ${repo}: ${raw.split("\n")[0]}`;
+}
+
 async function doResolve(baseKey: string): Promise<SiteContext | null> {
   const row = baseKey ? await getSiteByDomain(baseKey) : null;
   if (row) {
     const ctx = siteFromRow(row);
-    ensureRepo(ctx); // lazy clone/seed on first hit
+    try {
+      ensureRepo(ctx); // lazy clone/seed on first hit
+    } catch (e) {
+      // Don't fail the whole request (and don't re-clone on every hit): record a
+      // readable reason, log it once, and let the UI/API report it properly.
+      ctx.repoError = describeRepoFailure(ctx, e);
+      console.warn(`[site ${ctx.domain}] ${ctx.repoError}`);
+      return ctx;
+    }
     if (!row.defaultBranch) {
       // Resolve the real HEAD (main/master) once and persist it.
       const branch = repoFor(ctx).currentDefaultBranch();
@@ -165,6 +199,8 @@ export interface SiteMeta {
   github: { repo: string; url: string } | null;
   /** "" for a host-bound site, "/prefix" when served under a path. */
   basePath: string;
+  /** Set when the bound repository can't be reached (bad token, missing repo…). */
+  repoError?: string;
 }
 
 /**
@@ -172,7 +208,7 @@ export interface SiteMeta {
  * clone), so it's cheap enough to inline into the served HTML and to back the
  * /api/meta endpoint. This is what lets the first response carry the right brand.
  */
-export async function siteMeta(baseKey: string, basePath = ""): Promise<SiteMeta> {
+export async function siteMeta(baseKey: string, basePath = "", repoError?: string): Promise<SiteMeta> {
   const row = await getSiteByDomain(baseKey);
   const repo = row?.githubRepo?.trim() || "";
   return {
@@ -184,6 +220,7 @@ export async function siteMeta(baseKey: string, basePath = ""): Promise<SiteMeta
     private: row?.visibility === "private",
     github: repo ? { repo, url: `${config.githubServer}/${repo}` } : null,
     basePath,
+    ...(repoError ? { repoError } : {}),
   };
 }
 

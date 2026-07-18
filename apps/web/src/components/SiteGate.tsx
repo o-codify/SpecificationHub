@@ -35,6 +35,23 @@ export function SiteGate() {
     );
   }
 
+  // Bound, but the repository itself couldn't be reached (bad token, missing
+  // repo…). Admins get the actionable reason; visitors just get the fact.
+  if (meta.repoError) {
+    if (!onDocs) return <Navigate to="/docs" replace />;
+    const admin = authed && role === "admin";
+    return (
+      <div className="gate-wrap">
+        <section className="card site-gate">
+          <h2>{admin ? "Repository unavailable" : "Documentation unavailable"}</h2>
+          <p className="muted">
+            {admin ? meta.repoError : "This documentation can’t be loaded right now."}
+          </p>
+        </section>
+      </div>
+    );
+  }
+
   if (meta.private && !authed) {
     return (
       <div className="gate-wrap">

@@ -38,6 +38,26 @@ export class MergeConflictError extends GitError {
   }
 }
 
+/**
+ * Strip credentials out of anything that may reach a log or an API response.
+ * Git commands carry the token in `http.extraHeader` (base64) and remotes can
+ * carry it as URL userinfo, so an unredacted error message leaks the PAT.
+ */
+export function redactSecrets(s: string): string {
+  let out = s
+    // -c http.extraHeader=Authorization: Basic <base64(x-access-token:TOKEN)>
+    .replace(/(Authorization:\s*(?:Basic|Bearer)\s+)[A-Za-z0-9+/=._-]+/gi, "$1***")
+    // https://user:pass@host / https://token@host
+    .replace(/(https?:\/\/)[^/\s@]+@/gi, "$1***@")
+    // Bare GitHub token forms, wherever they turn up.
+    .replace(/\bgithub_pat_[A-Za-z0-9_]+/g, "github_pat_***")
+    .replace(/\bgh[pousr]_[A-Za-z0-9]{20,}/g, "gh*_***");
+  // Belt and braces: never echo the configured token verbatim.
+  const t = config.githubToken;
+  if (t && t.length > 8) out = out.split(t).join("***");
+  return out;
+}
+
 function git(args: string[], opts: { cwd?: string } = {}): string {
   try {
     return execFileSync("git", args, {
@@ -49,7 +69,8 @@ function git(args: string[], opts: { cwd?: string } = {}): string {
     const e = err as { stderr?: Buffer | string; stdout?: Buffer | string; message?: string };
     const stderr = e.stderr ? e.stderr.toString() : "";
     const stdout = e.stdout ? e.stdout.toString() : "";
-    throw new GitError(`git ${args.join(" ")} failed: ${stderr || stdout || e.message}`, stderr || stdout);
+    const detail = stderr || stdout || e.message || "";
+    throw new GitError(redactSecrets(`git ${args.join(" ")} failed: ${detail}`), redactSecrets(detail));
   }
 }
 
@@ -117,7 +138,10 @@ export class SiteRepo {
     } catch (err) {
       const e = err as { stderr?: Buffer | string; message?: string };
       const stderr = e.stderr ? e.stderr.toString() : "";
-      throw new GitError(`git ${args.join(" ")} failed: ${stderr || e.message}`, stderr);
+      throw new GitError(
+        redactSecrets(`git ${args.join(" ")} failed: ${stderr || e.message}`),
+        redactSecrets(stderr),
+      );
     }
   }
 

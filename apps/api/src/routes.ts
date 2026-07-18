@@ -102,15 +102,21 @@ function siteRead(req: Request): SiteContext {
   return site;
 }
 
+/** 503 with the reason when the bound repository couldn't be made available. */
+function ensureRepoUsable(site: SiteContext): SiteContext {
+  if (site.repoError) throw new HttpError(503, site.repoError, "repo_unavailable");
+  return site;
+}
+
 /** A repo handle for reading (enforces read access). */
 function repoRead(req: Request): { repo: SiteRepo; site: SiteContext } {
-  const site = siteRead(req);
+  const site = ensureRepoUsable(siteRead(req));
   return { repo: repoFor(site), site };
 }
 
 /** A repo handle for writing (caller is already authenticated). */
 function repoWrite(req: Request): { repo: SiteRepo; site: SiteContext } {
-  const site = siteOf(req);
+  const site = ensureRepoUsable(siteOf(req));
   return { repo: repoFor(site), site };
 }
 
@@ -611,6 +617,7 @@ export function createRouter(): Router {
       private: isPrivate,
       github: repo ? { repo, url: `${config.githubServer}/${repo}` } : null,
       basePath: req.siteBase ?? "",
+      ...(site?.repoError ? { repoError: site.repoError } : {}),
     });
   });
 
