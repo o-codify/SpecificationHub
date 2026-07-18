@@ -104,18 +104,19 @@ export function AdminSites() {
           )}
         </div>
         <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
-          Map a domain to a repository. A request’s host selects which repo it serves. When no
-          bindings exist the server runs in single-repo mode from its environment.
+          Map a base URL to a repository. Use a whole host (<code>docs.example.com</code>) or a host
+          plus one path segment (<code>docs.example.com/handbook</code>) to serve several spaces from
+          one domain. The request’s base URL selects which repo it serves.
         </p>
 
         {editing !== null && (
           <form className="site-form" onSubmit={submit} style={{ marginTop: 12 }}>
             <div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
               <label className="fld">
-                <span>Domain</span>
+                <span>Base URL</span>
                 <input
                   className="field"
-                  placeholder="docs.example.com"
+                  placeholder="docs.example.com or docs.example.com/space"
                   value={form.domain}
                   onChange={(e) => upd({ domain: e.target.value })}
                   autoFocus

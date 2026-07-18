@@ -1,4 +1,5 @@
 import { getToken } from "./api";
+import { withBase } from "./siteBase";
 
 /**
  * Build the served URL for a repo-relative image path (e.g. "assets/ab12.png").
@@ -9,12 +10,14 @@ import { getToken } from "./api";
 export function assetUrl(repoPath: string): string {
   const clean = repoPath.replace(/^\.?\//, "");
   const t = getToken();
-  return `/api/assets?path=${encodeURIComponent(clean)}${t ? `&token=${encodeURIComponent(t)}` : ""}`;
+  return withBase(
+    `/api/assets?path=${encodeURIComponent(clean)}${t ? `&token=${encodeURIComponent(t)}` : ""}`,
+  );
 }
 
 /** True for an external/inline src we should leave untouched. */
 function isExternal(src: string): boolean {
-  return /^(https?:|data:|blob:)/i.test(src) || src.startsWith("/api/assets");
+  return /^(https?:|data:|blob:)/i.test(src) || src.includes("/api/assets");
 }
 
 /** Resolve a Markdown image src to a served URL (repo paths → /api/assets). */

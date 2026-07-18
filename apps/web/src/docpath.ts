@@ -1,4 +1,5 @@
 /** Helpers to translate between doc file paths and `/docs/:slug` URLs. */
+import { withBase } from "./siteBase";
 
 /** docs/04-gait-cycle/index.md -> 04-gait-cycle ; docs/glossary.md -> glossary */
 export function pathToSlug(path: string): string {
@@ -41,7 +42,9 @@ function normalize(p: string): string {
 export function rewriteDocLinks(html: string, currentPath: string, branch: string): string {
   return html.replace(/(<a\b[^>]*\bhref=")([^"]*)(")/gi, (m, pre, href, post) => {
     const resolved = resolveDocHref(currentPath, href, branch);
-    return resolved ? `${pre}${resolved}${post}` : m;
+    // Raw <a href> bypasses the router, so the site's base path must be added
+    // here (resolveDocHref stays prefix-free for <Link>, which is basename-aware).
+    return resolved ? `${pre}${withBase(resolved)}${post}` : m;
   });
 }
 

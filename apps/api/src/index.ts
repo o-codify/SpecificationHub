@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import express from "express";
 import { config } from "./config.js";
-import { siteMeta, hostFromRequest } from "./site.js";
+import { siteMeta, hostFromRequest, resolveSiteMiddleware } from "./site.js";
 import { initDb, pruneExpiredSessions, pruneExpiredOAuth } from "./db.js";
 import { initCredentials, getAdminUsername } from "./credentials.js";
 import { createRouter } from "./routes.js";
@@ -61,6 +61,11 @@ function createApp(): express.Express {
 
   app.use(express.json({ limit: "5mb" }));
 
+  // Resolve the tenant BEFORE anything is mounted. A site bound to a base URL
+  // with a path (docs.example.com/hls) has its prefix stripped off req.url here,
+  // so every route below matches identically for host- and path-bound sites.
+  app.use(resolveSiteMiddleware);
+
   app.use("/api", createRouter());
 
   // OAuth 2.1 authorization server + MCP server (Streamable HTTP) for ChatGPT /
@@ -111,7 +116,10 @@ function createApp(): express.Express {
       }
       let meta: Awaited<ReturnType<typeof siteMeta>> | null = null;
       try {
-        meta = await siteMeta(hostFromRequest(req));
+        // req.site/.siteBase were resolved (and the prefix stripped) upstream;
+        // look meta up by the base URL that actually matched.
+        const base = req.siteBase ?? "";
+        meta = await siteMeta(req.site?.domain ?? hostFromRequest(req), base);
       } catch {
         /* fall back to the template's default brand */
       }

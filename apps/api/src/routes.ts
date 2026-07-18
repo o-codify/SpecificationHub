@@ -22,7 +22,7 @@ import {
   requireAuth,
   requireRole,
 } from "./auth.js";
-import { attachSite, clearSiteCache, type SiteContext } from "./site.js";
+import { attachSite, clearSiteCache, RESERVED_PREFIXES, type SiteContext } from "./site.js";
 import { verifyCredentials } from "./credentials.js";
 import { pickImageExt, mimeForExt, MAX_IMAGE_BYTES } from "./images.js";
 import { config } from "./config.js";
@@ -194,8 +194,17 @@ export function createRouter(): Router {
   );
 
   const readSiteInput = (req: Request): store.SiteInput => {
-    const domain = String(req.body?.domain ?? "").trim().toLowerCase();
-    if (!domain || !/^[a-z0-9.-]+$/.test(domain)) throw new HttpError(400, "Valid `domain` is required");
+    // A binding is a base URL without the scheme: a bare host
+    // (`docs.example.com`) or a host plus ONE path segment
+    // (`docs.example.com/hls`), so several sites can share one host.
+    const domain = String(req.body?.domain ?? "").trim().toLowerCase().replace(/\/+$/, "");
+    if (!domain || !/^[a-z0-9.-]+(\/[a-z0-9._-]+)?$/.test(domain)) {
+      throw new HttpError(400, "Valid `domain` is required (e.g. docs.example.com or docs.example.com/space)");
+    }
+    const prefix = domain.split("/")[1];
+    if (prefix && RESERVED_PREFIXES.has(prefix)) {
+      throw new HttpError(400, `\`${prefix}\` is reserved by the app — pick another path segment`);
+    }
     const repo = String(req.body?.repo ?? "").trim();
     if (repo && !/^[^/\s]+\/[^/\s]+$/.test(repo)) throw new HttpError(400, "`repo` must be owner/name");
     const visibility = req.body?.visibility === "private" ? "private" : "public";
@@ -551,7 +560,10 @@ export function createRouter(): Router {
       const ext = pickImageExt({ contentType: req.headers["content-type"], name: String(req.query.name ?? ""), buf });
       if (!ext) throw new HttpError(415, "Unsupported image type");
       const repoPath = repoFor(site).addImage(site.defaultBranch, buf, ext, req.principal!.name);
-      res.status(201).json({ path: repoPath, url: `/api/assets?path=${encodeURIComponent(repoPath)}` });
+      res.status(201).json({
+        path: repoPath,
+        url: `${req.siteBase ?? ""}/api/assets?path=${encodeURIComponent(repoPath)}`,
+      });
     }),
   );
 
@@ -598,6 +610,7 @@ export function createRouter(): Router {
       linked,
       private: isPrivate,
       github: repo ? { repo, url: `${config.githubServer}/${repo}` } : null,
+      basePath: req.siteBase ?? "",
     });
   });
 

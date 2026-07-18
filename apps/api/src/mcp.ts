@@ -1058,9 +1058,10 @@ export function registerMcp(app: Express): void {
         unauthorized(req, res);
         return;
       }
-      // The repository is selected by the request host. An unlinked domain has no
+      // The repository is selected by the request's base URL (host, or host +
+      // path prefix) — already resolved upstream. An unlinked base URL has no
       // docs to serve, so refuse before building a server.
-      const site = await resolveSite(hostFromRequest(req));
+      const site = req.site !== undefined ? req.site : await resolveSite(hostFromRequest(req));
       if (!site) {
         res.status(404).json({
           jsonrpc: "2.0",

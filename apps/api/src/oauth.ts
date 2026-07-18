@@ -20,7 +20,11 @@ import {
 export function baseUrl(req: Request): string {
   const proto = (req.headers["x-forwarded-proto"] as string)?.split(",")[0]?.trim() || req.protocol;
   const host = (req.headers["x-forwarded-host"] as string)?.split(",")[0]?.trim() || req.headers.host;
-  return `${proto}://${host}`;
+  // Include the site's path prefix: for a base-URL binding (docs.example.com/hls)
+  // the issuer, endpoints and MCP resource all live under it, so the advertised
+  // URLs must too — otherwise a client would hit the host root and resolve the
+  // wrong (or no) site. Bare-domain sites get "" and are unchanged.
+  return `${proto}://${host}${req.siteBase ?? ""}`;
 }
 
 function base64url(buf: Buffer): string {
@@ -39,7 +43,12 @@ const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** Server-rendered login/consent page for the authorization endpoint. */
-function loginPage(params: Record<string, string>, error?: string): string {
+function loginPage(
+  params: Record<string, string>,
+  error?: string,
+  base = "",
+  brand = config.brandName,
+): string {
   const hidden = Object.entries(params)
     .map(([k, v]) => `<input type="hidden" name="${esc(k)}" value="${esc(v)}">`)
     .join("");
@@ -62,9 +71,9 @@ function loginPage(params: Record<string, string>, error?: string): string {
   .err{background:#4a211c;color:#f0c0b6;font-size:12.5px;padding:9px 12px;border-radius:8px;margin-bottom:14px}
   .who{font-family:ui-monospace,monospace;color:#c8a96a}
 </style></head>
-<body><form class="card" method="post" action="/oauth/authorize">
+<body><form class="card" method="post" action="${esc(base)}/oauth/authorize">
   <h1>Authorize access</h1>
-  <p><span class="who">${esc(params.client_name || "An application")}</span> wants to access ${esc(config.brandName)}.</p>
+  <p><span class="who">${esc(params.client_name || "An application")}</span> wants to access ${esc(brand)}.</p>
   ${error ? `<div class="err">${esc(error)}</div>` : ""}
   <label>Username</label>
   <input class="f" name="username" autocomplete="username" autofocus>
@@ -190,7 +199,7 @@ export function registerOAuth(app: Express): void {
         scope: q.scope ?? "",
         resource: q.resource ?? "",
         client_name: client.client_name ?? "",
-      }),
+      }, undefined, req.siteBase ?? "", req.site?.brandName || config.brandName),
     );
   });
 
@@ -212,7 +221,17 @@ export function registerOAuth(app: Express): void {
       client_name: client.client_name ?? "",
     };
     if (!verifyCredentials(String(b.username ?? ""), String(b.password ?? ""))) {
-      res.status(401).type("html").send(loginPage(params, "Invalid username or password."));
+      res
+        .status(401)
+        .type("html")
+        .send(
+          loginPage(
+            params,
+            "Invalid username or password.",
+            req.siteBase ?? "",
+            req.site?.brandName || config.brandName,
+          ),
+        );
       return;
     }
     const code = await createAuthCode({

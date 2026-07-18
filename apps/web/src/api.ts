@@ -6,6 +6,7 @@ import type {
   SearchHit,
   TreeResponse,
 } from "@spec/core";
+import { withBase } from "./siteBase";
 
 const TOKEN_KEY = "auth_token";
 
@@ -45,7 +46,7 @@ async function request<T>(
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (getToken()) headers["Authorization"] = `Bearer ${getToken()}`;
-  const res = await fetch(url, {
+  const res = await fetch(withBase(url), {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -83,6 +84,8 @@ export interface MetaResponse {
   linked: boolean;
   private: boolean;
   github: { repo: string; url: string } | null;
+  /** "" for a host-bound site, "/prefix" when served under a path. */
+  basePath?: string;
 }
 
 export interface SiteBinding {
@@ -222,7 +225,7 @@ export const api = {
       "Content-Type": file.type || "application/octet-stream",
     };
     if (getToken()) headers["Authorization"] = `Bearer ${getToken()}`;
-    const res = await fetch(`/api/assets?name=${encodeURIComponent(file.name)}`, {
+    const res = await fetch(withBase(`/api/assets?name=${encodeURIComponent(file.name)}`), {
       method: "POST",
       headers,
       body: file,

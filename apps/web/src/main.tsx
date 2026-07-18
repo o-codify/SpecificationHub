@@ -5,11 +5,12 @@ import { App } from "./App";
 import { AuthProvider } from "./auth";
 import { ToastProvider } from "./toast";
 import { LayoutProvider } from "./layout";
+import { siteBase } from "./siteBase";
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={siteBase || undefined}>
       <AuthProvider>
         <ToastProvider>
           <LayoutProvider>
