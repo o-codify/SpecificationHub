@@ -17,8 +17,25 @@ import {
  * the request so OAuth/MCP discovery is correct per domain (one container serves
  * many). Honours X-Forwarded-Proto / X-Forwarded-Host behind a proxy.
  */
+/**
+ * Public scheme of the request. Behind Cloudflare/Traefik the app itself is
+ * plain HTTP, so `req.protocol` says "http" and the advertised OAuth issuer
+ * would be an http:// URL for an https:// site — which clients reject. Trust,
+ * in order: Cloudflare's CF-Visitor (the client↔CF scheme, correct even in
+ * "Flexible" mode where the origin leg is http), X-Forwarded-Proto, then the
+ * presence of any proxy header (a proxied public deployment is https).
+ */
+function publicProto(req: Request): string {
+  const cf = req.headers["cf-visitor"];
+  if (typeof cf === "string" && /"scheme"\s*:\s*"https"/i.test(cf)) return "https";
+  const xfp = (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0]?.trim();
+  if (xfp) return xfp;
+  if (req.headers["x-forwarded-host"] || req.headers["x-forwarded-for"]) return "https";
+  return req.protocol;
+}
+
 export function baseUrl(req: Request): string {
-  const proto = (req.headers["x-forwarded-proto"] as string)?.split(",")[0]?.trim() || req.protocol;
+  const proto = publicProto(req);
   const host = (req.headers["x-forwarded-host"] as string)?.split(",")[0]?.trim() || req.headers.host;
   // Include the site's path prefix: for a base-URL binding (docs.example.com/hls)
   // the issuer, endpoints and MCP resource all live under it, so the advertised
