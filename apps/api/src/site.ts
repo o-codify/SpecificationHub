@@ -73,12 +73,35 @@ function firstSegment(urlPath: string): string {
 export async function resolveSiteForRequest(
   host: string,
   urlPath: string,
-): Promise<{ site: SiteContext | null; basePath: string; key: string }> {
+): Promise<{ site: SiteContext | null; basePath: string; key: string; rewrite?: string }> {
   const seg = firstSegment(urlPath);
   if (seg && !RESERVED_PREFIXES.has(seg)) {
     const key = `${host}/${seg}`;
     const site = await resolveSite(key);
     if (site) return { site, basePath: `/${seg}`, key };
+  }
+  // RFC 8414 §3.1 / RFC 9728: when the issuer has a path component, its metadata
+  // lives at the HOST ROOT with the path appended —
+  // /.well-known/oauth-authorization-server/<prefix>. Map those back onto the
+  // prefixed site, otherwise the discovery document 404s (or falls through to
+  // the SPA) and the client reports "couldn't connect".
+  const wk = urlPath.match(
+    /^\/\.well-known\/(oauth-authorization-server|oauth-protected-resource|openid-configuration)\/([^/?#]+)(\/.*)?$/,
+  );
+  if (wk) {
+    const prefix = wk[2].toLowerCase();
+    // ".../oauth-protected-resource/mcp" is the host-level MCP variant, not a site.
+    if (prefix !== "mcp") {
+      const site = await resolveSite(`${host}/${prefix}`);
+      if (site) {
+        return {
+          site,
+          basePath: `/${prefix}`,
+          key: `${host}/${prefix}`,
+          rewrite: `/.well-known/${wk[1]}${wk[3] ?? ""}`,
+        };
+      }
+    }
   }
   const site = await resolveSite(host);
   return { site, basePath: "", key: host };
@@ -232,10 +255,15 @@ export async function siteMeta(baseKey: string, basePath = "", repoError?: strin
  */
 export function resolveSiteMiddleware(req: Request, _res: Response, next: NextFunction): void {
   resolveSiteForRequest(hostFromRequest(req), req.path)
-    .then(({ site, basePath }) => {
+    .then(({ site, basePath, rewrite }) => {
       req.site = site;
       req.siteBase = basePath;
-      if (basePath) {
+      if (rewrite) {
+        // Root-level discovery URL for a prefixed issuer — the prefix isn't a
+        // leading segment here, so swap in the canonical path instead.
+        const q = req.url.indexOf("?");
+        req.url = q >= 0 ? rewrite + req.url.slice(q) : rewrite;
+      } else if (basePath) {
         const rest = req.url.slice(basePath.length);
         req.url = rest.startsWith("/") ? rest : `/${rest}`;
       }
