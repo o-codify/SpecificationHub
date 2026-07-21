@@ -32,6 +32,11 @@ export const config = {
   // Build/deploy version (set by CI via the BUILD_VERSION build-arg → env);
   // "dev" for local runs. Shown in the UI so a successful deploy is visible.
   buildVersion: process.env.BUILD_VERSION ?? "dev",
+  // Public scheme for building absolute URLs (OAuth issuer/endpoints, MCP
+  // resource). Behind Cloudflare/Traefik the origin leg is plain http and the
+  // forwarded-proto header can't be trusted, so we default a real domain to
+  // https and only localhost/dev to http. Set PUBLIC_PROTO=http|https to force it.
+  publicProto: (process.env.PUBLIC_PROTO ?? "").trim().toLowerCase(),
   adminUsername: process.env.ADMIN_USERNAME ?? "admin",
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
   sessionTtlHours: Number(process.env.SESSION_TTL_HOURS ?? 168),

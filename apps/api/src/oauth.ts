@@ -17,26 +17,32 @@ import {
  * the request so OAuth/MCP discovery is correct per domain (one container serves
  * many). Honours X-Forwarded-Proto / X-Forwarded-Host behind a proxy.
  */
+/** Host (no port) this request is really for, honouring X-Forwarded-Host. */
+function publicHost(req: Request): string {
+  const h = (req.headers["x-forwarded-host"] as string)?.split(",")[0]?.trim() || req.headers.host || "";
+  return h;
+}
+
+const LOCAL_HOST_RE = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?)(:\d+)?$/i;
+
 /**
- * Public scheme of the request. Behind Cloudflare/Traefik the app itself is
- * plain HTTP, so `req.protocol` says "http" and the advertised OAuth issuer
- * would be an http:// URL for an https:// site — which clients reject. Trust,
- * in order: Cloudflare's CF-Visitor (the client↔CF scheme, correct even in
- * "Flexible" mode where the origin leg is http), X-Forwarded-Proto, then the
- * presence of any proxy header (a proxied public deployment is https).
+ * Public scheme for absolute URLs (OAuth issuer/endpoints, MCP resource).
+ *
+ * We must NOT trust `req.protocol` or the forwarded-proto header: behind
+ * Cloudflare/Traefik the origin leg is plain http (and Traefik has been seen to
+ * forward X-Forwarded-Proto: http), so the app would advertise http:// URLs for
+ * an https:// site and every MCP client rejects the mismatch. A real public
+ * domain is served over https in practice, so we default it to https and only
+ * treat genuine localhost/dev as http. PUBLIC_PROTO overrides either way.
  */
 function publicProto(req: Request): string {
-  const cf = req.headers["cf-visitor"];
-  if (typeof cf === "string" && /"scheme"\s*:\s*"https"/i.test(cf)) return "https";
-  const xfp = (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0]?.trim();
-  if (xfp) return xfp;
-  if (req.headers["x-forwarded-host"] || req.headers["x-forwarded-for"]) return "https";
-  return req.protocol;
+  if (config.publicProto === "http" || config.publicProto === "https") return config.publicProto;
+  return LOCAL_HOST_RE.test(publicHost(req)) ? "http" : "https";
 }
 
 export function baseUrl(req: Request): string {
   const proto = publicProto(req);
-  const host = (req.headers["x-forwarded-host"] as string)?.split(",")[0]?.trim() || req.headers.host;
+  const host = publicHost(req) || req.headers.host;
   // Include the site's path prefix: for a base-URL binding (docs.example.com/hls)
   // the issuer, endpoints and MCP resource all live under it, so the advertised
   // URLs must too — otherwise a client would hit the host root and resolve the
